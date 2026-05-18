@@ -1,0 +1,13 @@
+node_modules
+.pnpm-store
+.next
+dist
+build
+.env
+.env.*
+!.env.example
+.DS_Store
+coverage
+.turbo
+.vercel
+.railway

@@ -1,0 +1,18 @@
+{
+  "name": "@render/ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "lint": "echo lint ui",
+    "test": "echo test ui"
+  },
+  "dependencies": {
+    "@render/types": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}
