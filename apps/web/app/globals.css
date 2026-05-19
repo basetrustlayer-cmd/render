@@ -1,0 +1,24 @@
+:root {
+  --bg: #F5F2EC;
+  --ink: #1A1714;
+  --gold: #C8902A;
+  --green: #1A6B3C;
+  --blue: #1A3A6B;
+  --red: #C0392B;
+  --border: rgba(26, 23, 20, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: Arial, sans-serif;
+}
+
+a {
+  color: inherit;
+}
