@@ -18,7 +18,3 @@ body {
   color: var(--ink);
   font-family: Arial, sans-serif;
 }
-
-a {
-  color: inherit;
-}
