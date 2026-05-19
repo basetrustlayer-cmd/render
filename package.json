@@ -7,6 +7,8 @@
     "build": "pnpm -r build",
     "dev": "pnpm -r dev",
     "lint": "pnpm -r lint",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test",
+    "api:build": "pnpm --filter @render/api build",
+    "api:start": "pnpm --filter @render/api start"
   }
 }
