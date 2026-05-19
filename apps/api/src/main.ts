@@ -1,6 +1,7 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { prisma } from "./database/client.js";
+import { registerAuthRoutes } from "./auth/routes.js";
 
 const app = Fastify({
   logger: true
@@ -9,6 +10,8 @@ const app = Fastify({
 await app.register(cors, {
   origin: true
 });
+
+await registerAuthRoutes(app);
 
 app.get("/health", async () => {
   return {
