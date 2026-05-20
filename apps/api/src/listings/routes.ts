@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../database/client.js";
 import { authenticate, requireAuthUser } from "../auth/middleware.js";
+import { ensureDemoListing } from "../bootstrap-demo-data.js";
 
 const createListingSchema = z.object({
   title: z.string().min(3).max(200),
@@ -32,15 +33,20 @@ const listingInclude = {
 
 export async function registerListingRoutes(app: FastifyInstance): Promise<void> {
   app.get("/listings", async () => {
-    const listings = await prisma.listing.findMany({
-      where: {
-        deletedAt: null,
-        status: "LIVE"
-      },
-      include: listingInclude,
-      orderBy: { createdAt: "desc" },
-      take: 50
+    let listings = await prisma.listing.findMany({
+      where: { status: "LIVE" },
+      include: { seller: true, images: true },
+      orderBy: { createdAt: "desc" }
     });
+
+    if (listings.length === 0) {
+      await ensureDemoListing(prisma);
+      listings = await prisma.listing.findMany({
+        where: { status: "LIVE" },
+        include: { seller: true, images: true },
+        orderBy: { createdAt: "desc" }
+      });
+    }
 
     return { listings };
   });
