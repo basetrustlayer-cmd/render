@@ -174,6 +174,76 @@ export async function registerSafeDealRoutes(
     return { safeDeals };
   });
 
+
+  app.post("/safe-deals/:id/confirm", { preHandler: authenticate }, async (request, reply) => {
+    const authUser = requireAuthUser(request);
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+
+    if (!params.success) {
+      return reply.code(400).send({ error: "Invalid Safe Deal ID." });
+    }
+
+    const safeDeal = await prisma.safeDeal.findUnique({
+      where: { id: params.data.id }
+    });
+
+    if (!safeDeal) {
+      return reply.code(404).send({ error: "Safe Deal not found." });
+    }
+
+    if (safeDeal.buyerId !== authUser.userId) {
+      return reply.code(403).send({ error: "Only the buyer can confirm delivery." });
+    }
+
+    if (!["FUNDED", "DELIVERED"].includes(safeDeal.status)) {
+      return reply.code(400).send({ error: "Only funded or delivered Safe Deals can be confirmed." });
+    }
+
+    const updated = await prisma.safeDeal.update({
+      where: { id: safeDeal.id },
+      data: {
+        status: "CONFIRMED",
+        confirmedAt: new Date()
+      }
+    });
+
+    return { safeDeal: updated };
+  });
+
+  app.post("/safe-deals/:id/dispute", { preHandler: authenticate }, async (request, reply) => {
+    const authUser = requireAuthUser(request);
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+
+    if (!params.success) {
+      return reply.code(400).send({ error: "Invalid Safe Deal ID." });
+    }
+
+    const safeDeal = await prisma.safeDeal.findUnique({
+      where: { id: params.data.id }
+    });
+
+    if (!safeDeal) {
+      return reply.code(404).send({ error: "Safe Deal not found." });
+    }
+
+    if (![safeDeal.buyerId, safeDeal.sellerId].includes(authUser.userId)) {
+      return reply.code(403).send({ error: "Only deal participants can dispute this Safe Deal." });
+    }
+
+    if (!["FUNDED", "DELIVERED"].includes(safeDeal.status)) {
+      return reply.code(400).send({ error: "Only funded or delivered Safe Deals can be disputed." });
+    }
+
+    const updated = await prisma.safeDeal.update({
+      where: { id: safeDeal.id },
+      data: {
+        status: "DISPUTED"
+      }
+    });
+
+    return { safeDeal: updated };
+  });
+
   app.get("/safe-deals/:id", { preHandler: authenticate }, async (request, reply) => {
     const authUser = requireAuthUser(request);
     const paramsSchema = z.object({
