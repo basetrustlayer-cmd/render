@@ -81,9 +81,20 @@ function Info({ label, value }: { label: string; value: string }) {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1fr auto",
+        gap: 16,
+        alignItems: "center",
+        borderBottom: "1px solid #eee",
+        paddingBottom: 10
+      }}
+    >
       <span style={{ color: "#666" }}>{label}</span>
-      <strong>{value}</strong>
+      <strong style={{ color: "#111", textAlign: "right", whiteSpace: "nowrap" }}>
+        {value || "0"}
+      </strong>
     </div>
   );
 }
