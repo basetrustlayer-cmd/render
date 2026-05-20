@@ -1,20 +1,17 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../database/client.js";
+import { authenticate, requireAuthUser } from "../auth/middleware.js";
 
 const createSafeDealSchema = z.object({
-  listingId: z.string().uuid(),
-  buyerId: z.string().uuid()
-});
-
-const mySafeDealsQuerySchema = z.object({
-  userId: z.string().uuid()
+  listingId: z.string().uuid()
 });
 
 export async function registerSafeDealRoutes(
   app: FastifyInstance
 ): Promise<void> {
-  app.post("/safe-deals", async (request, reply) => {
+  app.post("/safe-deals", { preHandler: authenticate }, async (request, reply) => {
+    const authUser = requireAuthUser(request);
     const parsed = createSafeDealSchema.safeParse(request.body);
 
     if (!parsed.success) {
@@ -23,8 +20,11 @@ export async function registerSafeDealRoutes(
       });
     }
 
-    const listing = await prisma.listing.findUnique({
-      where: { id: parsed.data.listingId }
+    const listing = await prisma.listing.findFirst({
+      where: {
+        id: parsed.data.listingId,
+        deletedAt: null
+      }
     });
 
     if (!listing) {
@@ -33,7 +33,7 @@ export async function registerSafeDealRoutes(
       });
     }
 
-    if (listing.sellerId === parsed.data.buyerId) {
+    if (listing.sellerId === authUser.userId) {
       return reply.code(400).send({
         error: "Buyer cannot purchase their own listing."
       });
@@ -45,7 +45,7 @@ export async function registerSafeDealRoutes(
     const safeDeal = await prisma.safeDeal.create({
       data: {
         listingId: listing.id,
-        buyerId: parsed.data.buyerId,
+        buyerId: authUser.userId,
         sellerId: listing.sellerId,
         amount,
         feeAmount,
@@ -62,20 +62,14 @@ export async function registerSafeDealRoutes(
     });
   });
 
-  app.get("/safe-deals/my", async (request, reply) => {
-    const parsed = mySafeDealsQuerySchema.safeParse(request.query);
-
-    if (!parsed.success) {
-      return reply.code(400).send({
-        error: "userId query parameter is required."
-      });
-    }
+  app.get("/safe-deals/my", { preHandler: authenticate }, async (request) => {
+    const authUser = requireAuthUser(request);
 
     const safeDeals = await prisma.safeDeal.findMany({
       where: {
         OR: [
-          { buyerId: parsed.data.userId },
-          { sellerId: parsed.data.userId }
+          { buyerId: authUser.userId },
+          { sellerId: authUser.userId }
         ]
       },
       include: {
@@ -95,7 +89,8 @@ export async function registerSafeDealRoutes(
     return { safeDeals };
   });
 
-  app.get("/safe-deals/:id", async (request, reply) => {
+  app.get("/safe-deals/:id", { preHandler: authenticate }, async (request, reply) => {
+    const authUser = requireAuthUser(request);
     const paramsSchema = z.object({
       id: z.string().uuid()
     });
@@ -108,8 +103,14 @@ export async function registerSafeDealRoutes(
       });
     }
 
-    const safeDeal = await prisma.safeDeal.findUnique({
-      where: { id: parsed.data.id },
+    const safeDeal = await prisma.safeDeal.findFirst({
+      where: {
+        id: parsed.data.id,
+        OR: [
+          { buyerId: authUser.userId },
+          { sellerId: authUser.userId }
+        ]
+      },
       include: {
         listing: true
       }

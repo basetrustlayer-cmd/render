@@ -8,17 +8,27 @@ function getApiUrl(): string {
   return configured.replace(/\/$/, "");
 }
 
+function getAccessToken(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return localStorage.getItem("accessToken");
+}
+
 export async function apiFetch<T>(
   path: string,
   options?: RequestInit
 ): Promise<T> {
   const apiUrl = getApiUrl();
+  const accessToken = getAccessToken();
 
   const response = await fetch(`${apiUrl}${path}`, {
     ...options,
     cache: "no-store",
     headers: {
       "Content-Type": "application/json",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...(options?.headers || {})
     }
   });

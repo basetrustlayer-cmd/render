@@ -1,7 +1,6 @@
 import { apiFetch } from "./api";
 
 export type CreateListingInput = {
-  sellerId: string;
   title: string;
   description?: string;
   price: number;

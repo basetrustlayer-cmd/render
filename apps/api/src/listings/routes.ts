@@ -1,19 +1,15 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../database/client.js";
+import { authenticate, requireAuthUser } from "../auth/middleware.js";
 
 const createListingSchema = z.object({
-  sellerId: z.string().uuid(),
   title: z.string().min(3).max(200),
   description: z.string().optional(),
   price: z.number().positive(),
   category: z.enum(["VEHICLES", "REAL_ESTATE", "ELECTRONICS", "JOBS", "SERVICES", "FASHION"]),
   condition: z.enum(["NEW", "LIKE_NEW", "GOOD", "FAIR"]).optional(),
   locationRegion: z.string().max(100).optional()
-});
-
-const userListingsQuerySchema = z.object({
-  sellerId: z.string().uuid()
 });
 
 const listingImageParamsSchema = z.object({
@@ -36,6 +32,10 @@ const listingInclude = {
 export async function registerListingRoutes(app: FastifyInstance): Promise<void> {
   app.get("/listings", async () => {
     const listings = await prisma.listing.findMany({
+      where: {
+        deletedAt: null,
+        status: "LIVE"
+      },
       include: listingInclude,
       orderBy: { createdAt: "desc" },
       take: 50
@@ -44,15 +44,14 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
     return { listings };
   });
 
-  app.get("/listings/my", async (request, reply) => {
-    const parsed = userListingsQuerySchema.safeParse(request.query);
-
-    if (!parsed.success) {
-      return reply.code(400).send({ error: "sellerId query parameter is required." });
-    }
+  app.get("/listings/my", { preHandler: authenticate }, async (request) => {
+    const authUser = requireAuthUser(request);
 
     const listings = await prisma.listing.findMany({
-      where: { sellerId: parsed.data.sellerId },
+      where: {
+        sellerId: authUser.userId,
+        deletedAt: null
+      },
       include: listingInclude,
       orderBy: { createdAt: "desc" },
       take: 50
@@ -69,8 +68,11 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       return reply.code(400).send({ error: "Invalid listing ID." });
     }
 
-    const listing = await prisma.listing.findUnique({
-      where: { id: parsed.data.id },
+    const listing = await prisma.listing.findFirst({
+      where: {
+        id: parsed.data.id,
+        deletedAt: null
+      },
       include: {
         images: {
           orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }, { createdAt: "asc" }]
@@ -78,8 +80,6 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
         seller: {
           select: {
             id: true,
-            phone: true,
-            email: true,
             verificationLevel: true,
             trustScore: true,
             trustTier: true,
@@ -107,16 +107,14 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       displayName: listing.seller.isBusiness
         ? "Verified Business Seller"
         : "Verified Render Seller",
-      phone: listing.seller.phone,
-      email: listing.seller.email,
       whatsappNumber: listing.seller.whatsappNumber,
       verificationLevel: listing.seller.verificationLevel,
       verificationStatus:
         listing.seller.verificationLevel >= 1
           ? "Identity Verified"
           : "Verification Pending",
-      trustScore: listing.seller.trustScore ?? 75,
-      trustTier: listing.seller.trustTier ?? "BRONZE",
+      trustScore: listing.seller.trustScore ?? 500,
+      trustTier: listing.seller.trustTier ?? "NEW",
       reviewCount: listing.seller._count.reviewsReceived,
       completedDeals: listing.seller._count.sales,
       activeListings: listing.seller._count.listings,
@@ -126,7 +124,8 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
     return { listing, seller };
   });
 
-  app.post("/listings", async (request, reply) => {
+  app.post("/listings", { preHandler: authenticate }, async (request, reply) => {
+    const authUser = requireAuthUser(request);
     const parsed = createListingSchema.safeParse(request.body);
 
     if (!parsed.success) {
@@ -136,6 +135,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
     const listing = await prisma.listing.create({
       data: {
         ...parsed.data,
+        sellerId: authUser.userId,
         status: "PENDING"
       },
       include: listingInclude
@@ -159,7 +159,8 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
     return { images };
   });
 
-  app.post("/listings/:id/images", async (request, reply) => {
+  app.post("/listings/:id/images", { preHandler: authenticate }, async (request, reply) => {
+    const authUser = requireAuthUser(request);
     const params = listingImageParamsSchema.safeParse(request.params);
     const body = createListingImageSchema.safeParse(request.body);
 
@@ -173,11 +174,15 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
 
     const listing = await prisma.listing.findUnique({
       where: { id: params.data.id },
-      select: { id: true }
+      select: { id: true, sellerId: true }
     });
 
     if (!listing) {
       return reply.code(404).send({ error: "Listing not found." });
+    }
+
+    if (listing.sellerId !== authUser.userId) {
+      return reply.code(403).send({ error: "Only the listing owner can add images." });
     }
 
     if (body.data.isCover) {

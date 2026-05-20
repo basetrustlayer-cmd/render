@@ -37,7 +37,7 @@ export default function SafeDealsPage() {
 
     async function loadSafeDeals() {
       try {
-        const result = await apiFetch<{ safeDeals: SafeDeal[] }>(`/safe-deals/my?userId=${userId}`);
+        const result = await apiFetch<{ safeDeals: SafeDeal[] }>("/safe-deals/my");
         setSafeDeals(result.safeDeals);
         setError(null);
       } catch (err) {
