@@ -103,31 +103,5 @@ export default async function ListingDetailPage({ params }: PageProps) {
               This seller has completed identity verification and has an active Render marketplace profile.
             </p>
           </div>
-        </aside>
-      </div>
-    </main>
-  );
-}
 
-function Info({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border bg-gray-50 p-4">
-      <p className="text-sm text-gray-500">{label}</p>
-      <strong>{value}</strong>
-    </div>
-  );
-}
 
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="grid grid-cols-[1fr_auto] items-center gap-4 border-b pb-3">
-      <span className="text-gray-600">{label}</span>
-      <strong className="whitespace-nowrap text-right text-gray-900">{value || "0"}</strong>
-    </div>
-  );
-}
-
-const buttonBlack = "rounded-xl bg-gray-900 px-5 py-3 font-semibold text-white hover:bg-black";
-
-const buttonWhite =
-  "rounded-xl border border-gray-300 bg-white px-5 py-3 font-semibold text-gray-900 hover:bg-gray-50";
