@@ -12,9 +12,29 @@ const createListingSchema = z.object({
   locationRegion: z.string().max(100).optional()
 });
 
+const userListingsQuerySchema = z.object({
+  sellerId: z.string().uuid()
+});
+
 export async function registerListingRoutes(app: FastifyInstance): Promise<void> {
   app.get("/listings", async () => {
     const listings = await prisma.listing.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 50
+    });
+
+    return { listings };
+  });
+
+  app.get("/listings/my", async (request, reply) => {
+    const parsed = userListingsQuerySchema.safeParse(request.query);
+
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "sellerId query parameter is required." });
+    }
+
+    const listings = await prisma.listing.findMany({
+      where: { sellerId: parsed.data.sellerId },
       orderBy: { createdAt: "desc" },
       take: 50
     });
