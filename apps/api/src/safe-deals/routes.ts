@@ -7,6 +7,10 @@ const createSafeDealSchema = z.object({
   buyerId: z.string().uuid()
 });
 
+const mySafeDealsQuerySchema = z.object({
+  userId: z.string().uuid()
+});
+
 export async function registerSafeDealRoutes(
   app: FastifyInstance
 ): Promise<void> {
@@ -56,6 +60,39 @@ export async function registerSafeDealRoutes(
         authorizationUrl: `/safe-deal/${safeDeal.id}`
       }
     });
+  });
+
+  app.get("/safe-deals/my", async (request, reply) => {
+    const parsed = mySafeDealsQuerySchema.safeParse(request.query);
+
+    if (!parsed.success) {
+      return reply.code(400).send({
+        error: "userId query parameter is required."
+      });
+    }
+
+    const safeDeals = await prisma.safeDeal.findMany({
+      where: {
+        OR: [
+          { buyerId: parsed.data.userId },
+          { sellerId: parsed.data.userId }
+        ]
+      },
+      include: {
+        listing: {
+          select: {
+            id: true,
+            title: true,
+            price: true,
+            category: true
+          }
+        }
+      },
+      orderBy: { createdAt: "desc" },
+      take: 50
+    });
+
+    return { safeDeals };
   });
 
   app.get("/safe-deals/:id", async (request, reply) => {
