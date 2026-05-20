@@ -43,8 +43,8 @@ export default function DashboardPage() {
     async function loadDashboard() {
       try {
         const [listingResult, safeDealResult, trustScoreResult] = await Promise.all([
-          apiFetch<{ listings: Listing[] }>(`/listings/my?sellerId=${userId}`),
-          apiFetch<{ safeDeals: SafeDeal[] }>(`/safe-deals/my?userId=${userId}`),
+          apiFetch<{ listings: Listing[] }>("/listings/my"),
+          apiFetch<{ safeDeals: SafeDeal[] }>("/safe-deals/my"),
           apiFetch<TrustScore>(`/users/${userId}/trust-score`)
         ]);
 

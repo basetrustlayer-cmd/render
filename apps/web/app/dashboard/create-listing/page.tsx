@@ -48,7 +48,6 @@ export default function CreateListingPage() {
 
     try {
       const created = await createListing({
-        sellerId: user.id,
         title,
         description,
         price: numericPrice,

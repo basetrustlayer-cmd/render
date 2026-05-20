@@ -33,7 +33,7 @@ export default function DashboardListingsPage() {
 
     async function loadListings() {
       try {
-        const result = await apiFetch<{ listings: Listing[] }>(`/listings/my?sellerId=${userId}`);
+        const result = await apiFetch<{ listings: Listing[] }>("/listings/my");
         setListings(result.listings);
         setError(null);
       } catch (err) {
