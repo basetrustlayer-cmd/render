@@ -30,23 +30,33 @@ export default function SafeDealsPage() {
     hydrate();
   }, [hydrate]);
 
+  async function loadSafeDeals() {
+    try {
+      const result = await apiFetch<{ safeDeals: SafeDeal[] }>("/safe-deals/my");
+      setSafeDeals(result.safeDeals);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load Safe Deals.");
+    }
+  }
+
   useEffect(() => {
     if (!user?.id) return;
-
-    const userId = user.id;
-
-    async function loadSafeDeals() {
-      try {
-        const result = await apiFetch<{ safeDeals: SafeDeal[] }>("/safe-deals/my");
-        setSafeDeals(result.safeDeals);
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Unable to load Safe Deals.");
-      }
-    }
-
     void loadSafeDeals();
   }, [user?.id]);
+
+  async function updateDealStatus(id: string, action: "confirm" | "dispute") {
+    setError(null);
+
+    try {
+      await apiFetch(`/safe-deals/${id}/${action}`, {
+        method: "POST"
+      });
+      await loadSafeDeals();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Unable to ${action} Safe Deal.`);
+    }
+  }
 
   return (
     <DashboardShell>
@@ -65,6 +75,7 @@ export default function SafeDealsPage() {
                 <th className="py-3">Amount</th>
                 <th className="py-3">Fee</th>
                 <th className="py-3">Status</th>
+                <th className="py-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -75,11 +86,32 @@ export default function SafeDealsPage() {
                   <td className="py-4 text-gray-600">GHS {deal.amount}</td>
                   <td className="py-4 text-gray-600">GHS {deal.feeAmount}</td>
                   <td className="py-4 text-gray-600">{deal.status}</td>
+                  <td className="py-4">
+                    <div className="flex flex-wrap gap-2">
+                      {deal.buyerId === user?.id && ["FUNDED", "DELIVERED"].includes(deal.status) && (
+                        <button
+                          onClick={() => updateDealStatus(deal.id, "confirm")}
+                          className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white"
+                        >
+                          Confirm
+                        </button>
+                      )}
+
+                      {["FUNDED", "DELIVERED"].includes(deal.status) && (
+                        <button
+                          onClick={() => updateDealStatus(deal.id, "dispute")}
+                          className="rounded-lg border border-red-300 px-3 py-2 text-xs font-semibold text-red-700"
+                        >
+                          Dispute
+                        </button>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))}
               {safeDeals.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-gray-500">
+                  <td colSpan={6} className="py-8 text-center text-gray-500">
                     No Safe Deals found for this user.
                   </td>
                 </tr>
