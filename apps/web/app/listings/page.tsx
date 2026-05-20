@@ -1,75 +1,35 @@
-import { ListingGrid } from "../../components/listing-grid";
+import Link from "next/link";
+import { getListings } from "../../lib/get-listings";
 
-const categories = [
-  "All",
-  "Vehicles",
-  "Real Estate",
-  "Electronics",
-  "Jobs",
-  "Services",
-  "Fashion"
-];
+export const dynamic = "force-dynamic";
 
-export default function ListingsPage() {
+export default async function ListingsPage() {
+  const { listings } = await getListings();
+
   return (
-    <main style={{ minHeight: "100vh", padding: "32px" }}>
-      <section style={{ maxWidth: "1120px", margin: "0 auto" }}>
-        <p style={{ color: "var(--gold)", fontWeight: 700 }}>Browse Render</p>
+    <main className="mx-auto max-w-6xl p-8">
+      <div className="mb-8 flex items-center justify-between">
+        <h1 className="text-4xl font-bold">Listings</h1>
+        <Link href="/listings/new" className="rounded bg-black px-4 py-2 text-white">
+          Create Listing
+        </Link>
+      </div>
 
-        <h1 style={{ fontSize: "48px", margin: "12px 0" }}>
-          Verified listings only when trust matters.
-        </h1>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr",
-            gap: "14px",
-            margin: "28px 0",
-            border: "1px solid var(--border)",
-            borderRadius: "24px",
-            padding: "18px",
-            background: "#fff"
-          }}
-        >
-          <input
-            placeholder="Search cars, apartments, phones, jobs..."
-            style={{
-              width: "100%",
-              padding: "16px",
-              borderRadius: "16px",
-              border: "1px solid var(--border)",
-              fontSize: "16px"
-            }}
-          />
-
-          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-            {categories.map((category) => (
-              <button
-                key={category}
-                type="button"
-                style={{
-                  border: "1px solid var(--border)",
-                  borderRadius: "999px",
-                  background: category === "All" ? "var(--ink)" : "#fff",
-                  color: category === "All" ? "#fff" : "var(--ink)",
-                  padding: "10px 14px",
-                  fontWeight: 700
-                }}
-              >
-                {category}
-              </button>
-            ))}
-          </div>
-
-          <label style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <input type="checkbox" defaultChecked />
-            Verified sellers only
-          </label>
+      {listings.length === 0 ? (
+        <p>No listings yet.</p>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-3">
+          {listings.map((listing) => (
+            <div key={listing.id} className="rounded border p-4">
+              <h2 className="text-xl font-semibold">{listing.title}</h2>
+              <p className="mt-2">{listing.description}</p>
+              <p className="mt-4 font-bold">GH₵ {String(listing.price)}</p>
+              <p className="text-sm text-gray-600">{listing.category}</p>
+              <p className="text-sm text-gray-600">{listing.locationRegion}</p>
+            </div>
+          ))}
         </div>
-
-        <ListingGrid />
-      </section>
+      )}
     </main>
   );
 }
