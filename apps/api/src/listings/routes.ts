@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../database/client.js";
 import { authenticate, requireAuthUser } from "../auth/middleware.js";
+import { ensureDemoListing } from "../bootstrap-demo-data.js";
 
 const createListingSchema = z.object({
   title: z.string().min(3).max(200),
