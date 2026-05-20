@@ -1,5 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { prisma } from "../database/client.js";
+import { authenticate, requireAuthUser } from "../auth/middleware.js";
 
 function calculateTrustTier(score: number): "NEW" | "BUILDING" | "VERIFIED" | "TRUSTED" {
   if (score >= 900) return "TRUSTED";
@@ -8,8 +10,13 @@ function calculateTrustTier(score: number): "NEW" | "BUILDING" | "VERIFIED" | "T
   return "NEW";
 }
 
+function clampScore(score: number): number {
+  return Math.max(0, Math.min(1000, Math.round(score)));
+}
+
 export async function registerTrustScoreRoutes(app: FastifyInstance): Promise<void> {
-  app.get("/users/:id/trust-score", async (request, reply) => {
+  app.get("/users/:id/trust-score", { preHandler: authenticate }, async (request, reply) => {
+    const authUser = requireAuthUser(request);
     const params = z.object({
       id: z.string().uuid()
     }).safeParse(request.params);
@@ -18,19 +25,64 @@ export async function registerTrustScoreRoutes(app: FastifyInstance): Promise<vo
       return reply.code(400).send({ error: "Invalid user ID." });
     }
 
-    const score = 500;
-    const tier = calculateTrustTier(score);
+    if (params.data.id !== authUser.userId) {
+      return reply.code(403).send({ error: "You can only view your own TrustScore." });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: params.data.id },
+      select: {
+        id: true,
+        verificationLevel: true,
+        trustScore: true,
+        trustTier: true,
+        createdAt: true,
+        _count: {
+          select: {
+            listings: true,
+            purchases: true,
+            sales: true,
+            reviewsReceived: true
+          }
+        }
+      }
+    });
+
+    if (!user) {
+      return reply.code(404).send({ error: "User not found." });
+    }
+
+    const identityCompleteness = Math.min(250, user.verificationLevel * 125);
+    const transactionHistory = Math.min(250, (user._count.purchases + user._count.sales) * 50);
+    const peerReviews = Math.min(200, user._count.reviewsReceived * 40);
+    const disputeRecord = 200;
+    const platformTenure = Math.min(
+      100,
+      Math.floor((Date.now() - user.createdAt.getTime()) / (1000 * 60 * 60 * 24)) * 2
+    );
+
+    const computedScore = clampScore(
+      identityCompleteness +
+        transactionHistory +
+        peerReviews +
+        disputeRecord +
+        platformTenure
+    );
+
+    const score = user.trustScore ?? computedScore;
+    const tier = user.trustTier ?? calculateTrustTier(score);
 
     return {
-      userId: params.data.id,
+      userId: user.id,
       score,
       tier,
+      source: user.trustScore === null ? "PLATFORM_FALLBACK" : "USER_RECORD",
       components: {
-        identityCompleteness: 0,
-        transactionHistory: 0,
-        peerReviews: 0,
-        disputeRecord: 0,
-        platformTenure: 0
+        identityCompleteness,
+        transactionHistory,
+        peerReviews,
+        disputeRecord,
+        platformTenure
       }
     };
   });

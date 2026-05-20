@@ -3,6 +3,7 @@ import Fastify from "fastify";
 import { registerAuthRoutes } from "./auth/routes.js";
 import { registerListingRoutes } from "./listings/routes.js";
 import { registerSafeDealRoutes } from "./safe-deals/routes.js";
+import { registerTrustScoreRoutes } from "./trustscore/routes.js";
 
 const app = Fastify({
   logger: true
@@ -27,6 +28,7 @@ app.get("/", async () => {
 await registerAuthRoutes(app);
 await registerListingRoutes(app);
 await registerSafeDealRoutes(app);
+await registerTrustScoreRoutes(app);
 
 const port = Number(process.env.PORT || 3001);
 const host = "0.0.0.0";
