@@ -8,6 +8,7 @@ import { registerSafeDealRoutes } from "./safe-deals/routes.js";
 import { registerTrustLayerRoutes } from "./trustlayer/routes.js";
 import { registerNotificationRoutes } from "./notifications/routes.js";
 import { registerSearchRoutes } from "./search/routes.js";
+import { registerListingRoutes } from "./listings/routes.js";
 
 const app = Fastify({ logger: true });
 
@@ -21,6 +22,7 @@ await registerSafeDealRoutes(app);
 await registerTrustLayerRoutes(app);
 await registerNotificationRoutes(app);
 await registerSearchRoutes(app);
+await registerListingRoutes(app);
 
 app.get("/health", async () => ({
   status: "ok",
