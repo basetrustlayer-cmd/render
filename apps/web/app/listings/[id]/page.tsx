@@ -52,7 +52,7 @@ export default async function ListingDetailPage({ params }: PageProps) {
 
           <div style={{ background: "#ecfdf5", borderRadius: 18, padding: 18, marginTop: 18 }}>
             <p style={{ margin: 0, color: "#666" }}>TrustScore</p>
-            <strong style={{ fontSize: 42, color: "#047857" }}>{seller.trustScore}/100</strong>
+            <strong style={{ fontSize: 42, color: "#047857" }}>{seller.trustScore}/1000</strong>
             <p style={{ margin: 0 }}>{seller.trustTier}</p>
           </div>
 
@@ -69,6 +69,19 @@ export default async function ListingDetailPage({ params }: PageProps) {
               This seller has completed identity verification and has an active Render marketplace profile.
             </p>
           </div>
+
+          {seller.whatsappNumber ? (
+            <a
+              href={`https://wa.me/${seller.whatsappNumber.replace(/[^0-9]/g, "")}`}
+              style={{ ...buttonBlack, display: "block", textAlign: "center", marginTop: 16 }}
+            >
+              Contact Seller on WhatsApp
+            </a>
+          ) : (
+            <p style={{ color: "#666", marginTop: 16 }}>
+              Contact details are protected. Use Safe Deal or platform messaging to continue.
+            </p>
+          )}
         </aside>
       </div>
     </main>

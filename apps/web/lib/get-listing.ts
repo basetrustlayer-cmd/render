@@ -4,8 +4,6 @@ import type { Listing } from "./get-listings";
 export type SellerProfile = {
   id: string;
   displayName: string;
-  phone?: string | null;
-  email?: string | null;
   whatsappNumber?: string | null;
   verificationLevel: number;
   verificationStatus: string;
