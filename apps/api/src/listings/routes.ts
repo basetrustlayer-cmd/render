@@ -16,9 +16,27 @@ const userListingsQuerySchema = z.object({
   sellerId: z.string().uuid()
 });
 
+const listingImageParamsSchema = z.object({
+  id: z.string().uuid()
+});
+
+const createListingImageSchema = z.object({
+  url: z.string().url(),
+  cloudinaryId: z.string().min(1).max(200),
+  isCover: z.boolean().optional(),
+  sortOrder: z.number().int().min(0).max(20).optional()
+});
+
+const listingInclude = {
+  images: {
+    orderBy: [{ isCover: "desc" as const }, { sortOrder: "asc" as const }, { createdAt: "asc" as const }]
+  }
+};
+
 export async function registerListingRoutes(app: FastifyInstance): Promise<void> {
   app.get("/listings", async () => {
     const listings = await prisma.listing.findMany({
+      include: listingInclude,
       orderBy: { createdAt: "desc" },
       take: 50
     });
@@ -35,6 +53,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
 
     const listings = await prisma.listing.findMany({
       where: { sellerId: parsed.data.sellerId },
+      include: listingInclude,
       orderBy: { createdAt: "desc" },
       take: 50
     });
@@ -53,6 +72,9 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
     const listing = await prisma.listing.findUnique({
       where: { id: parsed.data.id },
       include: {
+        images: {
+          orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }, { createdAt: "asc" }]
+        },
         seller: {
           select: {
             id: true,
@@ -115,9 +137,66 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       data: {
         ...parsed.data,
         status: "PENDING"
-      }
+      },
+      include: listingInclude
     });
 
     return reply.code(201).send({ listing });
+  });
+
+  app.get("/listings/:id/images", async (request, reply) => {
+    const params = listingImageParamsSchema.safeParse(request.params);
+
+    if (!params.success) {
+      return reply.code(400).send({ error: "Invalid listing ID." });
+    }
+
+    const images = await prisma.listingImage.findMany({
+      where: { listingId: params.data.id },
+      orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }, { createdAt: "asc" }]
+    });
+
+    return { images };
+  });
+
+  app.post("/listings/:id/images", async (request, reply) => {
+    const params = listingImageParamsSchema.safeParse(request.params);
+    const body = createListingImageSchema.safeParse(request.body);
+
+    if (!params.success) {
+      return reply.code(400).send({ error: "Invalid listing ID." });
+    }
+
+    if (!body.success) {
+      return reply.code(400).send({ error: "Invalid image payload." });
+    }
+
+    const listing = await prisma.listing.findUnique({
+      where: { id: params.data.id },
+      select: { id: true }
+    });
+
+    if (!listing) {
+      return reply.code(404).send({ error: "Listing not found." });
+    }
+
+    if (body.data.isCover) {
+      await prisma.listingImage.updateMany({
+        where: { listingId: listing.id },
+        data: { isCover: false }
+      });
+    }
+
+    const image = await prisma.listingImage.create({
+      data: {
+        listingId: listing.id,
+        url: body.data.url,
+        cloudinaryId: body.data.cloudinaryId,
+        isCover: body.data.isCover ?? false,
+        sortOrder: body.data.sortOrder ?? 0
+      }
+    });
+
+    return reply.code(201).send({ image });
   });
 }

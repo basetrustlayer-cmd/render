@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardShell } from "../../../components/dashboard/dashboard-shell";
-import { createListing } from "../../../lib/listings";
+import { addListingImage, createListing } from "../../../lib/listings";
 import { useAuthStore } from "../../../store/auth";
 
 const categories = ["VEHICLES", "REAL_ESTATE", "ELECTRONICS", "JOBS", "SERVICES", "FASHION"] as const;
@@ -20,6 +20,7 @@ export default function CreateListingPage() {
   const [category, setCategory] = useState<(typeof categories)[number]>("VEHICLES");
   const [condition, setCondition] = useState<(typeof conditions)[number]>("GOOD");
   const [locationRegion, setLocationRegion] = useState("Greater Accra");
+  const [imageUrls, setImageUrls] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,7 +47,7 @@ export default function CreateListingPage() {
     setError(null);
 
     try {
-      await createListing({
+      const created = await createListing({
         sellerId: user.id,
         title,
         description,
@@ -55,6 +56,22 @@ export default function CreateListingPage() {
         condition,
         locationRegion
       });
+
+      const urls = imageUrls
+        .split("\n")
+        .map((url) => url.trim())
+        .filter(Boolean);
+
+      await Promise.all(
+        urls.map((url, index) =>
+          addListingImage(created.listing.id, {
+            url,
+            cloudinaryId: `manual_${created.listing.id}_${index}`,
+            isCover: index === 0,
+            sortOrder: index
+          })
+        )
+      );
 
       router.push("/dashboard/listings");
       router.refresh();
@@ -130,6 +147,17 @@ export default function CreateListingPage() {
               />
             </label>
           </div>
+
+          <label className="grid gap-2">
+            <span className="text-sm font-medium text-gray-700">Image URLs</span>
+            <textarea
+              value={imageUrls}
+              onChange={(event) => setImageUrls(event.target.value)}
+              className="min-h-28 rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-gray-900"
+              placeholder={"https://res.cloudinary.com/.../image1.jpg\nhttps://res.cloudinary.com/.../image2.jpg"}
+            />
+            <span className="text-xs text-gray-500">Add one image URL per line. The first image becomes the cover image.</span>
+          </label>
 
           <div className="grid gap-5 md:grid-cols-2">
             <label className="grid gap-2">

@@ -10,8 +10,28 @@ export type CreateListingInput = {
   locationRegion?: string;
 };
 
-export async function createListing(input: CreateListingInput) {
-  return apiFetch("/listings", {
+export type ListingImageInput = {
+  url: string;
+  cloudinaryId: string;
+  isCover?: boolean;
+  sortOrder?: number;
+};
+
+export type CreateListingResponse = {
+  listing: {
+    id: string;
+  };
+};
+
+export async function createListing(input: CreateListingInput): Promise<CreateListingResponse> {
+  return apiFetch<CreateListingResponse>("/listings", {
+    method: "POST",
+    body: JSON.stringify(input)
+  });
+}
+
+export async function addListingImage(listingId: string, input: ListingImageInput) {
+  return apiFetch(`/listings/${listingId}/images`, {
     method: "POST",
     body: JSON.stringify(input)
   });
