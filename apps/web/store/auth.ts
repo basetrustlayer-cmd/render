@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 import { phoneLogin } from "../lib/auth";
 
 type User = {
@@ -18,48 +19,39 @@ type AuthState = {
   hydrate: () => void;
 };
 
-export const useAuthStore = create<AuthState>((set) => ({
-  accessToken: null,
-  user: null,
-
-  login: async (phone) => {
-    const result = await phoneLogin(phone);
-
-    localStorage.setItem("accessToken", result.accessToken);
-    localStorage.setItem("user", JSON.stringify(result.user));
-
-    set({
-      accessToken: result.accessToken,
-      user: result.user
-    });
-  },
-
-  logout: () => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("user");
-
-    set({
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
       accessToken: null,
-      user: null
-    });
-  },
+      user: null,
 
-  hydrate: () => {
-    const accessToken = localStorage.getItem("accessToken");
-    const rawUser = localStorage.getItem("user");
+      login: async (phone: string) => {
+        const result = await phoneLogin(phone);
 
-    if (!accessToken || !rawUser) {
-      return;
+        set({
+          accessToken: result.accessToken,
+          user: result.user
+        });
+      },
+
+      logout: () => {
+        set({
+          accessToken: null,
+          user: null
+        });
+      },
+
+      // Backward compatibility with existing components.
+      // Zustand persist automatically rehydrates state.
+      hydrate: () => {}
+    }),
+    {
+      name: "render-auth",
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        accessToken: state.accessToken,
+        user: state.user
+      })
     }
-
-    try {
-      set({
-        accessToken,
-        user: JSON.parse(rawUser) as User
-      });
-    } catch {
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("user");
-    }
-  }
-}));
+  )
+);
