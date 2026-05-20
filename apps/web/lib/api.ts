@@ -1,10 +1,22 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://render-dlhz.onrender.com";
+const FALLBACK_API_URL = "https://render-dlhz.onrender.com";
+
+function getApiUrl(): string {
+  const configured = process.env.NEXT_PUBLIC_API_URL?.trim();
+
+  if (configured && configured.includes("render-dlhz.onrender.com")) {
+    return configured.replace(/\/$/, "");
+  }
+
+  return FALLBACK_API_URL;
+}
 
 export async function apiFetch<T>(
   path: string,
   options?: RequestInit
 ): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
+  const apiUrl = getApiUrl();
+
+  const response = await fetch(`${apiUrl}${path}`, {
     ...options,
     cache: "no-store",
     headers: {
