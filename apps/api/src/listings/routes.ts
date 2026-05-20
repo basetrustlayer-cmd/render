@@ -31,14 +31,57 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
     }
 
     const listing = await prisma.listing.findUnique({
-      where: { id: parsed.data.id }
+      where: { id: parsed.data.id },
+      include: {
+        seller: {
+          select: {
+            id: true,
+            phone: true,
+            email: true,
+            verificationLevel: true,
+            trustScore: true,
+            trustTier: true,
+            isBusiness: true,
+            whatsappNumber: true,
+            createdAt: true,
+            _count: {
+              select: {
+                listings: true,
+                reviewsReceived: true,
+                sales: true
+              }
+            }
+          }
+        }
+      }
     });
 
     if (!listing) {
       return reply.code(404).send({ error: "Listing not found." });
     }
 
-    return { listing };
+    const seller = {
+      id: listing.seller.id,
+      displayName: listing.seller.isBusiness
+        ? "Verified Business Seller"
+        : "Verified Render Seller",
+      phone: listing.seller.phone,
+      email: listing.seller.email,
+      whatsappNumber: listing.seller.whatsappNumber,
+      verificationLevel: listing.seller.verificationLevel,
+      verificationStatus:
+        listing.seller.verificationLevel >= 1
+          ? "Identity Verified"
+          : "Verification Pending",
+      trustScore: listing.seller.trustScore ?? 75,
+      trustTier: listing.seller.trustTier ?? "BRONZE",
+      reviewCount: listing.seller._count.reviewsReceived,
+      completedDeals: listing.seller._count.sales,
+      activeListings: listing.seller._count.listings,
+      memberSince: listing.seller.createdAt
+    };
+
+    return { listing, seller };
   });
 
   app.post("/listings", async (request, reply) => {
