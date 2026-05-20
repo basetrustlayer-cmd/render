@@ -97,7 +97,8 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
     const listing = await prisma.listing.findFirst({
       where: {
         id: parsed.data.id,
-        deletedAt: null
+        deletedAt: null,
+        status: "LIVE"
       },
       include: {
         images: {
@@ -179,8 +180,21 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       return reply.code(400).send({ error: "Invalid listing ID." });
     }
 
+    const listing = await prisma.listing.findFirst({
+      where: {
+        id: params.data.id,
+        deletedAt: null,
+        status: "LIVE"
+      },
+      select: { id: true }
+    });
+
+    if (!listing) {
+      return reply.code(404).send({ error: "Listing not found." });
+    }
+
     const images = await prisma.listingImage.findMany({
-      where: { listingId: params.data.id },
+      where: { listingId: listing.id },
       orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }, { createdAt: "asc" }]
     });
 
