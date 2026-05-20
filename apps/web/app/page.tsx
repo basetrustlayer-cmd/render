@@ -1,10 +1,12 @@
+import Link from "next/link";
+
 const categories = [
-  "Vehicles",
-  "Real Estate",
-  "Electronics",
-  "Jobs",
-  "Services",
-  "Fashion"
+  { label: "Vehicles", href: "/listings?category=VEHICLES" },
+  { label: "Real Estate", href: "/listings?category=REAL_ESTATE" },
+  { label: "Electronics", href: "/listings?category=ELECTRONICS" },
+  { label: "Jobs", href: "/listings?category=JOBS" },
+  { label: "Services", href: "/listings?category=SERVICES" },
+  { label: "Fashion", href: "/listings?category=FASHION" }
 ];
 
 export default function HomePage() {
@@ -34,18 +36,31 @@ export default function HomePage() {
         </p>
 
         <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginTop: "32px" }}>
+          <Link href="/listings" style={{ borderRadius: "999px", padding: "12px 18px", background: "#111", color: "#fff", textDecoration: "none" }}>
+            Browse Listings
+          </Link>
+
+          <Link href="/listings/new" style={{ border: "1px solid var(--border)", borderRadius: "999px", padding: "12px 18px", background: "#fff", color: "#111", textDecoration: "none" }}>
+            Create Listing
+          </Link>
+        </div>
+
+        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginTop: "24px" }}>
           {categories.map((category) => (
-            <span
-              key={category}
+            <Link
+              key={category.label}
+              href={category.href}
               style={{
                 border: "1px solid var(--border)",
                 borderRadius: "999px",
                 padding: "10px 16px",
-                background: "#fff"
+                background: "#fff",
+                color: "#111",
+                textDecoration: "none"
               }}
             >
-              {category}
-            </span>
+              {category.label}
+            </Link>
           ))}
         </div>
       </section>
