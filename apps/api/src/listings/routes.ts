@@ -32,6 +32,13 @@ const createListingImageSchema = z.object({
 const listingInclude = {
   images: {
     orderBy: [{ isCover: "desc" as const }, { sortOrder: "asc" as const }, { createdAt: "asc" as const }]
+  },
+  seller: {
+    select: {
+      verificationLevel: true,
+      trustScore: true,
+      trustTier: true
+    }
   }
 };
 
