@@ -15,6 +15,7 @@ type AuthState = {
   user: User | null;
   login: (phone: string) => Promise<void>;
   logout: () => void;
+  hydrate: () => void;
 };
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -41,5 +42,24 @@ export const useAuthStore = create<AuthState>((set) => ({
       accessToken: null,
       user: null
     });
+  },
+
+  hydrate: () => {
+    const accessToken = localStorage.getItem("accessToken");
+    const rawUser = localStorage.getItem("user");
+
+    if (!accessToken || !rawUser) {
+      return;
+    }
+
+    try {
+      set({
+        accessToken,
+        user: JSON.parse(rawUser) as User
+      });
+    } catch {
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("user");
+    }
   }
 }));
