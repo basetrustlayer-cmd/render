@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { phoneLogin } from "../lib/auth";
+import { verifyOtp } from "../lib/auth";
 
 type User = {
   id: string;
@@ -14,7 +14,7 @@ type User = {
 type AuthState = {
   accessToken: string | null;
   user: User | null;
-  login: (phone: string) => Promise<void>;
+  login: (phone: string, code: string) => Promise<void>;
   logout: () => void;
   hydrate: () => void;
 };
@@ -25,8 +25,8 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       user: null,
 
-      login: async (phone: string) => {
-        const result = await phoneLogin(phone);
+      login: async (phone: string, code: string) => {
+        const result = await verifyOtp(phone, code);
 
         set({
           accessToken: result.accessToken,
@@ -41,8 +41,6 @@ export const useAuthStore = create<AuthState>()(
         });
       },
 
-      // Backward compatibility with existing components.
-      // Zustand persist automatically rehydrates state.
       hydrate: () => {}
     }),
     {
