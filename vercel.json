@@ -1,6 +1,6 @@
 {
   "framework": "nextjs",
   "installCommand": "pnpm install --ignore-scripts",
-  "buildCommand": "pnpm --filter @render/web build:next",
+  "buildCommand": "cd apps/web && pnpm build:next",
   "outputDirectory": "apps/web/.next"
 }
