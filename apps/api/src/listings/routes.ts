@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../database/client.js";
@@ -157,6 +158,51 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
     });
 
     return { images };
+  });
+
+
+  app.post("/listings/:id/images/signature", { preHandler: authenticate }, async (request, reply) => {
+    const authUser = requireAuthUser(request);
+    const params = listingImageParamsSchema.safeParse(request.params);
+
+    if (!params.success) {
+      return reply.code(400).send({ error: "Invalid listing ID." });
+    }
+
+    const listing = await prisma.listing.findUnique({
+      where: { id: params.data.id },
+      select: { id: true, sellerId: true }
+    });
+
+    if (!listing) {
+      return reply.code(404).send({ error: "Listing not found." });
+    }
+
+    if (listing.sellerId !== authUser.userId) {
+      return reply.code(403).send({ error: "Only the listing owner can upload images." });
+    }
+
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+    const apiKey = process.env.CLOUDINARY_API_KEY;
+    const apiSecret = process.env.CLOUDINARY_API_SECRET;
+
+    if (!cloudName || !apiKey || !apiSecret) {
+      return reply.code(500).send({ error: "Cloudinary environment variables are required." });
+    }
+
+    const timestamp = Math.floor(Date.now() / 1000);
+    const folder = `render/listings/${listing.id}`;
+    const signaturePayload = `folder=${folder}&timestamp=${timestamp}${apiSecret}`;
+    const signature = crypto.createHash("sha1").update(signaturePayload).digest("hex");
+
+    return {
+      cloudName,
+      apiKey,
+      timestamp,
+      folder,
+      signature,
+      uploadUrl: `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`
+    };
   });
 
   app.post("/listings/:id/images", { preHandler: authenticate }, async (request, reply) => {
