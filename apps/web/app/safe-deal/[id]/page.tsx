@@ -1,123 +1,83 @@
-import Link from "next/link";
+"use client";
 
-type PageProps = {
-  params: {
-    id: string;
-  };
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { apiFetch } from "../../../lib/api";
+import { useAuthStore } from "../../../store/auth";
+
+type SafeDeal = {
+  id: string;
+  amount: string;
+  feeAmount: string;
+  status: string;
+  buyerId: string;
+  sellerId: string;
+  listing: { id: string; title: string };
 };
 
-const steps = [
-  { label: "Initiated", complete: true },
-  { label: "Funded", complete: true },
-  { label: "Delivered", complete: false },
-  { label: "Inspection", complete: false },
-  { label: "Released", complete: false }
-];
+export default function SafeDealDetailPage({ params }: { params: { id: string } }) {
+  const user = useAuthStore((s) => s.user);
+  const hydrate = useAuthStore((s) => s.hydrate);
+  const [safeDeal, setSafeDeal] = useState<SafeDeal | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-export default function SafeDealDetailPage({ params }: PageProps) {
+  async function load() {
+    try {
+      const result = await apiFetch<{ safeDeal: SafeDeal }>(`/safe-deals/${params.id}`);
+      setSafeDeal(result.safeDeal);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load Safe Deal.");
+    }
+  }
+
+  useEffect(() => {
+    hydrate();
+  }, [hydrate]);
+
+  useEffect(() => {
+    if (user?.id) void load();
+  }, [user?.id]);
+
+  async function action(type: "confirm" | "dispute") {
+    try {
+      await apiFetch(`/safe-deals/${params.id}/${type}`, { method: "POST" });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Action failed.");
+    }
+  }
+
   return (
-    <main style={{ maxWidth: 960, margin: "0 auto", padding: 32 }}>
-      <Link href="/listings" style={{ textDecoration: "underline", fontSize: 14 }}>
-        ← Back to listing
-      </Link>
+    <main className="mx-auto max-w-4xl p-8">
+      <Link href="/dashboard/safe-deals" className="text-sm underline">← Back to Safe Deals</Link>
 
-      <section
-        style={{
-          marginTop: 24,
-          background: "#ffffff",
-          border: "1px solid #e5e5e5",
-          borderRadius: 24,
-          padding: 32
-        }}
-      >
-        <p style={{ color: "#b7791f", fontWeight: 700, marginBottom: 8 }}>
-          Safe Deal
-        </p>
+      <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+        <h1 className="text-3xl font-bold">Safe Deal</h1>
+        {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
 
-        <h1
-          style={{
-            fontSize: "3rem",
-            lineHeight: 1.1,
-            fontWeight: 800,
-            margin: "0 0 16px"
-          }}
-        >
-          Transaction #{params.id.slice(0, 8).toUpperCase()}
-        </h1>
+        {safeDeal && (
+          <div className="mt-6 grid gap-4">
+            <p><strong>Listing:</strong> {safeDeal.listing.title}</p>
+            <p><strong>Amount:</strong> GHS {safeDeal.amount}</p>
+            <p><strong>Fee:</strong> GHS {safeDeal.feeAmount}</p>
+            <p><strong>Status:</strong> {safeDeal.status}</p>
 
-        <div
-          style={{
-            marginTop: 32,
-            display: "grid",
-            gap: 12
-          }}
-        >
-          {steps.map((step, index) => (
-            <div
-              key={step.label}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 16,
-                padding: 16,
-                borderRadius: 12,
-                background: step.complete ? "#eefaf4" : "#f8f8f8",
-                border: "1px solid #e5e5e5"
-              }}
-            >
-              <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: "50%",
-                  display: "grid",
-                  placeItems: "center",
-                  background: step.complete ? "#0f8a5f" : "#d9d9d9",
-                  color: "#fff",
-                  fontWeight: 700
-                }}
-              >
-                {index + 1}
-              </div>
+            <div className="mt-4 flex gap-3">
+              {safeDeal.buyerId === user?.id && ["FUNDED", "DELIVERED"].includes(safeDeal.status) && (
+                <button onClick={() => action("confirm")} className="rounded bg-emerald-700 px-4 py-2 text-white">
+                  Confirm Delivery
+                </button>
+              )}
 
-              <strong>{step.label}</strong>
+              {["FUNDED", "DELIVERED"].includes(safeDeal.status) && (
+                <button onClick={() => action("dispute")} className="rounded border border-red-300 px-4 py-2 text-red-700">
+                  Open Dispute
+                </button>
+              )}
             </div>
-          ))}
-        </div>
-
-        <div
-          style={{
-            marginTop: 32,
-            display: "flex",
-            gap: 12,
-            flexWrap: "wrap"
-          }}
-        >
-          <button
-            style={{
-              background: "#111",
-              color: "#fff",
-              border: "none",
-              borderRadius: 12,
-              padding: "12px 20px",
-              fontWeight: 600
-            }}
-          >
-            Confirm Delivery
-          </button>
-
-          <button
-            style={{
-              background: "#fff",
-              border: "1px solid #ddd",
-              borderRadius: 12,
-              padding: "12px 20px",
-              fontWeight: 600
-            }}
-          >
-            Open Dispute
-          </button>
-        </div>
+          </div>
+        )}
       </section>
     </main>
   );
