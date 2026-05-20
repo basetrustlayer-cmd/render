@@ -3,7 +3,11 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardShell } from "../../../components/dashboard/dashboard-shell";
-import { addListingImage, createListing } from "../../../lib/listings";
+import {
+  addListingImage,
+  createListing,
+  getListingImageUploadSignature
+} from "../../../lib/listings";
 import { useAuthStore } from "../../../store/auth";
 
 const categories = ["VEHICLES", "REAL_ESTATE", "ELECTRONICS", "JOBS", "SERVICES", "FASHION"] as const;
@@ -20,13 +24,52 @@ export default function CreateListingPage() {
   const [category, setCategory] = useState<(typeof categories)[number]>("VEHICLES");
   const [condition, setCondition] = useState<(typeof conditions)[number]>("GOOD");
   const [locationRegion, setLocationRegion] = useState("Greater Accra");
-  const [imageUrls, setImageUrls] = useState("");
+  const [imageFiles, setImageFiles] = useState<FileList | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     hydrate();
   }, [hydrate]);
+
+  async function uploadImages(listingId: string) {
+    if (!imageFiles || imageFiles.length === 0) return;
+
+    const signature = await getListingImageUploadSignature(listingId);
+
+    await Promise.all(
+      Array.from(imageFiles).map(async (file, index) => {
+        const form = new FormData();
+        form.append("file", file);
+        form.append("api_key", signature.apiKey);
+        form.append("timestamp", String(signature.timestamp));
+        form.append("folder", signature.folder);
+        form.append("signature", signature.signature);
+
+        const response = await fetch(signature.uploadUrl, {
+          method: "POST",
+          body: form
+        });
+
+        const uploaded = await response.json() as {
+          secure_url?: string;
+          public_id?: string;
+          error?: { message?: string };
+        };
+
+        if (!response.ok || !uploaded.secure_url || !uploaded.public_id) {
+          throw new Error(uploaded.error?.message ?? "Cloudinary upload failed.");
+        }
+
+        await addListingImage(listingId, {
+          url: uploaded.secure_url,
+          cloudinaryId: uploaded.public_id,
+          isCover: index === 0,
+          sortOrder: index
+        });
+      })
+    );
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -56,21 +99,7 @@ export default function CreateListingPage() {
         locationRegion
       });
 
-      const urls = imageUrls
-        .split("\n")
-        .map((url) => url.trim())
-        .filter(Boolean);
-
-      await Promise.all(
-        urls.map((url, index) =>
-          addListingImage(created.listing.id, {
-            url,
-            cloudinaryId: `manual_${created.listing.id}_${index}`,
-            isCover: index === 0,
-            sortOrder: index
-          })
-        )
-      );
+      await uploadImages(created.listing.id);
 
       router.push("/dashboard/listings");
       router.refresh();
@@ -85,13 +114,7 @@ export default function CreateListingPage() {
     <DashboardShell>
       <div className="rounded-2xl bg-white p-5 shadow-sm">
         <h2 className="text-xl font-bold text-gray-900">Create Listing</h2>
-        <p className="mt-2 text-gray-600">Add a marketplace item and submit it for review.</p>
-
-        {!user && (
-          <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-            Sign in first so the listing can be attached to your seller account.
-          </div>
-        )}
+        <p className="mt-2 text-gray-600">Add a marketplace item and upload listing photos.</p>
 
         {error && (
           <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
@@ -100,101 +123,27 @@ export default function CreateListingPage() {
         )}
 
         <form onSubmit={handleSubmit} className="mt-6 grid gap-5">
-          <label className="grid gap-2">
-            <span className="text-sm font-medium text-gray-700">Title</span>
-            <input
-              required
-              minLength={3}
-              maxLength={200}
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              className="rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-gray-900"
-              placeholder="Toyota Corolla 2015"
-            />
-          </label>
-
-          <label className="grid gap-2">
-            <span className="text-sm font-medium text-gray-700">Description</span>
-            <textarea
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              className="min-h-32 rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-gray-900"
-              placeholder="Describe condition, documents, delivery options, and buyer expectations."
-            />
-          </label>
+          <input required minLength={3} maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} className="rounded-xl border px-4 py-3" placeholder="Title" />
+          <textarea value={description} onChange={(e) => setDescription(e.target.value)} className="min-h-32 rounded-xl border px-4 py-3" placeholder="Description" />
 
           <div className="grid gap-5 md:grid-cols-2">
-            <label className="grid gap-2">
-              <span className="text-sm font-medium text-gray-700">Price in GHS</span>
-              <input
-                required
-                inputMode="decimal"
-                value={price}
-                onChange={(event) => setPrice(event.target.value)}
-                className="rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-gray-900"
-                placeholder="65000"
-              />
-            </label>
-
-            <label className="grid gap-2">
-              <span className="text-sm font-medium text-gray-700">Location Region</span>
-              <input
-                value={locationRegion}
-                onChange={(event) => setLocationRegion(event.target.value)}
-                className="rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-gray-900"
-                placeholder="Greater Accra"
-              />
-            </label>
+            <input required inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} className="rounded-xl border px-4 py-3" placeholder="Price in GHS" />
+            <input value={locationRegion} onChange={(e) => setLocationRegion(e.target.value)} className="rounded-xl border px-4 py-3" placeholder="Region" />
           </div>
 
-          <label className="grid gap-2">
-            <span className="text-sm font-medium text-gray-700">Image URLs</span>
-            <textarea
-              value={imageUrls}
-              onChange={(event) => setImageUrls(event.target.value)}
-              className="min-h-28 rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-gray-900"
-              placeholder={"https://res.cloudinary.com/.../image1.jpg\nhttps://res.cloudinary.com/.../image2.jpg"}
-            />
-            <span className="text-xs text-gray-500">Add one image URL per line. The first image becomes the cover image.</span>
-          </label>
+          <input type="file" accept="image/*" multiple onChange={(e) => setImageFiles(e.target.files)} className="rounded-xl border px-4 py-3" />
 
           <div className="grid gap-5 md:grid-cols-2">
-            <label className="grid gap-2">
-              <span className="text-sm font-medium text-gray-700">Category</span>
-              <select
-                value={category}
-                onChange={(event) => setCategory(event.target.value as (typeof categories)[number])}
-                className="rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-gray-900"
-              >
-                {categories.map((item) => (
-                  <option key={item} value={item}>
-                    {item.replace("_", " ")}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <select value={category} onChange={(e) => setCategory(e.target.value as (typeof categories)[number])} className="rounded-xl border px-4 py-3">
+              {categories.map((item) => <option key={item} value={item}>{item.replace("_", " ")}</option>)}
+            </select>
 
-            <label className="grid gap-2">
-              <span className="text-sm font-medium text-gray-700">Condition</span>
-              <select
-                value={condition}
-                onChange={(event) => setCondition(event.target.value as (typeof conditions)[number])}
-                className="rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-gray-900"
-              >
-                {conditions.map((item) => (
-                  <option key={item} value={item}>
-                    {item.replace("_", " ")}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <select value={condition} onChange={(e) => setCondition(e.target.value as (typeof conditions)[number])} className="rounded-xl border px-4 py-3">
+              {conditions.map((item) => <option key={item} value={item}>{item.replace("_", " ")}</option>)}
+            </select>
           </div>
 
-          <button
-            type="submit"
-            disabled={submitting || !user}
-            className="rounded-xl bg-gray-900 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-400"
-          >
+          <button disabled={submitting || !user} className="rounded-xl bg-gray-900 px-5 py-3 font-semibold text-white disabled:bg-gray-400">
             {submitting ? "Creating listing..." : "Create Listing"}
           </button>
         </form>
