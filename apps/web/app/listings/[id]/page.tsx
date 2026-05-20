@@ -52,7 +52,7 @@ export default async function ListingDetailPage({ params }: PageProps) {
 
           <div style={{ background: "#ecfdf5", borderRadius: 18, padding: 18, marginTop: 18 }}>
             <p style={{ margin: 0, color: "#666" }}>TrustScore</p>
-            <strong style={{ fontSize: 42, color: "#047857" }}>{seller.trustScore}/100</strong>
+            <strong style={{ fontSize: 42, color: "#047857" }}>{seller.trustScore}/1000</strong>
             <p style={{ margin: 0 }}>{seller.trustTier}</p>
           </div>
 
