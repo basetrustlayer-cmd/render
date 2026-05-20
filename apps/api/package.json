@@ -8,7 +8,8 @@
     "build": "prisma generate --schema prisma/schema.prisma && tsc",
     "start": "node dist/main.js",
     "lint": "echo lint api",
-    "test": "echo test api"
+    "test": "echo test api",
+    "seed": "prisma db seed --schema prisma/schema.prisma"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.2",
@@ -22,6 +23,10 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.13.10",
     "prisma": "6.19.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "tsx": "^4.20.5"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   }
 }
