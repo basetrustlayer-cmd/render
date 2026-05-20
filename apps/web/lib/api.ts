@@ -1,13 +1,11 @@
-const FALLBACK_API_URL = "https://render-dlhz.onrender.com";
-
 function getApiUrl(): string {
   const configured = process.env.NEXT_PUBLIC_API_URL?.trim();
 
-  if (configured && configured.includes("render-dlhz.onrender.com")) {
-    return configured.replace(/\/$/, "");
+  if (!configured) {
+    throw new Error("NEXT_PUBLIC_API_URL is required.");
   }
 
-  return FALLBACK_API_URL;
+  return configured.replace(/\/$/, "");
 }
 
 export async function apiFetch<T>(

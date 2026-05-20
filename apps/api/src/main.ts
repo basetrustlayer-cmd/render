@@ -1,3 +1,4 @@
+import cors from "@fastify/cors";
 import Fastify from "fastify";
 import { registerAuthRoutes } from "./auth/routes.js";
 import { registerListingRoutes } from "./listings/routes.js";
@@ -5,6 +6,15 @@ import { registerSafeDealRoutes } from "./safe-deals/routes.js";
 
 const app = Fastify({
   logger: true
+});
+
+const allowedOrigins = process.env.CORS_ORIGINS?.split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean) ?? [];
+
+await app.register(cors, {
+  origin: allowedOrigins.length > 0 ? allowedOrigins : false,
+  credentials: true
 });
 
 app.get("/", async () => {
