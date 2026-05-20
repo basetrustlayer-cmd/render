@@ -36,8 +36,13 @@ export default async function ListingDetailPage({ params }: PageProps) {
           </div>
 
           <div style={{ display: "flex", gap: 12, marginTop: 24, flexWrap: "wrap" }}>
-            <Link href="/messages" style={buttonBlack}>Message Seller</Link>
-            <button style={buttonWhite}>Start Safe Deal</button>
+            <Link href="/messages" style={buttonBlack}>
+              Message Seller
+            </Link>
+
+            <Link href={`/safe-deal/new?listingId=${listing.id}`} style={buttonWhite}>
+              Start Safe Deal
+            </Link>
           </div>
         </section>
 
@@ -112,5 +117,6 @@ const buttonWhite = {
   color: "#111",
   padding: "12px 18px",
   borderRadius: 12,
-  border: "1px solid #ddd"
+  border: "1px solid #ddd",
+  textDecoration: "none"
 };
