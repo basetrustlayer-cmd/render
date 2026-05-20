@@ -1,3 +1,4 @@
+import { bootstrapDemoData } from "./bootstrap-demo-data.js";
 import cors from "@fastify/cors";
 import Fastify from "fastify";
 import { registerAuthRoutes } from "./auth/routes.js";
