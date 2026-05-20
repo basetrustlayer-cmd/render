@@ -20,13 +20,20 @@ export default async function ListingsPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-3">
           {listings.map((listing) => (
-            <Link key={listing.id} href={`/listings/${listing.id}`} className="block rounded border p-4 hover:bg-gray-50">
-              <h2 className="text-xl font-semibold">{listing.title}</h2>
+            <article key={listing.id} className="rounded border bg-white p-4">
+              <p className="text-sm text-gray-600">{listing.category}</p>
+              <h2 className="mt-2 text-xl font-semibold">{listing.title}</h2>
               <p className="mt-2">{listing.description}</p>
               <p className="mt-4 font-bold">GH₵ {String(listing.price)}</p>
-              <p className="text-sm text-gray-600">{listing.category}</p>
               <p className="text-sm text-gray-600">{listing.locationRegion}</p>
-            </Link>
+
+              <Link
+                href={`/listings/${listing.id}`}
+                className="mt-4 block rounded bg-black px-4 py-2 text-center text-white"
+              >
+                View Details
+              </Link>
+            </article>
           ))}
         </div>
       )}
