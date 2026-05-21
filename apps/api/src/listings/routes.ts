@@ -4,6 +4,10 @@ import { z } from "zod";
 import { prisma } from "../database/client.js";
 import { authenticate, requireAuthUser } from "../auth/middleware.js";
 
+const listListingsQuerySchema = z.object({
+  verifiedOnly: z.coerce.boolean().optional()
+});
+
 const createListingSchema = z.object({
   title: z.string().min(3).max(200),
   description: z.string().optional(),
@@ -31,10 +35,34 @@ const listingInclude = {
 };
 
 export async function registerListingRoutes(app: FastifyInstance): Promise<void> {
-  app.get("/listings", async () => {
+  app.get("/listings", async (request, reply) => {
+    const query = listListingsQuerySchema.safeParse(request.query);
+
+    if (!query.success) {
+      return reply.code(400).send({ error: "Invalid listings query." });
+    }
+
     const listings = await prisma.listing.findMany({
-      where: { status: "LIVE" },
-      include: { seller: true, images: true },
+      where: {
+        status: "LIVE",
+        deletedAt: null,
+        ...(query.data.verifiedOnly
+          ? { seller: { verificationLevel: { gte: 1 } } }
+          : {})
+      },
+      include: {
+        images: true,
+        seller: {
+          select: {
+            id: true,
+            verificationLevel: true,
+            trustScore: true,
+            trustTier: true,
+            isBusiness: true,
+            createdAt: true
+          }
+        }
+      },
       orderBy: { createdAt: "desc" }
     });
 
