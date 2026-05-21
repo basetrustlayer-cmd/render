@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../database/client.js";
 import { authenticate, requireAuthUser } from "../auth/middleware.js";
+import { writeAuditLog } from "../audit/log.js";
 
 const listListingsQuerySchema = z.object({
   verifiedOnly: z.coerce.boolean().optional()
@@ -166,6 +167,8 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       include: listingInclude
     });
 
+    void writeAuditLog({ request, actorUserId: authUser.userId, action: "LISTING_CREATED", entityType: "LISTING", entityId: listing.id });
+
     return reply.code(201).send({ listing });
   });
 
@@ -277,6 +280,8 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
         sortOrder: body.data.sortOrder ?? 0
       }
     });
+
+    void writeAuditLog({ request, actorUserId: authUser.userId, action: "LISTING_IMAGE_ADDED", entityType: "LISTING", entityId: listing.id, metadata: { imageId: image.id } });
 
     return reply.code(201).send({ image });
   });

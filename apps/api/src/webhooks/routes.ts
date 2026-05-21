@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../database/client.js";
+import { writeAuditLog } from "../audit/log.js";
 
 function verifyHmac({
   payload,
@@ -63,6 +64,7 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
         secret: process.env.PAYSTACK_SECRET_KEY
       })
     ) {
+      void writeAuditLog({ request, action: "WEBHOOK_PAYSTACK_INVALID_SIGNATURE" });
       return reply.code(401).send({ error: "Invalid Paystack signature." });
     }
 
@@ -88,6 +90,9 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
       });
     }
 
+    void writeAuditLog({ request, action: "WEBHOOK_PAYSTACK_RECEIVED", metadata: { event: parsed.data.event, reference: parsed.data.data.reference } });
+
+
     return { received: true };
   });
 
@@ -102,6 +107,7 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
         secret: process.env.TRUSTLAYER_WEBHOOK_SECRET
       })
     ) {
+      void writeAuditLog({ request, action: "WEBHOOK_TRUSTLAYER_INVALID_SIGNATURE" });
       return reply.code(401).send({ error: "Invalid TrustLayer signature." });
     }
 
