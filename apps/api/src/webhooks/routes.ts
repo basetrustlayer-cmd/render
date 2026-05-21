@@ -47,9 +47,13 @@ const trustLayerWebhookSchema = z.object({
   }).passthrough()
 });
 
+type RawBodyRequest = {
+  rawBody?: string;
+};
+
 export async function registerWebhookRoutes(app: FastifyInstance): Promise<void> {
-  app.post("/webhooks/paystack", async (request, reply) => {
-    const rawBody = JSON.stringify(request.body ?? {});
+  app.post("/webhooks/paystack", { config: { rawBody: true } }, async (request, reply) => {
+    const rawBody = (request as RawBodyRequest).rawBody ?? JSON.stringify(request.body ?? {});
     const signature = request.headers["x-paystack-signature"];
 
     if (
@@ -87,8 +91,8 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
     return { received: true };
   });
 
-  app.post("/webhooks/trustlayer", async (request, reply) => {
-    const rawBody = JSON.stringify(request.body ?? {});
+  app.post("/webhooks/trustlayer", { config: { rawBody: true } }, async (request, reply) => {
+    const rawBody = (request as RawBodyRequest).rawBody ?? JSON.stringify(request.body ?? {});
     const signature = request.headers["x-trustlayer-signature"];
 
     if (
