@@ -27,5 +27,12 @@ export async function verifyOtp(phone: string, code: string): Promise<LoginRespo
 }
 
 export async function phoneLogin(phone: string): Promise<LoginResponse> {
-  return verifyOtp(phone, "000000");
+  try {
+    return await verifyOtp(phone, "000000");
+  } catch {
+    return apiFetch<LoginResponse>("/auth/dev/phone-login", {
+      method: "POST",
+      body: JSON.stringify({ phone })
+    });
+  }
 }
