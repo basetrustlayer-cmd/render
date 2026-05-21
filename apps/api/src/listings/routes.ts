@@ -143,7 +143,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       data: {
         ...parsed.data,
         sellerId: authUser.userId,
-        status: "PENDING"
+        status: "LIVE"
       },
       include: listingInclude
     });
