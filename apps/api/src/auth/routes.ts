@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../database/client.js";
 import { authenticate, requireAuthUser } from "./middleware.js";
+import { sendOtpSms } from "../notifications/hubtel.js";
 import { signAccessToken } from "./jwt.js";
 
 const phoneSchema = z.object({
@@ -58,6 +59,11 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
 
     const code = generateOtp();
 
+    const delivery = await sendOtpSms({
+      phone: parsed.data.phone,
+      code
+    });
+
     await prisma.otpChallenge.create({
       data: {
         phone: parsed.data.phone,
@@ -68,7 +74,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
 
     return {
       ok: true,
-      delivery: process.env.HUBTEL_CLIENT_ID ? "hubtel_pending" : "dev_otp",
+      delivery: delivery.provider === "HUBTEL" ? "sms_sent" : "dev_otp",
       devCode: process.env.NODE_ENV === "production" ? undefined : code
     };
   });
