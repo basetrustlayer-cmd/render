@@ -12,7 +12,8 @@ const phoneSchema = z.object({
 
 
 const refreshTokenSchema = z.object({
-  refreshToken: z.string().min(32)
+  refreshToken: z.string().min(32),
+  deviceFingerprint: z.string().min(16).max(256).optional()
 });
 
 const verifyOtpSchema = z.object({
@@ -32,6 +33,10 @@ function hashRefreshToken(token: string): string {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
 
+function hashOptional(value: string | undefined): string | undefined {
+  return value ? crypto.createHash("sha256").update(value).digest("hex") : undefined;
+}
+
 async function toAuthResponse(user: {
   id: string;
   phone: string | null;
@@ -42,15 +47,19 @@ async function toAuthResponse(user: {
 }, requestMeta?: {
   userAgent?: string;
   ipAddress?: string;
+  deviceFingerprint?: string;
 }) {
   const jti = crypto.randomUUID();
   const refreshToken = crypto.randomBytes(48).toString("base64url");
+  const csrfToken = crypto.randomBytes(32).toString("base64url");
 
   await prisma.authSession.create({
     data: {
       userId: user.id,
       jti,
       refreshTokenHash: hashRefreshToken(refreshToken),
+      csrfTokenHash: hashRefreshToken(csrfToken),
+      deviceFingerprintHash: hashOptional(requestMeta?.deviceFingerprint),
       userAgent: requestMeta?.userAgent,
       ipAddress: requestMeta?.ipAddress,
       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
@@ -68,6 +77,7 @@ async function toAuthResponse(user: {
   return {
     accessToken,
     refreshToken,
+    csrfToken,
     user: {
       id: user.id,
       phone: user.phone ?? "",
@@ -193,7 +203,8 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
 
     return toAuthResponse(user, {
       userAgent: request.headers["user-agent"],
-      ipAddress: request.ip
+      ipAddress: request.ip,
+      deviceFingerprint: request.headers["x-render-device-fingerprint"] as string | undefined
     });
   });
 
@@ -224,7 +235,8 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
 
       return toAuthResponse(user, {
         userAgent: request.headers["user-agent"],
-        ipAddress: request.ip
+        ipAddress: request.ip,
+        deviceFingerprint: request.headers["x-render-device-fingerprint"] as string | undefined
       });
     });
   }
@@ -245,6 +257,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const refreshTokenHash = hashRefreshToken(parsed.data.refreshToken);
+    const deviceFingerprintHash = hashOptional(parsed.data.deviceFingerprint);
 
     const session = await prisma.authSession.findUnique({
       where: { refreshTokenHash },
@@ -262,7 +275,12 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       }
     });
 
-    if (!session || session.revokedAt || session.expiresAt <= new Date()) {
+    if (
+      !session ||
+      session.revokedAt ||
+      session.expiresAt <= new Date() ||
+      (session.deviceFingerprintHash && session.deviceFingerprintHash !== deviceFingerprintHash)
+    ) {
       return reply.code(401).send({ error: "Invalid or expired refresh token." });
     }
 
@@ -282,7 +300,8 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
 
     return toAuthResponse(session.user, {
       userAgent: request.headers["user-agent"],
-      ipAddress: request.ip
+      ipAddress: request.ip,
+      deviceFingerprint: parsed.data.deviceFingerprint
     });
   });
 

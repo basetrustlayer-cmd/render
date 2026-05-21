@@ -13,6 +13,8 @@ type User = {
 type PersistedAuth = {
   accessToken: string | null;
   refreshToken: string | null;
+  csrfToken: string | null;
+  deviceFingerprint: string | null;
   user: User | null;
 };
 
@@ -27,7 +29,7 @@ const AUTH_STORAGE_KEY = "render-auth";
 
 function readStoredAuth(): PersistedAuth {
   if (typeof window === "undefined") {
-    return { accessToken: null, refreshToken: null, user: null };
+    return { accessToken: null, refreshToken: null, csrfToken: null, deviceFingerprint: null, user: null };
   }
 
   const raw = localStorage.getItem(AUTH_STORAGE_KEY);
@@ -36,6 +38,8 @@ function readStoredAuth(): PersistedAuth {
     return {
       accessToken: localStorage.getItem("accessToken"),
       refreshToken: localStorage.getItem("refreshToken"),
+      csrfToken: localStorage.getItem("csrfToken"),
+      deviceFingerprint: localStorage.getItem("deviceFingerprint"),
       user: null
     };
   }
@@ -45,6 +49,8 @@ function readStoredAuth(): PersistedAuth {
       state?: Partial<PersistedAuth>;
       accessToken?: string | null;
       refreshToken?: string | null;
+      csrfToken?: string | null;
+      deviceFingerprint?: string | null;
       user?: User | null;
     };
 
@@ -57,6 +63,14 @@ function readStoredAuth(): PersistedAuth {
         parsed.state?.refreshToken ??
         parsed.refreshToken ??
         localStorage.getItem("refreshToken"),
+      csrfToken:
+        parsed.state?.csrfToken ??
+        parsed.csrfToken ??
+        localStorage.getItem("csrfToken"),
+      deviceFingerprint:
+        parsed.state?.deviceFingerprint ??
+        parsed.deviceFingerprint ??
+        localStorage.getItem("deviceFingerprint"),
       user: parsed.state?.user ?? parsed.user ?? null
     };
   } catch {
@@ -65,6 +79,8 @@ function readStoredAuth(): PersistedAuth {
     return {
       accessToken: localStorage.getItem("accessToken"),
       refreshToken: localStorage.getItem("refreshToken"),
+      csrfToken: localStorage.getItem("csrfToken"),
+      deviceFingerprint: localStorage.getItem("deviceFingerprint"),
       user: null
     };
   }
@@ -83,6 +99,20 @@ function writeStoredAuth(auth: PersistedAuth): void {
     localStorage.setItem("refreshToken", auth.refreshToken);
   } else {
     localStorage.removeItem("refreshToken");
+  localStorage.removeItem("csrfToken");
+  localStorage.removeItem("deviceFingerprint");
+  }
+
+  if (auth.csrfToken) {
+    localStorage.setItem("csrfToken", auth.csrfToken);
+  } else {
+    localStorage.removeItem("csrfToken");
+  }
+
+  if (auth.deviceFingerprint) {
+    localStorage.setItem("deviceFingerprint", auth.deviceFingerprint);
+  } else {
+    localStorage.removeItem("deviceFingerprint");
   }
 
   localStorage.setItem(
@@ -99,12 +129,16 @@ function clearStoredAuth(): void {
 
   localStorage.removeItem("accessToken");
   localStorage.removeItem("refreshToken");
+  localStorage.removeItem("csrfToken");
+  localStorage.removeItem("deviceFingerprint");
   localStorage.removeItem(AUTH_STORAGE_KEY);
 }
 
 export const useAuthStore = create<AuthState>()((set, get) => ({
   accessToken: null,
   refreshToken: null,
+  csrfToken: null,
+  deviceFingerprint: null,
   user: null,
 
   login: async (phone: string, code: string) => {
@@ -113,6 +147,8 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     const auth = {
       accessToken: result.accessToken,
       refreshToken: result.refreshToken,
+      csrfToken: result.csrfToken,
+      deviceFingerprint: localStorage.getItem("deviceFingerprint"),
       user: result.user
     };
 
@@ -128,11 +164,13 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     }
 
     try {
-      const result = await refreshAuth(current.refreshToken);
+      const result = await refreshAuth(current.refreshToken, current.deviceFingerprint);
 
       const auth = {
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
+        csrfToken: result.csrfToken,
+        deviceFingerprint: current.deviceFingerprint,
         user: result.user
       };
 
@@ -145,6 +183,8 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       set({
         accessToken: null,
         refreshToken: null,
+        csrfToken: null,
+        deviceFingerprint: null,
         user: null
       });
 
@@ -158,6 +198,8 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     set({
       accessToken: null,
       refreshToken: null,
+      csrfToken: null,
+      deviceFingerprint: null,
       user: null
     });
   },
