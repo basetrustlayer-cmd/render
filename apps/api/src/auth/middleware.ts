@@ -77,3 +77,44 @@ export function requireAuthUser(request: FastifyRequest): AuthTokenPayload {
 
   return request.authUser;
 }
+
+const roleRank = {
+  USER: 0,
+  MODERATOR: 1,
+  ADMIN: 2,
+  SUPER_ADMIN: 3
+} as const;
+
+export type UserRoleName = keyof typeof roleRank;
+
+export function requireRole(minimumRole: UserRoleName) {
+  return async function requireRoleHandler(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<void> {
+    const authUser = requireAuthUser(request);
+
+    const user = await prisma.user.findUnique({
+      where: { id: authUser.userId },
+      select: {
+        id: true,
+        role: true,
+        isSuspended: true
+      }
+    });
+
+    if (!user || user.isSuspended) {
+      reply.code(403).send({ error: "Admin access denied." });
+      return;
+    }
+
+    if (roleRank[user.role] < roleRank[minimumRole]) {
+      reply.code(403).send({ error: "Insufficient permissions." });
+      return;
+    }
+  };
+}
+
+export const requireModerator = requireRole("MODERATOR");
+export const requireAdmin = requireRole("ADMIN");
+export const requireSuperAdmin = requireRole("SUPER_ADMIN");

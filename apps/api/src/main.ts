@@ -3,6 +3,7 @@ import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import Fastify from "fastify";
 import rawBody from "fastify-raw-body";
+import { registerAdminRoutes } from "./admin/routes.js";
 import { registerAuthRoutes } from "./auth/routes.js";
 import { registerListingRoutes } from "./listings/routes.js";
 import { registerSafeDealRoutes } from "./safe-deals/routes.js";
@@ -70,6 +71,7 @@ app.get("/", async () => {
 });
 
 await registerAuthRoutes(app);
+await registerAdminRoutes(app);
 await registerListingRoutes(app);
 await registerSafeDealRoutes(app);
 await registerTrustLayerRoutes(app);
