@@ -1,9 +1,10 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { DashboardShell } from "../../components/dashboard/dashboard-shell";
 import { StatCard } from "../../components/dashboard/stat-card";
-import { apiFetch } from "../../lib/api";
+import { ApiError, apiFetch } from "../../lib/api";
 import { useAuthStore } from "../../store/auth";
 
 type Listing = {
@@ -23,8 +24,10 @@ type TrustScore = {
 };
 
 export default function DashboardPage() {
+  const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const hydrate = useAuthStore((state) => state.hydrate);
+  const logout = useAuthStore((state) => state.logout);
 
   const [listings, setListings] = useState<Listing[]>([]);
   const [safeDeals, setSafeDeals] = useState<SafeDeal[]>([]);
@@ -34,6 +37,19 @@ export default function DashboardPage() {
   useEffect(() => {
     hydrate();
   }, [hydrate]);
+
+  useEffect(() => {
+    function handleInvalidAuth() {
+      logout();
+      router.replace("/login");
+    }
+
+    window.addEventListener("render-auth-invalid", handleInvalidAuth);
+
+    return () => {
+      window.removeEventListener("render-auth-invalid", handleInvalidAuth);
+    };
+  }, [logout, router]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -53,12 +69,18 @@ export default function DashboardPage() {
         setTrustScore(trustScoreResult);
         setError(null);
       } catch (err) {
+        if (err instanceof ApiError && [401, 403].includes(err.status)) {
+          logout();
+          router.replace("/login");
+          return;
+        }
+
         setError(err instanceof Error ? err.message : "Unable to load dashboard data.");
       }
     }
 
     void loadDashboard();
-  }, [user?.id]);
+  }, [logout, router, user?.id]);
 
   const completedDeals = useMemo(
     () => safeDeals.filter((deal) => ["RELEASED", "COMPLETED"].includes(deal.status)).length,

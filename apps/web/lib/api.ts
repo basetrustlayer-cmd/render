@@ -37,6 +37,26 @@ function getAccessToken(): string | null {
   }
 }
 
+function clearBrowserAuth(): void {
+  if (typeof window === "undefined") return;
+
+  localStorage.removeItem("render-auth");
+  localStorage.removeItem("accessToken");
+  window.dispatchEvent(new Event("render-auth-invalid"));
+}
+
+export class ApiError extends Error {
+  status: number;
+  body: string;
+
+  constructor(status: number, body: string) {
+    super(`API request failed ${status}: ${body}`);
+    this.name = "ApiError";
+    this.status = status;
+    this.body = body;
+  }
+}
+
 export async function apiFetch<T>(
   path: string,
   options?: RequestInit
@@ -57,12 +77,15 @@ export async function apiFetch<T>(
   const text = await response.text();
 
   if (!response.ok) {
-    if (typeof window !== "undefined" && [401, 403].includes(response.status)) {
-      localStorage.removeItem("render-auth");
-      localStorage.removeItem("accessToken");
+    if ([401, 403].includes(response.status)) {
+      clearBrowserAuth();
     }
 
-    throw new Error(`API request failed ${response.status}: ${text}`);
+    throw new ApiError(response.status, text);
+  }
+
+  if (!text) {
+    return {} as T;
   }
 
   return JSON.parse(text) as T;
