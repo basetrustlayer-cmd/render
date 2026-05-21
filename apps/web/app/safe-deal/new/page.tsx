@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -20,7 +21,7 @@ type SafeDealResponse = {
   };
 };
 
-export default function NewSafeDealPage() {
+function SafeDealCheckout() {
   const searchParams = useSearchParams();
   const listingId = searchParams.get("listingId");
   const user = useAuthStore((state) => state.user);
@@ -99,5 +100,14 @@ export default function NewSafeDealPage() {
         </button>
       </section>
     </main>
+  );
+}
+
+
+export default function NewSafeDealPage() {
+  return (
+    <Suspense fallback={<main className="mx-auto max-w-4xl p-8">Loading Safe Deal checkout...</main>}>
+      <SafeDealCheckout />
+    </Suspense>
   );
 }
