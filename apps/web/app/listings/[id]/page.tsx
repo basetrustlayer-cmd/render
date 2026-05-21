@@ -86,7 +86,7 @@ export default async function ListingDetailPage({ params }: PageProps) {
 
           <div className="mt-5 rounded-2xl bg-emerald-50 p-5">
             <p className="text-gray-600">TrustScore</p>
-            <strong className="text-5xl text-emerald-700">{seller.trustScore}/100</strong>
+            <strong className="text-5xl text-emerald-700">{seller.trustScore}/1000</strong>
             <p>{seller.trustTier}</p>
           </div>
 
