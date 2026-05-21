@@ -39,7 +39,6 @@ export async function addListingImage(listingId: string, input: ListingImageInpu
 
 export type CloudinarySignatureResponse = {
   cloudName: string;
-  apiKey: string;
   timestamp: number;
   folder: string;
   signature: string;

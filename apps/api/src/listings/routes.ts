@@ -179,10 +179,9 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
     }
 
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-    const apiKey = process.env.CLOUDINARY_API_KEY;
     const apiSecret = process.env.CLOUDINARY_API_SECRET;
 
-    if (!cloudName || !apiKey || !apiSecret) {
+    if (!cloudName || !apiSecret) {
       return reply.code(500).send({ error: "Cloudinary environment variables are required." });
     }
 
@@ -193,7 +192,6 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
 
     return {
       cloudName,
-      apiKey,
       timestamp,
       folder,
       signature,

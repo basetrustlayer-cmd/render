@@ -72,8 +72,14 @@ export default function EditListingPhotosPage() {
 
       for (const [index, file] of Array.from(files).entries()) {
         const form = new FormData();
+        const cloudinaryApiKey = process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY;
+
+        if (!cloudinaryApiKey) {
+          throw new Error("NEXT_PUBLIC_CLOUDINARY_API_KEY is required.");
+        }
+
         form.append("file", file);
-        form.append("api_key", signature.apiKey);
+        form.append("api_key", cloudinaryApiKey);
         form.append("timestamp", String(signature.timestamp));
         form.append("folder", signature.folder);
         form.append("signature", signature.signature);
