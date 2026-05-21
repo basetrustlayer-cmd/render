@@ -82,7 +82,7 @@ export default function DashboardListingsPage() {
               ))}
               {listings.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-gray-500">
+                  <td colSpan={6} className="py-8 text-center text-gray-500">
                     No listings found for this user.
                   </td>
                 </tr>
