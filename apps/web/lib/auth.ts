@@ -9,6 +9,7 @@ export type AuthUser = {
 
 export type LoginResponse = {
   accessToken: string;
+  refreshToken: string;
   user: AuthUser;
 };
 
@@ -23,5 +24,18 @@ export async function verifyOtp(phone: string, code: string): Promise<LoginRespo
   return apiFetch<LoginResponse>("/auth/otp/verify", {
     method: "POST",
     body: JSON.stringify({ phone, code })
+  });
+}
+
+export async function refreshAuth(refreshToken: string): Promise<LoginResponse> {
+  return apiFetch<LoginResponse>("/auth/refresh", {
+    method: "POST",
+    body: JSON.stringify({ refreshToken })
+  });
+}
+
+export async function logoutAuth(): Promise<{ ok: true }> {
+  return apiFetch<{ ok: true }>("/auth/logout", {
+    method: "POST"
   });
 }

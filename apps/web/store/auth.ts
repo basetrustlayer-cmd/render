@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import { verifyOtp } from "../lib/auth";
+import { logoutAuth, refreshAuth, verifyOtp } from "../lib/auth";
 
 type User = {
   id: string;
@@ -12,11 +12,13 @@ type User = {
 
 type PersistedAuth = {
   accessToken: string | null;
+  refreshToken: string | null;
   user: User | null;
 };
 
 type AuthState = PersistedAuth & {
   login: (phone: string, code: string) => Promise<void>;
+  refreshSession: () => Promise<boolean>;
   logout: () => void;
   hydrate: () => void;
 };
@@ -25,7 +27,7 @@ const AUTH_STORAGE_KEY = "render-auth";
 
 function readStoredAuth(): PersistedAuth {
   if (typeof window === "undefined") {
-    return { accessToken: null, user: null };
+    return { accessToken: null, refreshToken: null, user: null };
   }
 
   const raw = localStorage.getItem(AUTH_STORAGE_KEY);
@@ -33,14 +35,16 @@ function readStoredAuth(): PersistedAuth {
   if (!raw) {
     return {
       accessToken: localStorage.getItem("accessToken"),
+      refreshToken: localStorage.getItem("refreshToken"),
       user: null
     };
   }
 
   try {
     const parsed = JSON.parse(raw) as {
-      state?: PersistedAuth;
+      state?: Partial<PersistedAuth>;
       accessToken?: string | null;
+      refreshToken?: string | null;
       user?: User | null;
     };
 
@@ -49,12 +53,18 @@ function readStoredAuth(): PersistedAuth {
         parsed.state?.accessToken ??
         parsed.accessToken ??
         localStorage.getItem("accessToken"),
+      refreshToken:
+        parsed.state?.refreshToken ??
+        parsed.refreshToken ??
+        localStorage.getItem("refreshToken"),
       user: parsed.state?.user ?? parsed.user ?? null
     };
   } catch {
     localStorage.removeItem(AUTH_STORAGE_KEY);
+
     return {
       accessToken: localStorage.getItem("accessToken"),
+      refreshToken: localStorage.getItem("refreshToken"),
       user: null
     };
   }
@@ -67,6 +77,12 @@ function writeStoredAuth(auth: PersistedAuth): void {
     localStorage.setItem("accessToken", auth.accessToken);
   } else {
     localStorage.removeItem("accessToken");
+  }
+
+  if (auth.refreshToken) {
+    localStorage.setItem("refreshToken", auth.refreshToken);
+  } else {
+    localStorage.removeItem("refreshToken");
   }
 
   localStorage.setItem(
@@ -82,11 +98,13 @@ function clearStoredAuth(): void {
   if (typeof window === "undefined") return;
 
   localStorage.removeItem("accessToken");
+  localStorage.removeItem("refreshToken");
   localStorage.removeItem(AUTH_STORAGE_KEY);
 }
 
-export const useAuthStore = create<AuthState>()((set) => ({
+export const useAuthStore = create<AuthState>()((set, get) => ({
   accessToken: null,
+  refreshToken: null,
   user: null,
 
   login: async (phone: string, code: string) => {
@@ -94,6 +112,7 @@ export const useAuthStore = create<AuthState>()((set) => ({
 
     const auth = {
       accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
       user: result.user
     };
 
@@ -101,10 +120,44 @@ export const useAuthStore = create<AuthState>()((set) => ({
     set(auth);
   },
 
+  refreshSession: async () => {
+    const current = get();
+
+    if (!current.refreshToken) {
+      return false;
+    }
+
+    try {
+      const result = await refreshAuth(current.refreshToken);
+
+      const auth = {
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        user: result.user
+      };
+
+      writeStoredAuth(auth);
+      set(auth);
+
+      return true;
+    } catch {
+      clearStoredAuth();
+      set({
+        accessToken: null,
+        refreshToken: null,
+        user: null
+      });
+
+      return false;
+    }
+  },
+
   logout: () => {
+    void logoutAuth().catch(() => undefined);
     clearStoredAuth();
     set({
       accessToken: null,
+      refreshToken: null,
       user: null
     });
   },
