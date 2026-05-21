@@ -5,6 +5,7 @@ import { prisma } from "../database/client.js";
 import { authenticate, requireAuthUser } from "./middleware.js";
 import { sendOtpSms } from "../notifications/hubtel.js";
 import { signAccessToken } from "./jwt.js";
+import { writeAuditLog } from "../audit/log.js";
 
 const phoneSchema = z.object({
   phone: z.string().min(8).max(20)
@@ -99,6 +100,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     const parsed = phoneSchema.safeParse(request.body);
 
     if (!parsed.success) {
+      void writeAuditLog({ request, action: "AUTH_OTP_SEND_INVALID" });
       return reply.code(400).send({ error: "Invalid phone number." });
     }
 
@@ -111,6 +113,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     });
 
     if (recentChallenge) {
+      void writeAuditLog({ request, action: "AUTH_OTP_SEND_THROTTLED", metadata: { phone: parsed.data.phone } });
       return reply.code(429).send({
         error: "Please wait 60 seconds before requesting another OTP code."
       });
@@ -140,6 +143,8 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
         expiresAt: new Date(Date.now() + 10 * 60 * 1000)
       }
     });
+
+    void writeAuditLog({ request, action: "AUTH_OTP_SENT", metadata: { phone: parsed.data.phone, delivery: delivery.provider } });
 
     return {
       ok: true,
@@ -181,6 +186,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
+      void writeAuditLog({ request, action: "AUTH_OTP_VERIFY_FAILED", metadata: { phone } });
       return reply.code(401).send({ error: "Invalid or expired OTP code." });
     }
 
@@ -201,7 +207,11 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       }
     });
 
-    return toAuthResponse(user, {
+    void writeAuditLog({ request, actorUserId: user.id, action: "AUTH_LOGIN_SUCCESS", entityType: "USER", entityId: user.id });
+
+    void writeAuditLog({ request, actorUserId: user.id, action: "AUTH_DEV_LOGIN_SUCCESS", entityType: "USER", entityId: user.id });
+
+      return toAuthResponse(user, {
       userAgent: request.headers["user-agent"],
       ipAddress: request.ip,
       deviceFingerprint: request.headers["x-render-device-fingerprint"] as string | undefined
@@ -281,6 +291,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       session.expiresAt <= new Date() ||
       (session.deviceFingerprintHash && session.deviceFingerprintHash !== deviceFingerprintHash)
     ) {
+      void writeAuditLog({ request, action: "AUTH_REFRESH_FAILED" });
       return reply.code(401).send({ error: "Invalid or expired refresh token." });
     }
 
@@ -297,6 +308,8 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       where: { id: session.id },
       data: { revokedAt: new Date() }
     });
+
+    void writeAuditLog({ request, actorUserId: session.user.id, action: "AUTH_REFRESH_SUCCESS", entityType: "USER", entityId: session.user.id });
 
     return toAuthResponse(session.user, {
       userAgent: request.headers["user-agent"],
@@ -318,6 +331,8 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
         revokedAt: new Date()
       }
     });
+
+    void writeAuditLog({ request, actorUserId: authUser.userId, action: "AUTH_LOGOUT", entityType: "USER", entityId: authUser.userId });
 
     return { ok: true };
   });

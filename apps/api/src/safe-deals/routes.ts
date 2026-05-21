@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "../database/client.js";
 import { authenticate, requireAuthUser } from "../auth/middleware.js";
 import { apiEnv } from "../env.js";
+import { writeAuditLog } from "../audit/log.js";
 
 const createSafeDealSchema = z.object({
   listingId: z.string().uuid()
@@ -138,6 +139,8 @@ export async function registerSafeDealRoutes(
       listingId: listing.id
     });
 
+    void writeAuditLog({ request, actorUserId: authUser.userId, action: "SAFE_DEAL_INITIATED", entityType: "SAFE_DEAL", entityId: safeDeal.id, metadata: { listingId: listing.id, sellerId: listing.sellerId } });
+
     return reply.code(201).send({
       safeDeal,
       checkout: {
@@ -221,6 +224,10 @@ export async function registerSafeDealRoutes(
         confirmedAt: new Date()
       }
     });
+
+    void writeAuditLog({ request, actorUserId: authUser.userId, action: "SAFE_DEAL_CONFIRMED", entityType: "SAFE_DEAL", entityId: updated.id });
+
+    void writeAuditLog({ request, actorUserId: authUser.userId, action: "SAFE_DEAL_DISPUTED", entityType: "SAFE_DEAL", entityId: updated.id });
 
     return { safeDeal: updated };
   });

@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { authenticate, requireAuthUser } from "../auth/middleware.js";
 import { prisma } from "../database/client.js";
+import { writeAuditLog } from "../audit/log.js";
 
 const ghanaCardSchema = z.object({
   ghanaCardNumber: z.string().min(5).max(30)
@@ -69,6 +70,7 @@ export async function registerTrustLayerRoutes(app: FastifyInstance): Promise<vo
       }
     });
 
+
     return {
       verification: {
         configured: Boolean(process.env.TRUSTLAYER_API_KEY && process.env.TRUSTLAYER_API_URL),
@@ -102,6 +104,8 @@ export async function registerTrustLayerRoutes(app: FastifyInstance): Promise<vo
     });
 
     if (verification.status !== "VERIFIED") {
+      void writeAuditLog({ request, actorUserId: authUser.userId, action: "GHANA_CARD_VERIFICATION_PENDING", entityType: "USER", entityId: authUser.userId, metadata: { status: verification.status, reference: verification.reference } });
+
       return reply.code(202).send({
         verification: {
           provider: "TrustLayer",
