@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { prisma } from "../database/client.js";
 
 function calculateTrustTier(score: number): "NEW" | "BUILDING" | "VERIFIED" | "TRUSTED" {
   if (score >= 900) return "TRUSTED";
@@ -18,15 +19,31 @@ export async function registerTrustScoreRoutes(app: FastifyInstance): Promise<vo
       return reply.code(400).send({ error: "Invalid user ID." });
     }
 
-    const score = 500;
-    const tier = calculateTrustTier(score);
+    const user = await prisma.user.findUnique({
+      where: { id: params.data.id },
+      select: {
+        trustScore: true,
+        trustTier: true,
+        verificationLevel: true,
+        createdAt: true
+      }
+    });
+
+    if (!user) {
+      return reply.code(404).send({ error: "User not found." });
+    }
+
+    const score = user.trustScore ?? 0;
+    const tier = user.trustTier ?? calculateTrustTier(score);
 
     return {
       userId: params.data.id,
       score,
       tier,
+      verificationLevel: user.verificationLevel,
+      memberSince: user.createdAt,
       components: {
-        identityCompleteness: 0,
+        identityCompleteness: user.verificationLevel > 0 ? 100 : 0,
         transactionHistory: 0,
         peerReviews: 0,
         disputeRecord: 0,

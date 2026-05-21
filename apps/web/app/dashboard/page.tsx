@@ -83,7 +83,7 @@ export default function DashboardPage() {
   }, [logout, router, user?.id]);
 
   const completedDeals = useMemo(
-    () => safeDeals.filter((deal) => ["RELEASED", "COMPLETED"].includes(deal.status)).length,
+    () => safeDeals.filter((deal) => ["CONFIRMED", "COMPLETE"].includes(deal.status)).length,
     [safeDeals]
   );
 
