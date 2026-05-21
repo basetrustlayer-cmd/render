@@ -50,12 +50,43 @@ function toAuthResponse(user: {
 }
 
 export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
-  app.post("/auth/otp/send", async (request, reply) => {
+  app.post("/auth/otp/send", {
+    config: {
+      rateLimit: {
+        max: 5,
+        timeWindow: "15 minutes"
+      }
+    }
+  }, async (request, reply) => {
     const parsed = phoneSchema.safeParse(request.body);
 
     if (!parsed.success) {
       return reply.code(400).send({ error: "Invalid phone number." });
     }
+
+    const recentChallenge = await prisma.otpChallenge.findFirst({
+      where: {
+        phone: parsed.data.phone,
+        createdAt: { gt: new Date(Date.now() - 60 * 1000) }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    if (recentChallenge) {
+      return reply.code(429).send({
+        error: "Please wait 60 seconds before requesting another OTP code."
+      });
+    }
+
+    await prisma.otpChallenge.updateMany({
+      where: {
+        phone: parsed.data.phone,
+        consumedAt: null
+      },
+      data: {
+        consumedAt: new Date()
+      }
+    });
 
     const code = generateOtp();
 
@@ -79,7 +110,14 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
-  app.post("/auth/otp/verify", async (request, reply) => {
+  app.post("/auth/otp/verify", {
+    config: {
+      rateLimit: {
+        max: 10,
+        timeWindow: "15 minutes"
+      }
+    }
+  }, async (request, reply) => {
     const parsed = verifyOtpSchema.safeParse(request.body);
 
     if (!parsed.success) {
@@ -129,7 +167,14 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   });
 
   if (process.env.NODE_ENV !== "production") {
-    app.post("/auth/dev/phone-login", async (request, reply) => {
+    app.post("/auth/dev/phone-login", {
+      config: {
+        rateLimit: {
+          max: 10,
+          timeWindow: "15 minutes"
+        }
+      }
+    }, async (request, reply) => {
       const parsed = phoneSchema.safeParse(request.body);
 
       if (!parsed.success) {
