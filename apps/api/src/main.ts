@@ -5,12 +5,13 @@ import { registerAuthRoutes } from "./auth/routes.js";
 import { registerListingRoutes } from "./listings/routes.js";
 import { registerSafeDealRoutes } from "./safe-deals/routes.js";
 import { registerWebhookRoutes } from "./webhooks/routes.js";
+import { apiEnv } from "./env.js";
 
 const app = Fastify({
   logger: true
 });
 
-const allowedOrigins = process.env.CORS_ORIGINS?.split(",")
+const allowedOrigins = apiEnv.corsOrigins
   .map((origin) => origin.trim())
   .filter(Boolean) ?? [];
 
@@ -31,7 +32,7 @@ await registerListingRoutes(app);
 await registerSafeDealRoutes(app);
 await registerWebhookRoutes(app);
 
-const port = Number(process.env.PORT || 3001);
+const port = apiEnv.port;
 const host = "0.0.0.0";
 
 await app.listen({
