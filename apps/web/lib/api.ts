@@ -13,7 +13,28 @@ function getAccessToken(): string | null {
     return null;
   }
 
-  return localStorage.getItem("accessToken");
+  const directToken = localStorage.getItem("accessToken");
+
+  if (directToken) {
+    return directToken;
+  }
+
+  const persisted = localStorage.getItem("render-auth");
+
+  if (!persisted) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(persisted) as {
+      state?: { accessToken?: string | null };
+    };
+
+    return parsed.state?.accessToken ?? null;
+  } catch {
+    localStorage.removeItem("render-auth");
+    return null;
+  }
 }
 
 export async function apiFetch<T>(
@@ -36,6 +57,11 @@ export async function apiFetch<T>(
   const text = await response.text();
 
   if (!response.ok) {
+    if (typeof window !== "undefined" && [401, 403].includes(response.status)) {
+      localStorage.removeItem("render-auth");
+      localStorage.removeItem("accessToken");
+    }
+
     throw new Error(`API request failed ${response.status}: ${text}`);
   }
 

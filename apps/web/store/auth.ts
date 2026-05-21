@@ -8,7 +8,7 @@ type User = {
   id: string;
   phone: string;
   verificationLevel: number;
-  trustTier: number | null;
+  trustTier: string | null;
 };
 
 type AuthState = {
