@@ -263,6 +263,8 @@ export async function registerSafeDealRoutes(
       }
     });
 
+    void writeAuditLog({ request, actorUserId: authUser.userId, action: "SAFE_DEAL_DISPUTED", entityType: "SAFE_DEAL", entityId: updated.id });
+
     return { safeDeal: updated };
   });
 
