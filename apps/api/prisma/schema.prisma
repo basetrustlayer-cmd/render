@@ -60,6 +60,8 @@ model User {
   isBusiness        Boolean   @default(false) @map("is_business")
   isSuspended       Boolean   @default(false) @map("is_suspended")
   whatsappNumber    String?   @map("whatsapp_number") @db.VarChar(20)
+  paystackRecipientCode String? @map("paystack_recipient_code") @db.VarChar(100)
+  payoutReady       Boolean   @default(false) @map("payout_ready")
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 

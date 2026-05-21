@@ -185,7 +185,15 @@ export async function registerSafeDealRoutes(
     }
 
     const safeDeal = await prisma.safeDeal.findUnique({
-      where: { id: params.data.id }
+      where: { id: params.data.id },
+      include: {
+        seller: {
+          select: {
+            payoutReady: true,
+            paystackRecipientCode: true
+          }
+        }
+      }
     });
 
     if (!safeDeal) {
@@ -198,6 +206,12 @@ export async function registerSafeDealRoutes(
 
     if (!["FUNDED", "DELIVERED"].includes(safeDeal.status)) {
       return reply.code(400).send({ error: "Only funded or delivered Safe Deals can be confirmed." });
+    }
+
+    if (!safeDeal.seller.payoutReady || !safeDeal.seller.paystackRecipientCode) {
+      return reply.code(409).send({
+        error: "Seller payout setup is incomplete. Safe Deal cannot be confirmed for payout yet."
+      });
     }
 
     const updated = await prisma.safeDeal.update({
