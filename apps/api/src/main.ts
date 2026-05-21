@@ -1,4 +1,5 @@
 import cors from "@fastify/cors";
+import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import Fastify from "fastify";
 import { registerAuthRoutes } from "./auth/routes.js";
@@ -16,6 +17,10 @@ const allowedOrigins = apiEnv.corsOrigins
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+await app.register(helmet, {
+  contentSecurityPolicy: false
+});
+
 await app.register(cors, {
   origin: allowedOrigins.length > 0 ? allowedOrigins : false,
   credentials: true
@@ -25,6 +30,27 @@ await app.register(rateLimit, {
   global: true,
   max: 100,
   timeWindow: "1 minute"
+});
+
+app.setErrorHandler((error, request, reply) => {
+  app.log.error({
+    err: error,
+    method: request.method,
+    url: request.url
+  });
+
+  const normalizedError =
+    error instanceof Error ? error : new Error("Unexpected server error.");
+
+  const maybeStatusError = normalizedError as Error & {
+    statusCode?: number;
+  };
+
+  const statusCode = maybeStatusError.statusCode ?? 500;
+
+  return reply.code(statusCode).send({
+    error: statusCode >= 500 ? "Internal server error." : normalizedError.message
+  });
 });
 
 app.get("/", async () => {
