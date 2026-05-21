@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { authenticate } from "../auth/middleware.js";
 
 const createReviewSchema = z.object({
   safeDealId: z.string().uuid(),
@@ -10,7 +11,7 @@ const createReviewSchema = z.object({
 });
 
 export async function registerReviewRoutes(app: FastifyInstance): Promise<void> {
-  app.post("/reviews", async (request, reply) => {
+  app.post("/reviews", { preHandler: authenticate }, async (request, reply) => {
     const parsed = createReviewSchema.safeParse(request.body);
 
     if (!parsed.success) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import { phoneLogin } from "../lib/auth";
+import { verifyOtp } from "../lib/auth";
 
 type User = {
   id: string;
@@ -16,7 +16,7 @@ type PersistedAuth = {
 };
 
 type AuthState = PersistedAuth & {
-  login: (phone: string) => Promise<void>;
+  login: (phone: string, code: string) => Promise<void>;
   logout: () => void;
   hydrate: () => void;
 };
@@ -89,8 +89,8 @@ export const useAuthStore = create<AuthState>()((set) => ({
   accessToken: null,
   user: null,
 
-  login: async (phone: string) => {
-    const result = await phoneLogin(phone);
+  login: async (phone: string, code: string) => {
+    const result = await verifyOtp(phone, code);
 
     const auth = {
       accessToken: result.accessToken,

@@ -82,25 +82,28 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     return toAuthResponse(user);
   });
 
+  if (process.env.NODE_ENV !== "production") {
   app.post("/auth/dev/phone-login", async (request, reply) => {
-    const parsed = phoneSchema.safeParse(request.body);
-
-    if (!parsed.success) {
-      return reply.code(400).send({ error: "Invalid phone number." });
-    }
-
-    const user = await prisma.user.upsert({
-      where: { trustlayerUserId: `dev_${parsed.data.phone}` },
-      update: { phone: parsed.data.phone },
-      create: {
-        trustlayerUserId: `dev_${parsed.data.phone}`,
-        phone: parsed.data.phone,
-        verificationLevel: 1
+      const parsed = phoneSchema.safeParse(request.body);
+  
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "Invalid phone number." });
       }
+  
+      const user = await prisma.user.upsert({
+        where: { trustlayerUserId: `dev_${parsed.data.phone}` },
+        update: { phone: parsed.data.phone },
+        create: {
+          trustlayerUserId: `dev_${parsed.data.phone}`,
+          phone: parsed.data.phone,
+          verificationLevel: 1
+        }
+      });
+  
+      return toAuthResponse(user);
     });
-
-    return toAuthResponse(user);
-  });
+  
+    }
 
   app.get("/auth/me", { preHandler: authenticate }, async (request) => {
     const authUser = requireAuthUser(request);
