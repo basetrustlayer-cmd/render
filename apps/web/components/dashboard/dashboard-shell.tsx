@@ -12,15 +12,16 @@ const navItems = [
 export function DashboardShell({ children }: { children: ReactNode }) {
   return (
     <main className="min-h-screen bg-gray-50">
-      <div className="mx-auto flex max-w-7xl gap-6 px-4 py-6">
-        <aside className="hidden w-64 shrink-0 rounded-2xl bg-white p-5 shadow-sm md:block">
-          <h2 className="mb-6 text-xl font-bold text-gray-900">Render</h2>
-          <nav className="space-y-2">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 md:flex-row">
+        <aside className="rounded-2xl bg-white p-4 shadow-sm md:w-64 md:shrink-0 md:p-5">
+          <h2 className="mb-4 text-xl font-bold text-gray-900 md:mb-6">Render</h2>
+
+          <nav className="flex gap-2 overflow-x-auto pb-1 md:block md:space-y-2 md:overflow-visible md:pb-0">
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="block rounded-xl px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                className="whitespace-nowrap rounded-xl px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-100 md:block"
               >
                 {item.label}
               </Link>
