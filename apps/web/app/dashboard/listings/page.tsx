@@ -23,9 +23,7 @@ export default function DashboardListingsPage() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    hydrate();
-  }, [hydrate]);
+  useEffect(() => { hydrate(); }, [hydrate]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -51,11 +49,7 @@ export default function DashboardListingsPage() {
             <h2 className="text-xl font-bold text-gray-900">My Listings</h2>
             <p className="mt-1 text-gray-600">Manage marketplace inventory and listing photos.</p>
           </div>
-
-          <Link
-            href="/dashboard/create-listing"
-            className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white"
-          >
+          <Link href="/dashboard/create-listing" className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white">
             New Listing
           </Link>
         </div>
@@ -67,16 +61,9 @@ export default function DashboardListingsPage() {
             const cover = listing.images?.find((image) => image.isCover) ?? listing.images?.[0];
 
             return (
-              <article
-                key={listing.id}
-                className="grid gap-4 rounded-2xl border border-gray-200 p-4 md:grid-cols-[96px_1fr_auto]"
-              >
+              <article key={listing.id} className="grid gap-4 rounded-2xl border border-gray-200 p-4 md:grid-cols-[96px_1fr_auto]">
                 {cover ? (
-                  <img
-                    src={cover.url}
-                    alt={listing.title}
-                    className="h-24 w-24 rounded-xl object-cover"
-                  />
+                  <img src={cover.url} alt={listing.title} className="h-24 w-24 rounded-xl object-cover" />
                 ) : (
                   <div className="flex h-24 w-24 items-center justify-center rounded-xl bg-gray-100 text-xs text-gray-500">
                     No photo
@@ -91,17 +78,10 @@ export default function DashboardListingsPage() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 md:justify-end">
-                  <Link
-                    href={`/listings/${listing.id}`}
-                    className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                  >
+                  <Link href={`/listings/${listing.id}`} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">
                     View
                   </Link>
-
-                  <Link
-                    href={`/dashboard/listings/${listing.id}/edit`}
-                    className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-black"
-                  >
+                  <Link href={`/dashboard/listings/${listing.id}/edit`} className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-black">
                     Manage Photos
                   </Link>
                 </div>
