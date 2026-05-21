@@ -1,6 +1,6 @@
+import { bootstrapDemoData } from "./bootstrap-demo-data.js";
 import cors from "@fastify/cors";
 import Fastify from "fastify";
-import { bootstrapDemoData } from "./bootstrap-demo-data.js";
 import { registerAuthRoutes } from "./auth/routes.js";
 import { registerListingRoutes } from "./listings/routes.js";
 import { registerSafeDealRoutes } from "./safe-deals/routes.js";
@@ -36,8 +36,6 @@ await registerWebhookRoutes(app);
 
 const port = apiEnv.port;
 const host = "0.0.0.0";
-
-await bootstrapDemoData();
 
 await app.listen({
   port,
