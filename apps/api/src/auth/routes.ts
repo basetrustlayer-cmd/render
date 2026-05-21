@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../database/client.js";
@@ -12,6 +13,14 @@ const verifyOtpSchema = z.object({
   phone: z.string().min(8).max(20),
   code: z.string().min(4).max(8)
 });
+
+function hashOtp(code: string): string {
+  return crypto.createHash("sha256").update(code).digest("hex");
+}
+
+function generateOtp(): string {
+  return String(crypto.randomInt(100000, 1000000));
+}
 
 function toAuthResponse(user: {
   id: string;
@@ -47,10 +56,20 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(400).send({ error: "Invalid phone number." });
     }
 
+    const code = generateOtp();
+
+    await prisma.otpChallenge.create({
+      data: {
+        phone: parsed.data.phone,
+        codeHash: hashOtp(code),
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000)
+      }
+    });
+
     return {
       ok: true,
       delivery: process.env.HUBTEL_CLIENT_ID ? "hubtel_pending" : "dev_otp",
-      devCode: process.env.NODE_ENV === "production" ? undefined : "000000"
+      devCode: process.env.NODE_ENV === "production" ? undefined : code
     };
   });
 
@@ -63,9 +82,30 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
 
     const { phone, code } = parsed.data;
 
-    if (code !== "000000" && !process.env.HUBTEL_CLIENT_ID) {
-      return reply.code(401).send({ error: "Invalid OTP code." });
+    const challenge = await prisma.otpChallenge.findFirst({
+      where: {
+        phone,
+        consumedAt: null,
+        expiresAt: { gt: new Date() }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    if (!challenge || challenge.attempts >= 5 || challenge.codeHash !== hashOtp(code)) {
+      if (challenge) {
+        await prisma.otpChallenge.update({
+          where: { id: challenge.id },
+          data: { attempts: { increment: 1 } }
+        });
+      }
+
+      return reply.code(401).send({ error: "Invalid or expired OTP code." });
     }
+
+    await prisma.otpChallenge.update({
+      where: { id: challenge.id },
+      data: { consumedAt: new Date() }
+    });
 
     const trustlayerUserId = `phone_${phone}`;
 
@@ -83,13 +123,13 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   });
 
   if (process.env.NODE_ENV !== "production") {
-  app.post("/auth/dev/phone-login", async (request, reply) => {
+    app.post("/auth/dev/phone-login", async (request, reply) => {
       const parsed = phoneSchema.safeParse(request.body);
-  
+
       if (!parsed.success) {
         return reply.code(400).send({ error: "Invalid phone number." });
       }
-  
+
       const user = await prisma.user.upsert({
         where: { trustlayerUserId: `dev_${parsed.data.phone}` },
         update: { phone: parsed.data.phone },
@@ -99,11 +139,10 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
           verificationLevel: 1
         }
       });
-  
+
       return toAuthResponse(user);
     });
-  
-    }
+  }
 
   app.get("/auth/me", { preHandler: authenticate }, async (request) => {
     const authUser = requireAuthUser(request);
