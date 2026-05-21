@@ -1,47 +1,11 @@
 import "./globals.css";
-import Link from "next/link";
 import type { ReactNode } from "react";
+import { SiteHeader } from "../components/layout/site-header";
 
 export const metadata = {
   title: "Render.com.gh — Ghana's Verified Marketplace",
   description: "Ghana's verified marketplace powered by TrustLayer."
 };
-
-function Header() {
-  return (
-    <header className="border-b border-gray-200 bg-white">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-        <Link href="/" className="text-2xl font-bold tracking-tight text-gray-900">
-          Render<span className="text-amber-600">.com.gh</span>
-        </Link>
-
-        <nav className="flex items-center gap-6 text-sm font-medium text-gray-700">
-          <Link href="/listings" className="hover:text-gray-900">
-            Browse Listings
-          </Link>
-          <Link href="/verify" className="hover:text-gray-900">
-            Get Verified
-          </Link>
-          <Link href="/safe-deal/new" className="hover:text-gray-900">
-            Safe Deal
-          </Link>
-          <Link
-            href="/login"
-            className="rounded-lg bg-gray-900 px-4 py-2 text-white hover:bg-black"
-          >
-            Login
-          </Link>
-          <Link
-            href="/dashboard"
-            className="rounded-lg border border-gray-300 px-4 py-2 hover:bg-gray-50"
-          >
-            Dashboard
-          </Link>
-        </nav>
-      </div>
-    </header>
-  );
-}
 
 function Footer() {
   return (
@@ -67,7 +31,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="min-h-screen bg-gray-50 text-gray-900">
         <div className="flex min-h-screen flex-col">
-          <Header />
+          <SiteHeader />
           <main className="flex-1">{children}</main>
           <Footer />
         </div>
