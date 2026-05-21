@@ -16,20 +16,30 @@ export default function LoginPage() {
 
     try {
       await login(phone);
+
       router.push("/dashboard");
-    } catch {
-      alert("Login failed");
+    } catch (err) {
+      console.error("LOGIN_RUNTIME_ERROR", err);
+
+      const message =
+        err instanceof Error
+          ? err.message
+          : typeof err === "string"
+            ? err
+            : JSON.stringify(err, null, 2);
+
+      alert(`LOGIN ERROR\n\n${message}`);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <main className="max-w-md mx-auto p-8">
-      <h1 className="text-3xl font-bold mb-6">Login</h1>
+    <main className="mx-auto max-w-md p-8">
+      <h1 className="mb-6 text-3xl font-bold">Login</h1>
 
       <input
-        className="w-full border rounded p-3 mb-4"
+        className="mb-4 w-full rounded border p-3"
         value={phone}
         onChange={(e) => setPhone(e.target.value)}
       />
@@ -37,7 +47,7 @@ export default function LoginPage() {
       <button
         onClick={handleLogin}
         disabled={loading}
-        className="w-full bg-black text-white rounded p-3"
+        className="w-full rounded bg-black p-3 text-white disabled:bg-gray-400"
       >
         {loading ? "Signing in..." : "Sign In"}
       </button>
