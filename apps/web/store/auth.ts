@@ -28,6 +28,10 @@ export const useAuthStore = create<AuthState>()(
       login: async (phone: string) => {
         const result = await phoneLogin(phone);
 
+        if (typeof window !== "undefined") {
+          localStorage.setItem("accessToken", result.accessToken);
+        }
+
         set({
           accessToken: result.accessToken,
           user: result.user
@@ -35,14 +39,17 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("render-auth");
+        }
+
         set({
           accessToken: null,
           user: null
         });
       },
 
-      // Backward compatibility with existing components.
-      // Zustand persist automatically rehydrates state.
       hydrate: () => {}
     }),
     {
