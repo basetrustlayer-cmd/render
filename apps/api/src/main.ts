@@ -6,6 +6,7 @@ import rawBody from "fastify-raw-body";
 import { registerAuthRoutes } from "./auth/routes.js";
 import { registerListingRoutes } from "./listings/routes.js";
 import { registerSafeDealRoutes } from "./safe-deals/routes.js";
+import { registerTrustLayerRoutes } from "./trustlayer/routes.js";
 import { registerTrustScoreRoutes } from "./trustscore/routes.js";
 import { registerWebhookRoutes } from "./webhooks/routes.js";
 import { apiEnv } from "./env.js";
@@ -71,6 +72,7 @@ app.get("/", async () => {
 await registerAuthRoutes(app);
 await registerListingRoutes(app);
 await registerSafeDealRoutes(app);
+await registerTrustLayerRoutes(app);
 await registerTrustScoreRoutes(app);
 await registerWebhookRoutes(app);
 
