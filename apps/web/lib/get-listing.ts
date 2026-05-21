@@ -1,6 +1,19 @@
 import { apiFetch } from "./api";
 import type { Listing } from "./get-listings";
 
+export type ListingImage = {
+  id: string;
+  url: string;
+  cloudinaryId: string;
+  isCover: boolean;
+  sortOrder: number;
+  createdAt: string;
+};
+
+export type ListingDetail = Listing & {
+  images: ListingImage[];
+};
+
 export type SellerProfile = {
   id: string;
   displayName: string;
@@ -18,8 +31,8 @@ export type SellerProfile = {
 };
 
 export async function getListing(id: string): Promise<{
-  listing: Listing;
+  listing: ListingDetail;
   seller: SellerProfile;
 }> {
-  return apiFetch<{ listing: Listing; seller: SellerProfile }>(`/listings/${id}`);
+  return apiFetch<{ listing: ListingDetail; seller: SellerProfile }>(`/listings/${id}`);
 }
