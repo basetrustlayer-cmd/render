@@ -4,6 +4,7 @@ import Fastify from "fastify";
 import { registerAuthRoutes } from "./auth/routes.js";
 import { registerListingRoutes } from "./listings/routes.js";
 import { registerSafeDealRoutes } from "./safe-deals/routes.js";
+import { registerTrustScoreRoutes } from "./trustscore/routes.js";
 import { registerWebhookRoutes } from "./webhooks/routes.js";
 import { apiEnv } from "./env.js";
 
@@ -13,7 +14,7 @@ const app = Fastify({
 
 const allowedOrigins = apiEnv.corsOrigins
   .map((origin) => origin.trim())
-  .filter(Boolean) ?? [];
+  .filter(Boolean);
 
 await app.register(cors, {
   origin: allowedOrigins.length > 0 ? allowedOrigins : false,
@@ -30,6 +31,7 @@ app.get("/", async () => {
 await registerAuthRoutes(app);
 await registerListingRoutes(app);
 await registerSafeDealRoutes(app);
+await registerTrustScoreRoutes(app);
 await registerWebhookRoutes(app);
 
 const port = apiEnv.port;
