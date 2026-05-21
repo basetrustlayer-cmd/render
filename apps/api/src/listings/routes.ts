@@ -3,7 +3,6 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../database/client.js";
 import { authenticate, requireAuthUser } from "../auth/middleware.js";
-import { ensureDemoListing } from "../bootstrap-demo-data.js";
 
 const createListingSchema = z.object({
   title: z.string().min(3).max(200),
@@ -33,20 +32,11 @@ const listingInclude = {
 
 export async function registerListingRoutes(app: FastifyInstance): Promise<void> {
   app.get("/listings", async () => {
-    let listings = await prisma.listing.findMany({
+    const listings = await prisma.listing.findMany({
       where: { status: "LIVE" },
       include: { seller: true, images: true },
       orderBy: { createdAt: "desc" }
     });
-
-    if (listings.length === 0) {
-      await ensureDemoListing(prisma);
-      listings = await prisma.listing.findMany({
-        where: { status: "LIVE" },
-        include: { seller: true, images: true },
-        orderBy: { createdAt: "desc" }
-      });
-    }
 
     return { listings };
   });
@@ -143,7 +133,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       data: {
         ...parsed.data,
         sellerId: authUser.userId,
-        status: "LIVE"
+        status: "PENDING"
       },
       include: listingInclude
     });
@@ -237,7 +227,15 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       return reply.code(403).send({ error: "Only the listing owner can add images." });
     }
 
-    if (body.data.isCover) {
+    const imageCount = await prisma.listingImage.count({
+    where: { listingId: listing.id }
+  });
+
+  if (imageCount >= 10) {
+    return reply.code(400).send({ error: "Maximum 10 images per listing." });
+  }
+
+  if (body.data.isCover) {
       await prisma.listingImage.updateMany({
         where: { listingId: listing.id },
         data: { isCover: false }

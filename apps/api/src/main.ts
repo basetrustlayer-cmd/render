@@ -1,5 +1,5 @@
-import { bootstrapDemoData } from "./bootstrap-demo-data.js";
 import cors from "@fastify/cors";
+import rateLimit from "@fastify/rate-limit";
 import Fastify from "fastify";
 import { registerAuthRoutes } from "./auth/routes.js";
 import { registerListingRoutes } from "./listings/routes.js";
@@ -19,6 +19,12 @@ const allowedOrigins = apiEnv.corsOrigins
 await app.register(cors, {
   origin: allowedOrigins.length > 0 ? allowedOrigins : false,
   credentials: true
+});
+
+await app.register(rateLimit, {
+  global: true,
+  max: 100,
+  timeWindow: "1 minute"
 });
 
 app.get("/", async () => {
