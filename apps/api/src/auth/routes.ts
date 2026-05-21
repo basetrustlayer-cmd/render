@@ -10,6 +10,11 @@ const phoneSchema = z.object({
   phone: z.string().min(8).max(20)
 });
 
+
+const refreshTokenSchema = z.object({
+  refreshToken: z.string().min(32)
+});
+
 const verifyOtpSchema = z.object({
   phone: z.string().min(8).max(20),
   code: z.string().min(4).max(8)
@@ -223,6 +228,80 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       });
     });
   }
+
+
+  app.post("/auth/refresh", {
+    config: {
+      rateLimit: {
+        max: 20,
+        timeWindow: "15 minutes"
+      }
+    }
+  }, async (request, reply) => {
+    const parsed = refreshTokenSchema.safeParse(request.body);
+
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid refresh token payload." });
+    }
+
+    const refreshTokenHash = hashRefreshToken(parsed.data.refreshToken);
+
+    const session = await prisma.authSession.findUnique({
+      where: { refreshTokenHash },
+      include: {
+        user: {
+          select: {
+            id: true,
+            phone: true,
+            verificationLevel: true,
+            trustTier: true,
+            isBusiness: true,
+            isSuspended: true
+          }
+        }
+      }
+    });
+
+    if (!session || session.revokedAt || session.expiresAt <= new Date()) {
+      return reply.code(401).send({ error: "Invalid or expired refresh token." });
+    }
+
+    if (session.user.isSuspended) {
+      await prisma.authSession.update({
+        where: { id: session.id },
+        data: { revokedAt: new Date() }
+      });
+
+      return reply.code(403).send({ error: "User account is suspended." });
+    }
+
+    await prisma.authSession.update({
+      where: { id: session.id },
+      data: { revokedAt: new Date() }
+    });
+
+    return toAuthResponse(session.user, {
+      userAgent: request.headers["user-agent"],
+      ipAddress: request.ip
+    });
+  });
+
+  app.post("/auth/logout", { preHandler: authenticate }, async (request) => {
+    const authUser = requireAuthUser(request);
+
+    await prisma.authSession.updateMany({
+      where: {
+        userId: authUser.userId,
+        jti: authUser.jti,
+        revokedAt: null
+      },
+      data: {
+        revokedAt: new Date()
+      }
+    });
+
+    return { ok: true };
+  });
 
   app.get("/auth/me", { preHandler: authenticate }, async (request) => {
     const authUser = requireAuthUser(request);
