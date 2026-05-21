@@ -2,6 +2,7 @@ import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import Fastify from "fastify";
+import rawBody from "fastify-raw-body";
 import { registerAuthRoutes } from "./auth/routes.js";
 import { registerListingRoutes } from "./listings/routes.js";
 import { registerSafeDealRoutes } from "./safe-deals/routes.js";
@@ -30,6 +31,13 @@ await app.register(rateLimit, {
   global: true,
   max: 100,
   timeWindow: "1 minute"
+});
+
+await app.register(rawBody, {
+  field: "rawBody",
+  global: false,
+  encoding: "utf8",
+  runFirst: true
 });
 
 app.setErrorHandler((error, request, reply) => {
