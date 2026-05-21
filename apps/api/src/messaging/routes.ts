@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { authenticate } from "../auth/middleware.js";
 
 const createConversationSchema = z.object({
   buyerId: z.string().uuid(),
@@ -14,7 +15,7 @@ const sendMessageSchema = z.object({
 });
 
 export async function registerMessagingRoutes(app: FastifyInstance): Promise<void> {
-  app.post("/conversations", async (request, reply) => {
+  app.post("/conversations", { preHandler: authenticate }, async (request, reply) => {
     const parsed = createConversationSchema.safeParse(request.body);
 
     if (!parsed.success) {
@@ -42,7 +43,7 @@ export async function registerMessagingRoutes(app: FastifyInstance): Promise<voi
     };
   });
 
-  app.post("/messages", async (request, reply) => {
+  app.post("/messages", { preHandler: authenticate }, async (request, reply) => {
     const parsed = sendMessageSchema.safeParse(request.body);
 
     if (!parsed.success) {
