@@ -28,10 +28,21 @@ export async function authenticate(
       return;
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: payload.userId },
-      select: { id: true, isSuspended: true }
-    });
+    const [user, session] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: payload.userId },
+        select: { id: true, isSuspended: true }
+      }),
+      prisma.authSession.findUnique({
+        where: { jti: payload.jti },
+        select: {
+          id: true,
+          userId: true,
+          revokedAt: true,
+          expiresAt: true
+        }
+      })
+    ]);
 
     if (!user) {
       reply.code(401).send({ error: "User not found." });
@@ -40,6 +51,16 @@ export async function authenticate(
 
     if (user.isSuspended) {
       reply.code(403).send({ error: "User account is suspended." });
+      return;
+    }
+
+    if (
+      !session ||
+      session.userId !== payload.userId ||
+      session.revokedAt ||
+      session.expiresAt <= new Date()
+    ) {
+      reply.code(401).send({ error: "Session is no longer valid." });
       return;
     }
 

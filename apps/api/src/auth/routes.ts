@@ -23,23 +23,46 @@ function generateOtp(): string {
   return String(crypto.randomInt(100000, 1000000));
 }
 
-function toAuthResponse(user: {
+function hashRefreshToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+async function toAuthResponse(user: {
   id: string;
   phone: string | null;
   verificationLevel: number;
   trustTier: string | null;
   isBusiness: boolean;
   isSuspended: boolean;
+}, requestMeta?: {
+  userAgent?: string;
+  ipAddress?: string;
 }) {
+  const jti = crypto.randomUUID();
+  const refreshToken = crypto.randomBytes(48).toString("base64url");
+
+  await prisma.authSession.create({
+    data: {
+      userId: user.id,
+      jti,
+      refreshTokenHash: hashRefreshToken(refreshToken),
+      userAgent: requestMeta?.userAgent,
+      ipAddress: requestMeta?.ipAddress,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    }
+  });
+
   const accessToken = signAccessToken({
     userId: user.id,
     verificationLevel: user.verificationLevel,
     isBusiness: user.isBusiness,
-    isSuspended: user.isSuspended
+    isSuspended: user.isSuspended,
+    jti
   });
 
   return {
     accessToken,
+    refreshToken,
     user: {
       id: user.id,
       phone: user.phone ?? "",
@@ -163,7 +186,10 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       }
     });
 
-    return toAuthResponse(user);
+    return toAuthResponse(user, {
+      userAgent: request.headers["user-agent"],
+      ipAddress: request.ip
+    });
   });
 
   if (process.env.NODE_ENV !== "production") {
@@ -191,7 +217,10 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
         }
       });
 
-      return toAuthResponse(user);
+      return toAuthResponse(user, {
+        userAgent: request.headers["user-agent"],
+        ipAddress: request.ip
+      });
     });
   }
 
