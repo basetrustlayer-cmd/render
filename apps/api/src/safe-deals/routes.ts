@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../database/client.js";
 import { authenticate, requireAuthUser } from "../auth/middleware.js";
+import { apiEnv } from "../env.js";
 
 const createSafeDealSchema = z.object({
   listingId: z.string().uuid()
@@ -21,7 +22,7 @@ async function initializePaystackTransaction(input: {
     throw new Error("PAYSTACK_SECRET_KEY is required.");
   }
 
-  const callbackUrl = `${process.env.PUBLIC_APP_URL ?? "http://localhost:3000"}/safe-deal/${input.safeDealId}`;
+  const callbackUrl = `${apiEnv.publicAppUrl}/safe-deal/${input.safeDealId}`;
 
   const response = await fetch("https://api.paystack.co/transaction/initialize", {
     method: "POST",
