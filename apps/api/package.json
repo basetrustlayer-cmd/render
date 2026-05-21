@@ -7,8 +7,8 @@
   "scripts": {
     "build": "prisma generate --schema prisma/schema.prisma && tsc",
     "start": "node dist/main.js",
-    "lint": "tsc --noEmit",
-    "test": "tsc --noEmit",
+    "lint": "prisma generate --schema prisma/schema.prisma && tsc --noEmit",
+    "test": "prisma generate --schema prisma/schema.prisma && tsc --noEmit",
     "seed": "prisma db seed --schema prisma/schema.prisma"
   },
   "dependencies": {
