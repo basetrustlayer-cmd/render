@@ -78,7 +78,15 @@ export async function registerTrustLayerRoutes(app: FastifyInstance): Promise<vo
     };
   });
 
-  app.post("/verify/ghana-card", { preHandler: authenticate }, async (request, reply) => {
+  app.post("/verify/ghana-card", {
+    preHandler: authenticate,
+    config: {
+      rateLimit: {
+        max: 5,
+        timeWindow: "1 hour"
+      }
+    }
+  }, async (request, reply) => {
     const authUser = requireAuthUser(request);
     const parsed = ghanaCardSchema.safeParse(request.body);
 
