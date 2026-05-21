@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useAuthStore } from "../../store/auth";
 
 export function SiteHeader() {
+  const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const hydrate = useAuthStore((state) => state.hydrate);
@@ -12,6 +14,12 @@ export function SiteHeader() {
   useEffect(() => {
     hydrate();
   }, [hydrate]);
+
+  function handleLogout() {
+    logout();
+    router.replace("/login");
+    router.refresh();
+  }
 
   return (
     <header className="border-b border-gray-200 bg-white">
@@ -41,7 +49,7 @@ export function SiteHeader() {
               </Link>
               <button
                 type="button"
-                onClick={logout}
+                onClick={handleLogout}
                 className="rounded-lg bg-gray-900 px-4 py-2 text-white hover:bg-black"
               >
                 Logout
