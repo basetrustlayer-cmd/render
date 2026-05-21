@@ -71,6 +71,7 @@ model User {
   reviewsGiven      Review[] @relation("ReviewsGiven")
   reviewsReceived   Review[] @relation("ReviewsReceived")
   authSessions      AuthSession[]
+  auditLogs         AuditLog[]
 
   @@map("users")
 }
@@ -207,4 +208,25 @@ model OtpChallenge {
   @@index([phone])
   @@index([expiresAt])
   @@map("otp_challenges")
+}
+
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  actorUserId String?  @map("actor_user_id") @db.Uuid
+  action      String   @db.VarChar(120)
+  entityType  String?  @map("entity_type") @db.VarChar(80)
+  entityId    String?  @map("entity_id") @db.VarChar(120)
+  ipAddress   String?  @map("ip_address") @db.VarChar(64)
+  userAgent   String?  @map("user_agent")
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  actor       User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
 }
