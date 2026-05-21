@@ -10,6 +10,7 @@ export type AuthUser = {
 export type LoginResponse = {
   accessToken: string;
   refreshToken: string;
+  csrfToken: string;
   user: AuthUser;
 };
 
@@ -27,10 +28,10 @@ export async function verifyOtp(phone: string, code: string): Promise<LoginRespo
   });
 }
 
-export async function refreshAuth(refreshToken: string): Promise<LoginResponse> {
+export async function refreshAuth(refreshToken: string, deviceFingerprint?: string | null): Promise<LoginResponse> {
   return apiFetch<LoginResponse>("/auth/refresh", {
     method: "POST",
-    body: JSON.stringify({ refreshToken })
+    body: JSON.stringify({ refreshToken, deviceFingerprint })
   });
 }
 
