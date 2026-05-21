@@ -8,33 +8,85 @@ function getApiUrl(): string {
   return configured.replace(/\/$/, "");
 }
 
-function getAccessToken(): string | null {
+type StoredAuth = {
+  accessToken: string | null;
+  refreshToken: string | null;
+  user: unknown | null;
+};
+
+const AUTH_STORAGE_KEY = "render-auth";
+
+function readStoredAuth(): StoredAuth {
   if (typeof window === "undefined") {
-    return null;
+    return { accessToken: null, refreshToken: null, user: null };
   }
 
-  const directToken = localStorage.getItem("accessToken");
+  const raw = localStorage.getItem(AUTH_STORAGE_KEY);
 
-  if (directToken) {
-    return directToken;
-  }
-
-  const persisted = localStorage.getItem("render-auth");
-
-  if (!persisted) {
-    return null;
+  if (!raw) {
+    return {
+      accessToken: localStorage.getItem("accessToken"),
+      refreshToken: localStorage.getItem("refreshToken"),
+      user: null
+    };
   }
 
   try {
-    const parsed = JSON.parse(persisted) as {
-      state?: { accessToken?: string | null };
+    const parsed = JSON.parse(raw) as {
+      state?: Partial<StoredAuth>;
+      accessToken?: string | null;
+      refreshToken?: string | null;
+      user?: unknown | null;
     };
 
-    return parsed.state?.accessToken ?? null;
+    return {
+      accessToken:
+        parsed.state?.accessToken ??
+        parsed.accessToken ??
+        localStorage.getItem("accessToken"),
+      refreshToken:
+        parsed.state?.refreshToken ??
+        parsed.refreshToken ??
+        localStorage.getItem("refreshToken"),
+      user: parsed.state?.user ?? parsed.user ?? null
+    };
   } catch {
-    localStorage.removeItem("render-auth");
-    return null;
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+
+    return {
+      accessToken: localStorage.getItem("accessToken"),
+      refreshToken: localStorage.getItem("refreshToken"),
+      user: null
+    };
   }
+}
+
+function writeStoredAuth(auth: StoredAuth): void {
+  if (typeof window === "undefined") return;
+
+  if (auth.accessToken) {
+    localStorage.setItem("accessToken", auth.accessToken);
+  } else {
+    localStorage.removeItem("accessToken");
+  }
+
+  if (auth.refreshToken) {
+    localStorage.setItem("refreshToken", auth.refreshToken);
+  } else {
+    localStorage.removeItem("refreshToken");
+  }
+
+  localStorage.setItem(
+    AUTH_STORAGE_KEY,
+    JSON.stringify({
+      state: auth,
+      version: 0
+    })
+  );
+}
+
+function getAccessToken(): string | null {
+  return readStoredAuth().accessToken;
 }
 
 function clearBrowserAuth(): void {
@@ -42,7 +94,49 @@ function clearBrowserAuth(): void {
 
   localStorage.removeItem("render-auth");
   localStorage.removeItem("accessToken");
+  localStorage.removeItem("refreshToken");
   window.dispatchEvent(new Event("render-auth-invalid"));
+}
+
+async function refreshAccessToken(apiUrl: string): Promise<string | null> {
+  const stored = readStoredAuth();
+
+  if (!stored.refreshToken) {
+    return null;
+  }
+
+  const response = await fetch(`${apiUrl}/auth/refresh`, {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ refreshToken: stored.refreshToken })
+  });
+
+  const text = await response.text();
+
+  if (!response.ok || !text) {
+    return null;
+  }
+
+  const parsed = JSON.parse(text) as {
+    accessToken?: string;
+    refreshToken?: string;
+    user?: unknown;
+  };
+
+  if (!parsed.accessToken || !parsed.refreshToken) {
+    return null;
+  }
+
+  writeStoredAuth({
+    accessToken: parsed.accessToken,
+    refreshToken: parsed.refreshToken,
+    user: parsed.user ?? stored.user
+  });
+
+  return parsed.accessToken;
 }
 
 export class ApiError extends Error {
@@ -57,14 +151,10 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiFetch<T>(
-  path: string,
-  options?: RequestInit
-): Promise<T> {
+async function doFetch(path: string, options: RequestInit | undefined, accessToken: string | null): Promise<Response> {
   const apiUrl = getApiUrl();
-  const accessToken = getAccessToken();
 
-  const response = await fetch(`${apiUrl}${path}`, {
+  return fetch(`${apiUrl}${path}`, {
     ...options,
     cache: "no-store",
     headers: {
@@ -73,6 +163,22 @@ export async function apiFetch<T>(
       ...(options?.headers || {})
     }
   });
+}
+
+export async function apiFetch<T>(
+  path: string,
+  options?: RequestInit
+): Promise<T> {
+  const apiUrl = getApiUrl();
+  let response = await doFetch(path, options, getAccessToken());
+
+  if (response.status === 401 && path !== "/auth/refresh") {
+    const refreshedAccessToken = await refreshAccessToken(apiUrl);
+
+    if (refreshedAccessToken) {
+      response = await doFetch(path, options, refreshedAccessToken);
+    }
+  }
 
   const text = await response.text();
 
