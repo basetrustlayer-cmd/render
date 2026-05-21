@@ -119,6 +119,8 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
 
     const { userId, trustlayerUserId, verificationLevel, trustScore, trustTier } = parsed.data.data;
 
+      void writeAuditLog({ request, actorUserId: userId, action: "WEBHOOK_TRUSTLAYER_RECEIVED", entityType: userId ? "USER" : undefined, entityId: userId, metadata: { event: parsed.data.event, trustlayerUserId } });
+
     if (userId || trustlayerUserId) {
       await prisma.user.updateMany({
         where: userId ? { id: userId } : { trustlayerUserId },

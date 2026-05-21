@@ -130,6 +130,8 @@ export async function registerTrustLayerRoutes(app: FastifyInstance): Promise<vo
       }
     });
 
+    void writeAuditLog({ request, actorUserId: authUser.userId, action: "GHANA_CARD_VERIFIED", entityType: "USER", entityId: authUser.userId, metadata: { reference: verification.reference } });
+
     return {
       verification: {
         provider: "TrustLayer",
