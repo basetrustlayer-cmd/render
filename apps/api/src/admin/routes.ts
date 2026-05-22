@@ -1,9 +1,10 @@
 import { createTrustLayerClient } from "@render/trustlayer-sdk";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { authenticate, requireAdmin, requireAuthUser, requireModerator } from "../auth/middleware.js";
+import { authenticate, requireAdmin, requireAuthUser, requireModerator, requireSuperAdmin } from "../auth/middleware.js";
 import { writeAuditLog } from "../audit/log.js";
 import { prisma } from "../database/client.js";
+import { getRequestedOrganizationId, requireActiveOrganizationMembership } from "../organizations/context.js";
 
 const idParamsSchema = z.object({
   id: z.string().uuid()
@@ -64,6 +65,27 @@ const disputeListQuerySchema = z.object({
     "CANCELLED"
   ]).optional()
 });
+
+async function requireAdminOrganizationScope(request: FastifyRequest, reply: FastifyReply) {
+  const authUser = requireAuthUser(request);
+  const organizationId = getRequestedOrganizationId(request);
+
+  if (!organizationId) {
+    return { authUser, organizationId: null };
+  }
+
+  const membership = await requireActiveOrganizationMembership({
+    userId: authUser.userId,
+    organizationId
+  });
+
+  if (!membership || !["OWNER", "ADMIN"].includes(membership.role)) {
+    reply.code(403).send({ error: "Invalid organization admin context." });
+    return null;
+  }
+
+  return { authUser, organizationId };
+}
 
 export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
   app.get("/admin/users", { preHandler: [authenticate, requireAdmin] }, async (request) => {
@@ -175,11 +197,15 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     return { user };
   });
 
-  app.get("/admin/listings/pending", { preHandler: [authenticate, requireModerator] }, async () => {
+  app.get("/admin/listings/pending", { preHandler: [authenticate, requireModerator] }, async (request, reply) => {
+    const scope = await requireAdminOrganizationScope(request, reply);
+    if (!scope) return;
+
     const listings = await prisma.listing.findMany({
       where: {
         status: { in: ["PENDING", "MANUAL_REVIEW"] },
-        deletedAt: null
+        deletedAt: null,
+        ...(scope.organizationId ? { organizationId: scope.organizationId } : {})
       },
       include: {
         images: true,
@@ -209,8 +235,22 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(400).send({ error: "Invalid listing ID." });
     }
 
+    const scope = await requireAdminOrganizationScope(request, reply);
+    if (!scope) return;
+
+    const existingListing = await prisma.listing.findFirst({
+      where: {
+        id: params.data.id,
+        ...(scope.organizationId ? { organizationId: scope.organizationId } : {})
+      }
+    });
+
+    if (!existingListing) {
+      return reply.code(404).send({ error: "Listing not found." });
+    }
+
     const listing = await prisma.listing.update({
-      where: { id: params.data.id },
+      where: { id: existingListing.id },
       data: { status: "LIVE" }
     });
 
@@ -234,8 +274,22 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(400).send({ error: "Invalid listing rejection payload." });
     }
 
+    const scope = await requireAdminOrganizationScope(request, reply);
+    if (!scope) return;
+
+    const existingListing = await prisma.listing.findFirst({
+      where: {
+        id: params.data.id,
+        ...(scope.organizationId ? { organizationId: scope.organizationId } : {})
+      }
+    });
+
+    if (!existingListing) {
+      return reply.code(404).send({ error: "Listing not found." });
+    }
+
     const listing = await prisma.listing.update({
-      where: { id: params.data.id },
+      where: { id: existingListing.id },
       data: { status: "REJECTED" }
     });
 
@@ -251,9 +305,12 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     return { listing };
   });
 
-  app.get("/admin/safe-deals/disputed", { preHandler: [authenticate, requireModerator] }, async () => {
+  app.get("/admin/safe-deals/disputed", { preHandler: [authenticate, requireModerator] }, async (request, reply) => {
+    const scope = await requireAdminOrganizationScope(request, reply);
+    if (!scope) return;
+
     const safeDeals = await prisma.safeDeal.findMany({
-      where: { status: "DISPUTED" },
+      where: { status: "DISPUTED", ...(scope.organizationId ? { organizationId: scope.organizationId } : {}) },
       include: {
         listing: true,
         buyer: {
@@ -271,7 +328,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
   });
 
 
-  app.get("/admin/finance/reconciliation", { preHandler: [authenticate, requireAdmin] }, async (request) => {
+  app.get("/admin/finance/reconciliation", { preHandler: [authenticate, requireSuperAdmin] }, async (request) => {
     const authUser = requireAuthUser(request);
 
     const [
@@ -367,8 +424,14 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(400).send({ error: "Invalid dispute resolution payload." });
     }
 
-    const dispute = await prisma.dispute.findUnique({
-      where: { id: params.data.id },
+    const scope = await requireAdminOrganizationScope(request, reply);
+    if (!scope) return;
+
+    const dispute = await prisma.dispute.findFirst({
+      where: {
+        id: params.data.id,
+        ...(scope.organizationId ? { safeDeal: { organizationId: scope.organizationId } } : {})
+      },
       include: { safeDeal: true }
     });
 
@@ -410,8 +473,14 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(400).send({ error: "Invalid dispute resolution payload." });
     }
 
-    const dispute = await prisma.dispute.findUnique({
-      where: { id: params.data.id },
+    const scope = await requireAdminOrganizationScope(request, reply);
+    if (!scope) return;
+
+    const dispute = await prisma.dispute.findFirst({
+      where: {
+        id: params.data.id,
+        ...(scope.organizationId ? { safeDeal: { organizationId: scope.organizationId } } : {})
+      },
       include: { safeDeal: true }
     });
 
@@ -444,7 +513,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     return { disputeId: dispute.id, trustLayer: command, sync: "PENDING_WEBHOOK" };
   });
 
-  app.get("/admin/audit-logs", { preHandler: [authenticate, requireAdmin] }, async () => {
+  app.get("/admin/audit-logs", { preHandler: [authenticate, requireSuperAdmin] }, async () => {
     const auditLogs = await prisma.auditLog.findMany({
       orderBy: { createdAt: "desc" },
       take: 100
@@ -460,8 +529,14 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(400).send({ error: "Invalid dispute query." });
     }
 
+    const scope = await requireAdminOrganizationScope(request, reply);
+    if (!scope) return;
+
     const disputes = await prisma.dispute.findMany({
-      where: query.data.status ? { status: query.data.status } : {},
+      where: {
+        ...(query.data.status ? { status: query.data.status } : {}),
+        ...(scope.organizationId ? { safeDeal: { organizationId: scope.organizationId } } : {})
+      },
       include: {
         safeDeal: {
           include: {
@@ -519,8 +594,14 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(400).send({ error: "Invalid dispute ID." });
     }
 
-    const dispute = await prisma.dispute.findUnique({
-      where: { id: params.data.id },
+    const scope = await requireAdminOrganizationScope(request, reply);
+    if (!scope) return;
+
+    const dispute = await prisma.dispute.findFirst({
+      where: {
+        id: params.data.id,
+        ...(scope.organizationId ? { safeDeal: { organizationId: scope.organizationId } } : {})
+      },
       include: {
         safeDeal: {
           include: {
@@ -578,8 +659,14 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(400).send({ error: "Invalid dispute note payload." });
     }
 
-    const dispute = await prisma.dispute.findUnique({
-      where: { id: params.data.id }
+    const scope = await requireAdminOrganizationScope(request, reply);
+    if (!scope) return;
+
+    const dispute = await prisma.dispute.findFirst({
+      where: {
+        id: params.data.id,
+        ...(scope.organizationId ? { safeDeal: { organizationId: scope.organizationId } } : {})
+      }
     });
 
     if (!dispute) {
@@ -615,9 +702,23 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(400).send({ error: "Invalid dispute status payload." });
     }
 
+    const scope = await requireAdminOrganizationScope(request, reply);
+    if (!scope) return;
+
+    const existingDispute = await prisma.dispute.findFirst({
+      where: {
+        id: params.data.id,
+        ...(scope.organizationId ? { safeDeal: { organizationId: scope.organizationId } } : {})
+      }
+    });
+
+    if (!existingDispute) {
+      return reply.code(404).send({ error: "Dispute not found." });
+    }
+
     const result = await prisma.$transaction(async (tx) => {
       const dispute = await tx.dispute.update({
-        where: { id: params.data.id },
+        where: { id: existingDispute.id },
         data: {
           status: body.data.status
         }
