@@ -5,6 +5,7 @@ import { prisma } from "../database/client.js";
 import { authenticate, requireAuthUser } from "../auth/middleware.js";
 import { apiEnv } from "../env.js";
 import { writeAuditLog } from "../audit/log.js";
+import { createSettlementLedgerForConfirmedDeal } from "../ledger/settlement.js";
 
 const createSafeDealSchema = z.object({
   listingId: z.string().uuid()
@@ -217,19 +218,50 @@ export async function registerSafeDealRoutes(
       });
     }
 
-    const updated = await prisma.safeDeal.update({
-      where: { id: safeDeal.id },
-      data: {
-        status: "CONFIRMED",
-        confirmedAt: new Date()
+    const result = await prisma.$transaction(async (tx) => {
+      const updated = await tx.safeDeal.update({
+        where: { id: safeDeal.id },
+        data: {
+          status: "CONFIRMED",
+          confirmedAt: new Date()
+        }
+      });
+
+      const settlement = await createSettlementLedgerForConfirmedDeal({
+        tx,
+        safeDeal: {
+          id: updated.id,
+          sellerId: updated.sellerId,
+          amount: updated.amount,
+          feeAmount: updated.feeAmount
+        }
+      });
+
+      const ledgerEntries = await tx.escrowLedgerEntry.findMany({
+        where: { safeDealId: updated.id },
+        orderBy: { createdAt: "asc" }
+      });
+
+      return {
+        safeDeal: updated,
+        settlement,
+        ledgerEntries
+      };
+    });
+
+    void writeAuditLog({
+      request,
+      actorUserId: authUser.userId,
+      action: "SAFE_DEAL_CONFIRMED",
+      entityType: "SAFE_DEAL",
+      entityId: result.safeDeal.id,
+      metadata: {
+        settlementId: result.settlement.id,
+        ledgerEntryCount: result.ledgerEntries.length
       }
     });
 
-    void writeAuditLog({ request, actorUserId: authUser.userId, action: "SAFE_DEAL_CONFIRMED", entityType: "SAFE_DEAL", entityId: updated.id });
-
-    void writeAuditLog({ request, actorUserId: authUser.userId, action: "SAFE_DEAL_DISPUTED", entityType: "SAFE_DEAL", entityId: updated.id });
-
-    return { safeDeal: updated };
+    return result;
   });
 
   app.post("/safe-deals/:id/dispute", { preHandler: authenticate }, async (request, reply) => {
@@ -266,6 +298,42 @@ export async function registerSafeDealRoutes(
     void writeAuditLog({ request, actorUserId: authUser.userId, action: "SAFE_DEAL_DISPUTED", entityType: "SAFE_DEAL", entityId: updated.id });
 
     return { safeDeal: updated };
+  });
+
+  app.get("/safe-deals/:id/ledger", { preHandler: authenticate }, async (request, reply) => {
+    const authUser = requireAuthUser(request);
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+
+    if (!params.success) {
+      return reply.code(400).send({ error: "Invalid Safe Deal ID." });
+    }
+
+    const safeDeal = await prisma.safeDeal.findFirst({
+      where: {
+        id: params.data.id,
+        OR: [
+          { buyerId: authUser.userId },
+          { sellerId: authUser.userId }
+        ]
+      },
+      include: {
+        ledgerEntries: {
+          orderBy: { createdAt: "asc" }
+        },
+        settlement: true
+      }
+    });
+
+    if (!safeDeal) {
+      return reply.code(404).send({ error: "Safe Deal not found." });
+    }
+
+    return {
+      safeDealId: safeDeal.id,
+      status: safeDeal.status,
+      settlement: safeDeal.settlement,
+      ledgerEntries: safeDeal.ledgerEntries
+    };
   });
 
   app.get("/safe-deals/:id", { preHandler: authenticate }, async (request, reply) => {
