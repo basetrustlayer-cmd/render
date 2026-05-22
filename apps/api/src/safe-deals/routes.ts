@@ -1,11 +1,9 @@
-import { createRenderQueue, RENDER_QUEUE_NAMES } from "@render/queue";
 import { createTrustLayerClient } from "@render/trustlayer-sdk";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../database/client.js";
 import { authenticate, requireAuthUser } from "../auth/middleware.js";
 import { writeAuditLog } from "../audit/log.js";
-import { createSettlementLedgerForConfirmedDeal } from "../ledger/settlement.js";
 
 const createSafeDealSchema = z.object({
   listingId: z.string().uuid()
@@ -186,71 +184,48 @@ export async function registerSafeDealRoutes(
       return reply.code(403).send({ error: "Only the buyer can confirm delivery." });
     }
 
+    if (!safeDeal.trustLayerEscrowId) {
+      return reply.code(409).send({ error: "Safe Deal is missing TrustLayer escrow reference." });
+    }
+
     if (!["FUNDED", "DELIVERED"].includes(safeDeal.status)) {
       return reply.code(400).send({ error: "Only funded or delivered Safe Deals can be confirmed." });
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-      const updated = await tx.safeDeal.update({
-        where: { id: safeDeal.id },
-        data: {
-          status: "CONFIRMED",
-          confirmedAt: new Date()
-        }
-      });
+    const trustLayer = getTrustLayerClient();
 
-      const settlement = await createSettlementLedgerForConfirmedDeal({
-        tx,
-        safeDeal: {
-          id: updated.id,
-          sellerId: updated.sellerId,
-          amount: updated.amount,
-          feeAmount: updated.feeAmount
-        }
-      });
+    const command = await trustLayer.confirmSafeDeal(
+      safeDeal.trustLayerEscrowId,
+      {
+        correlationId: request.id,
+        idempotencyKey: `safedeal_confirm_${safeDeal.id}_${authUser.userId}`
+      }
+    );
 
-      const ledgerEntries = await tx.escrowLedgerEntry.findMany({
-        where: { safeDealId: updated.id },
-        orderBy: { createdAt: "asc" }
-      });
-
-      return {
-        safeDeal: updated,
-        settlement,
-        ledgerEntries
-      };
+    await prisma.safeDeal.update({
+      where: { id: safeDeal.id },
+      data: {
+        escrowStatusCached: command.status,
+        escrowLastSyncedAt: new Date()
+      }
     });
-
-    const settlementQueue = createRenderQueue(RENDER_QUEUE_NAMES.settlementProcessing);
-
-    const settlementJob = await settlementQueue.add("process-settlement", {
-      safeDealId: result.safeDeal.id,
-      settlementId: result.settlement.id,
-      triggeredBy: "buyer_confirmation",
-      triggeredAt: new Date().toISOString()
-    });
-
-    await settlementQueue.close();
 
     void writeAuditLog({
       request,
       actorUserId: authUser.userId,
-      action: "SAFE_DEAL_CONFIRMED",
+      action: "SAFE_DEAL_CONFIRM_COMMAND_SENT",
       entityType: "SAFE_DEAL",
-      entityId: result.safeDeal.id,
+      entityId: safeDeal.id,
       metadata: {
-        settlementId: result.settlement.id,
-        ledgerEntryCount: result.ledgerEntries.length,
-        settlementJobId: settlementJob.id
+        trustLayerEscrowId: safeDeal.trustLayerEscrowId,
+        trustLayerStatus: command.status
       }
     });
 
     return {
-      ...result,
-      settlementJob: {
-        id: settlementJob.id,
-        queue: RENDER_QUEUE_NAMES.settlementProcessing
-      }
+      safeDealId: safeDeal.id,
+      trustLayer: command,
+      sync: "PENDING_WEBHOOK"
     };
   });
 
@@ -274,20 +249,49 @@ export async function registerSafeDealRoutes(
       return reply.code(403).send({ error: "Only deal participants can dispute this Safe Deal." });
     }
 
+    if (!safeDeal.trustLayerEscrowId) {
+      return reply.code(409).send({ error: "Safe Deal is missing TrustLayer escrow reference." });
+    }
+
     if (!["FUNDED", "DELIVERED"].includes(safeDeal.status)) {
       return reply.code(400).send({ error: "Only funded or delivered Safe Deals can be disputed." });
     }
 
-    const updated = await prisma.safeDeal.update({
+    const trustLayer = getTrustLayerClient();
+
+    const command = await trustLayer.openSafeDealDispute(
+      safeDeal.trustLayerEscrowId,
+      {
+        correlationId: request.id,
+        idempotencyKey: `safedeal_dispute_${safeDeal.id}_${authUser.userId}`
+      }
+    );
+
+    await prisma.safeDeal.update({
       where: { id: safeDeal.id },
       data: {
-        status: "DISPUTED"
+        escrowStatusCached: command.status,
+        escrowLastSyncedAt: new Date()
       }
     });
 
-    void writeAuditLog({ request, actorUserId: authUser.userId, action: "SAFE_DEAL_DISPUTED", entityType: "SAFE_DEAL", entityId: updated.id });
+    void writeAuditLog({
+      request,
+      actorUserId: authUser.userId,
+      action: "SAFE_DEAL_DISPUTE_COMMAND_SENT",
+      entityType: "SAFE_DEAL",
+      entityId: safeDeal.id,
+      metadata: {
+        trustLayerEscrowId: safeDeal.trustLayerEscrowId,
+        trustLayerStatus: command.status
+      }
+    });
 
-    return { safeDeal: updated };
+    return {
+      safeDealId: safeDeal.id,
+      trustLayer: command,
+      sync: "PENDING_WEBHOOK"
+    };
   });
 
   app.get("/safe-deals/:id/ledger", { preHandler: authenticate }, async (request, reply) => {
