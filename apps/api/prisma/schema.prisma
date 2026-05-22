@@ -66,6 +66,25 @@ enum EscrowLedgerEntryType {
   ADJUSTMENT
 }
 
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  NEEDS_BUYER_RESPONSE
+  NEEDS_SELLER_RESPONSE
+  RESOLVED_BUYER_REFUND
+  RESOLVED_SELLER_RELEASE
+  CANCELLED
+}
+
+enum DisputeEventType {
+  OPENED
+  EVIDENCE_ADDED
+  STATUS_CHANGED
+  MODERATOR_NOTE
+  RESOLVED
+}
+
 enum SettlementStatus {
   PENDING
   READY
@@ -101,6 +120,7 @@ model User {
   authSessions      AuthSession[]
   auditLogs         AuditLog[]
   settlements       Settlement[]
+  disputesOpened   Dispute[]
 
   @@map("users")
 }
@@ -187,6 +207,7 @@ model SafeDeal {
   review              Review?
   ledgerEntries       EscrowLedgerEntry[]
   settlement          Settlement?
+  dispute             Dispute?
 
   @@index([listingId])
   @@index([buyerId])
@@ -328,4 +349,44 @@ model WebhookEvent {
   @@index([status])
   @@index([createdAt])
   @@map("webhook_events")
+}
+
+
+model Dispute {
+  id          String        @id @default(uuid()) @db.Uuid
+  safeDealId  String        @unique @map("safe_deal_id") @db.Uuid
+  openedById String        @map("opened_by_id") @db.Uuid
+  status      DisputeStatus @default(OPEN)
+  reason      String        @db.VarChar(500)
+  resolution  String?
+  resolvedAt  DateTime?     @map("resolved_at") @db.Timestamptz(6)
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  safeDeal    SafeDeal      @relation(fields: [safeDealId], references: [id], onDelete: Cascade)
+  openedBy    User          @relation(fields: [openedById], references: [id])
+  events      DisputeEvent[]
+
+  @@index([status])
+  @@index([openedById])
+  @@index([createdAt])
+  @@map("disputes")
+}
+
+model DisputeEvent {
+  id          String           @id @default(uuid()) @db.Uuid
+  disputeId   String           @map("dispute_id") @db.Uuid
+  actorUserId String?          @map("actor_user_id") @db.Uuid
+  eventType   DisputeEventType @map("event_type")
+  note        String?
+  metadata    Json?
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  dispute     Dispute          @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+
+  @@index([disputeId])
+  @@index([actorUserId])
+  @@index([eventType])
+  @@index([createdAt])
+  @@map("dispute_events")
 }
