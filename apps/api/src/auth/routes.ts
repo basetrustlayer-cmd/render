@@ -11,7 +11,6 @@ const phoneSchema = z.object({
   phone: z.string().min(8).max(20)
 });
 
-
 const refreshTokenSchema = z.object({
   refreshToken: z.string().min(32),
   deviceFingerprint: z.string().min(16).max(256).optional()
@@ -209,9 +208,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
 
     void writeAuditLog({ request, actorUserId: user.id, action: "AUTH_LOGIN_SUCCESS", entityType: "USER", entityId: user.id });
 
-    void writeAuditLog({ request, actorUserId: user.id, action: "AUTH_DEV_LOGIN_SUCCESS", entityType: "USER", entityId: user.id });
-
-      return toAuthResponse(user, {
+    return toAuthResponse(user, {
       userAgent: request.headers["user-agent"],
       ipAddress: request.ip,
       deviceFingerprint: request.headers["x-render-device-fingerprint"] as string | undefined
@@ -252,7 +249,6 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       });
     });
   }
-
 
   app.post("/auth/refresh", {
     config: {
