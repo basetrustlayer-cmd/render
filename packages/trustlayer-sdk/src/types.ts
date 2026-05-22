@@ -68,3 +68,18 @@ export type TrustLayerSettlementReleaseResponse = {
   status: string;
   providerReference?: string;
 };
+
+
+export type TrustLayerDisputeResolutionRequest = {
+  escrowId: string;
+  disputeId: string;
+  safeDealId: string;
+  resolutionNote: string;
+};
+
+export type TrustLayerDisputeResolutionResponse = {
+  escrowId: string;
+  disputeId: string;
+  status: string;
+  resolution: "BUYER_REFUND" | "SELLER_RELEASE";
+};

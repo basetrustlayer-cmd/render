@@ -11,7 +11,9 @@ import type {
   TrustLayerSafeDealIntentResponse,
   TrustLayerTrustScoreResponse,
   TrustLayerSettlementReleaseRequest,
-  TrustLayerSettlementReleaseResponse
+  TrustLayerSettlementReleaseResponse,
+  TrustLayerDisputeResolutionRequest,
+  TrustLayerDisputeResolutionResponse
 } from "./types.js";
 
 export class TrustLayerClient {
@@ -126,6 +128,44 @@ export class TrustLayerClient {
       }
     );
   }
+  async resolveDisputeBuyerRefund(
+    input: TrustLayerDisputeResolutionRequest,
+    options: TrustLayerRequestOptions = {}
+  ): Promise<TrustLayerDisputeResolutionResponse> {
+    return trustLayerRequest<TrustLayerDisputeResolutionResponse>(
+      this.config,
+      `/safedeals/${encodeURIComponent(input.escrowId)}/disputes/${encodeURIComponent(input.disputeId)}/resolve/buyer-refund`,
+      {
+        method: "POST",
+        body: JSON.stringify(input)
+      },
+      {
+        correlationId: options.correlationId ?? createCorrelationId("dispute_refund"),
+        idempotencyKey: options.idempotencyKey ?? createIdempotencyKey("dispute_refund"),
+        timeoutMs: options.timeoutMs
+      }
+    );
+  }
+
+  async resolveDisputeSellerRelease(
+    input: TrustLayerDisputeResolutionRequest,
+    options: TrustLayerRequestOptions = {}
+  ): Promise<TrustLayerDisputeResolutionResponse> {
+    return trustLayerRequest<TrustLayerDisputeResolutionResponse>(
+      this.config,
+      `/safedeals/${encodeURIComponent(input.escrowId)}/disputes/${encodeURIComponent(input.disputeId)}/resolve/seller-release`,
+      {
+        method: "POST",
+        body: JSON.stringify(input)
+      },
+      {
+        correlationId: options.correlationId ?? createCorrelationId("dispute_release"),
+        idempotencyKey: options.idempotencyKey ?? createIdempotencyKey("dispute_release"),
+        timeoutMs: options.timeoutMs
+      }
+    );
+  }
+
 }
 
 export function createTrustLayerClient(config: TrustLayerClientConfig): TrustLayerClient {
