@@ -44,6 +44,7 @@ export async function createSettlementLedgerForConfirmedDeal(input: {
   safeDeal: {
     id: string;
     sellerId: string;
+    organizationId?: string | null;
     amount: Prisma.Decimal;
     feeAmount: Prisma.Decimal;
   };
@@ -67,11 +68,13 @@ export async function createSettlementLedgerForConfirmedDeal(input: {
       grossAmount: input.safeDeal.amount,
       platformFeeAmount: input.safeDeal.feeAmount,
       sellerReceivableAmount,
+      organizationId: input.safeDeal.organizationId ?? null,
       readyAt: new Date()
     },
     create: {
       safeDealId: input.safeDeal.id,
       sellerId: input.safeDeal.sellerId,
+      organizationId: input.safeDeal.organizationId ?? null,
       grossAmount: input.safeDeal.amount,
       platformFeeAmount: input.safeDeal.feeAmount,
       sellerReceivableAmount,

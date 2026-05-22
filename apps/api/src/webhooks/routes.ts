@@ -224,7 +224,7 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
           });
 
           if (!existing) {
-            return { updatedCount: 0, settlementId: null as string | null };
+            return { updatedCount: 0, settlementId: null as string | null, organizationId: null as string | null };
           }
 
           const wasAlreadyConfirmed = existing.status === "CONFIRMED";
@@ -259,7 +259,7 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
           });
 
           if (mappedStatus !== "CONFIRMED" || wasAlreadyConfirmed) {
-            return { updatedCount: 1, settlementId: null as string | null };
+            return { updatedCount: 1, settlementId: null as string | null, organizationId: updated.organizationId };
           }
 
           const settlement = await createSettlementLedgerForConfirmedDeal({
@@ -267,12 +267,13 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
             safeDeal: {
               id: updated.id,
               sellerId: updated.sellerId,
+              organizationId: updated.organizationId,
               amount: updated.amount,
               feeAmount: updated.feeAmount
             }
           });
 
-          return { updatedCount: 1, settlementId: settlement.id };
+          return { updatedCount: 1, settlementId: settlement.id, organizationId: updated.organizationId };
         });
 
         updatedEscrows = syncResult.updatedCount;
@@ -280,6 +281,7 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
         if (syncResult.settlementId) {
           void writeAuditLog({
             request,
+            organizationId: syncResult.organizationId,
             action: "SETTLEMENT_READY_FROM_TRUSTLAYER_WEBHOOK",
             entityType: "SAFE_DEAL",
             metadata: {

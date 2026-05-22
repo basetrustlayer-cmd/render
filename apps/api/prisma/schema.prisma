@@ -257,6 +257,7 @@ model Settlement {
   id                    String           @id @default(uuid()) @db.Uuid
   safeDealId            String           @unique @map("safe_deal_id") @db.Uuid
   sellerId              String           @map("seller_id") @db.Uuid
+  organizationId        String?          @map("organization_id") @db.Uuid
   grossAmount           Decimal          @map("gross_amount") @db.Decimal(12, 2)
   platformFeeAmount     Decimal          @map("platform_fee_amount") @db.Decimal(12, 2)
   sellerReceivableAmount Decimal         @map("seller_receivable_amount") @db.Decimal(12, 2)
@@ -275,8 +276,10 @@ model Settlement {
 
   safeDeal              SafeDeal         @relation(fields: [safeDealId], references: [id], onDelete: Cascade)
   seller                User             @relation(fields: [sellerId], references: [id])
+  organization          Organization?    @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
   @@index([sellerId])
+  @@index([organizationId])
   @@index([status])
   @@index([createdAt])
   @@map("settlements")
@@ -427,6 +430,7 @@ model Organization {
   updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   members            OrganizationMember[]
+  settlements        Settlement[]
   listings           Listing[]
   safeDeals          SafeDeal[]
   disputes           Dispute[]
