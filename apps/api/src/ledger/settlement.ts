@@ -27,9 +27,7 @@ export async function createSettlementLedgerForConfirmedDeal(input: {
   });
 
   const settlement = await input.tx.settlement.upsert({
-    where: {
-      safeDealId: input.safeDeal.id
-    },
+    where: { safeDealId: input.safeDeal.id },
     update: {
       status: "READY",
       grossAmount: input.safeDeal.amount,
@@ -73,4 +71,44 @@ export async function createSettlementLedgerForConfirmedDeal(input: {
   });
 
   return settlement;
+}
+
+export async function finalizeSettlementReleaseFromTrustLayer(input: {
+  tx: TransactionClient;
+  safeDealId: string;
+  provider?: string;
+  providerReference?: string;
+  releasedAt: Date;
+}) {
+  const settlement = await input.tx.settlement.findUnique({
+    where: { safeDealId: input.safeDealId }
+  });
+
+  if (!settlement) {
+    return null;
+  }
+
+  const paidSettlement = await input.tx.settlement.update({
+    where: { id: settlement.id },
+    data: {
+      status: "PAID",
+      provider: input.provider ?? "TRUSTLAYER",
+      providerReference: input.providerReference,
+      paidAt: input.releasedAt
+    }
+  });
+
+  await input.tx.escrowLedgerEntry.createMany({
+    data: [
+      {
+        safeDealId: input.safeDealId,
+        entryType: "SETTLEMENT_RELEASE",
+        amount: settlement.sellerReceivableAmount,
+        idempotencyKey: `${input.safeDealId}:settlement_release:${input.providerReference ?? "trustlayer"}`
+      }
+    ],
+    skipDuplicates: true
+  });
+
+  return paidSettlement;
 }
