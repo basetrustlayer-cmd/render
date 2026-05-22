@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "../database/client.js";
 import { verifyPaystackSignature } from "../payments/paystack.js";
 import { writeAuditLog } from "../audit/log.js";
+import { createSettlementLedgerForConfirmedDeal } from "../ledger/settlement.js";
 
 function verifyHmac({
   payload,
@@ -173,38 +174,78 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
       if (mappedStatus) {
         const eventTime = syncedAt ? new Date(syncedAt) : new Date();
 
-        const result = await prisma.safeDeal.updateMany({
-          where: {
-            trustLayerEscrowId: escrowId
-          },
-          data: {
-            status: mappedStatus,
-            escrowStatusCached: escrowStatus,
-            checkoutUrl: paymentUrl ?? undefined,
-            escrowLastSyncedAt: eventTime,
+        const syncResult = await prisma.$transaction(async (tx) => {
+          const existing = await tx.safeDeal.findFirst({
+            where: {
+              trustLayerEscrowId: escrowId
+            }
+          });
 
-            ...(mappedStatus === "FUNDED"
-              ? {
-                  fundedAt: eventTime,
-                  inspectionDeadline: new Date(eventTime.getTime() + 48 * 60 * 60 * 1000)
-                }
-              : {}),
-
-            ...(mappedStatus === "CONFIRMED"
-              ? {
-                  confirmedAt: eventTime
-                }
-              : {}),
-
-            ...(mappedStatus === "DELIVERED"
-              ? {
-                  deliveredAt: eventTime
-                }
-              : {})
+          if (!existing) {
+            return { updatedCount: 0, settlementId: null as string | null };
           }
+
+          const wasAlreadyConfirmed = existing.status === "CONFIRMED";
+
+          const updated = await tx.safeDeal.update({
+            where: { id: existing.id },
+            data: {
+              status: mappedStatus,
+              escrowStatusCached: escrowStatus,
+              checkoutUrl: paymentUrl ?? undefined,
+              escrowLastSyncedAt: eventTime,
+
+              ...(mappedStatus === "FUNDED"
+                ? {
+                    fundedAt: eventTime,
+                    inspectionDeadline: new Date(eventTime.getTime() + 48 * 60 * 60 * 1000)
+                  }
+                : {}),
+
+              ...(mappedStatus === "CONFIRMED"
+                ? {
+                    confirmedAt: eventTime
+                  }
+                : {}),
+
+              ...(mappedStatus === "DELIVERED"
+                ? {
+                    deliveredAt: eventTime
+                  }
+                : {})
+            }
+          });
+
+          if (mappedStatus !== "CONFIRMED" || wasAlreadyConfirmed) {
+            return { updatedCount: 1, settlementId: null as string | null };
+          }
+
+          const settlement = await createSettlementLedgerForConfirmedDeal({
+            tx,
+            safeDeal: {
+              id: updated.id,
+              sellerId: updated.sellerId,
+              amount: updated.amount,
+              feeAmount: updated.feeAmount
+            }
+          });
+
+          return { updatedCount: 1, settlementId: settlement.id };
         });
 
-        updatedEscrows = result.count;
+        updatedEscrows = syncResult.updatedCount;
+
+        if (syncResult.settlementId) {
+          void writeAuditLog({
+            request,
+            action: "SETTLEMENT_READY_FROM_TRUSTLAYER_WEBHOOK",
+            entityType: "SAFE_DEAL",
+            metadata: {
+              escrowId,
+              settlementId: syncResult.settlementId
+            }
+          });
+        }
       }
     }
 
