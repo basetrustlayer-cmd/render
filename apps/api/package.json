@@ -17,6 +17,7 @@
     "@fastify/rate-limit": "^10.3.0",
     "@prisma/client": "6.19.0",
     "@render/queue": "workspace:^",
+    "@render/trustlayer-sdk": "workspace:^",
     "fastify": "^5.2.1",
     "fastify-raw-body": "^5.0.0",
     "jsonwebtoken": "^9.0.2",
