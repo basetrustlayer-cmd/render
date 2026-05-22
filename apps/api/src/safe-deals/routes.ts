@@ -1,4 +1,5 @@
 import { createRenderQueue, RENDER_QUEUE_NAMES } from "@render/queue";
+import { createTrustLayerClient } from "@render/trustlayer-sdk";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../database/client.js";
@@ -9,6 +10,23 @@ import { createSettlementLedgerForConfirmedDeal } from "../ledger/settlement.js"
 const createSafeDealSchema = z.object({
   listingId: z.string().uuid()
 });
+
+
+function getTrustLayerClient() {
+  const apiKey = process.env.TRUSTLAYER_API_KEY;
+  const baseUrl = process.env.TRUSTLAYER_API_URL;
+
+  if (!apiKey || !baseUrl) {
+    throw new Error("TrustLayer SafeDeal credentials are required.");
+  }
+
+  return createTrustLayerClient({
+    apiKey,
+    baseUrl,
+    maxRetries: 3,
+    timeoutMs: 10_000
+  });
+}
 
 export async function registerSafeDealRoutes(
   app: FastifyInstance
@@ -33,8 +51,8 @@ export async function registerSafeDealRoutes(
     const buyer = await prisma.user.findUnique({
       where: { id: authUser.userId },
       select: {
-        email: true,
-        phone: true
+        id: true,
+        trustlayerUserId: true
       }
     });
 
@@ -50,21 +68,47 @@ export async function registerSafeDealRoutes(
       });
     }
 
+    if (!buyer) {
+      return reply.code(404).send({
+        error: "Buyer not found."
+      });
+    }
+
+    const seller = await prisma.user.findUnique({
+      where: { id: listing.sellerId },
+      select: {
+        id: true,
+        trustlayerUserId: true
+      }
+    });
+
+    if (!seller) {
+      return reply.code(404).send({
+        error: "Seller not found."
+      });
+    }
+
     const amount = listing.price;
     const amountNumber = Number(amount);
-    const feeAmount = amountNumber * 0.015;
+    const trustLayer = getTrustLayerClient();
 
-    if (amountNumber < 200) {
-      return reply.code(400).send({
-        error: "Safe Deal minimum amount is GHS 200."
-      });
-    }
-
-    if (!buyer?.email && !buyer?.phone) {
-      return reply.code(400).send({
-        error: "Buyer must have an email or phone number before funding a Safe Deal."
-      });
-    }
+    const intent = await trustLayer.createSafeDealIntent(
+      {
+        buyerTlId: buyer.trustlayerUserId,
+        sellerTlId: seller.trustlayerUserId,
+        listingId: listing.id,
+        amountGhs: amountNumber,
+        metadata: {
+          renderListingId: listing.id,
+          renderBuyerId: authUser.userId,
+          renderSellerId: listing.sellerId
+        }
+      },
+      {
+        correlationId: request.id,
+        idempotencyKey: `safedeal_intent_${authUser.userId}_${listing.id}`
+      }
+    );
 
     const safeDeal = await prisma.safeDeal.create({
       data: {
@@ -72,22 +116,24 @@ export async function registerSafeDealRoutes(
         buyerId: authUser.userId,
         sellerId: listing.sellerId,
         amount,
-        feeAmount,
+        feeAmount: 0,
         status: "INITIATED",
-        escrowStatusCached: "INITIATED",
+        trustLayerEscrowId: intent.escrowId,
+        checkoutUrl: intent.paymentUrl,
+        escrowStatusCached: intent.status,
         escrowLastSyncedAt: new Date()
       }
     });
 
-    void writeAuditLog({ request, actorUserId: authUser.userId, action: "SAFE_DEAL_INITIATED", entityType: "SAFE_DEAL", entityId: safeDeal.id, metadata: { listingId: listing.id, sellerId: listing.sellerId, boundary: "TRUSTLAYER_PROJECTION_PENDING" } });
+    void writeAuditLog({ request, actorUserId: authUser.userId, action: "SAFE_DEAL_INTENT_CREATED", entityType: "SAFE_DEAL", entityId: safeDeal.id, metadata: { listingId: listing.id, sellerId: listing.sellerId, trustLayerEscrowId: intent.escrowId } });
 
     return reply.code(201).send({
       safeDeal,
       checkout: {
         provider: "TRUSTLAYER",
-        authorizationUrl: safeDeal.checkoutUrl,
-        escrowId: safeDeal.trustLayerEscrowId,
-        status: safeDeal.escrowStatusCached
+        authorizationUrl: intent.paymentUrl,
+        escrowId: intent.escrowId,
+        status: intent.status
       }
     });
   });
