@@ -47,6 +47,7 @@ export async function registerTrustLayerRoutes(app: FastifyInstance): Promise<vo
       }
     });
 
+
     return {
       verification: {
         configured: Boolean(process.env.TRUSTLAYER_API_KEY && process.env.TRUSTLAYER_API_URL),

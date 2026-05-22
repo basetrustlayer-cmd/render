@@ -126,6 +126,8 @@ export async function registerSafeDealRoutes(
 
     void writeAuditLog({ request, actorUserId: authUser.userId, action: "SAFE_DEAL_INTENT_CREATED", entityType: "SAFE_DEAL", entityId: safeDeal.id, metadata: { listingId: listing.id, sellerId: listing.sellerId, trustLayerEscrowId: intent.escrowId } });
 
+    void writeAuditLog({ request, actorUserId: authUser.userId, action: "SAFE_DEAL_INITIATED", entityType: "SAFE_DEAL", entityId: safeDeal.id, metadata: { listingId: listing.id, sellerId: listing.sellerId } });
+
     return reply.code(201).send({
       safeDeal,
       checkout: {
