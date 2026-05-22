@@ -4,7 +4,7 @@ import { z } from "zod";
 import { prisma } from "../database/client.js";
 import { authenticate, requireAuthUser } from "../auth/middleware.js";
 import { writeAuditLog } from "../audit/log.js";
-import { resolveOptionalOrganizationContext } from "../organizations/context.js";
+import { resolveOptionalOrganizationContext, requireListingOrganizationAccess } from "../organizations/context.js";
 
 const listListingsQuerySchema = z.object({
   verifiedOnly: z.coerce.boolean().optional()
@@ -243,6 +243,16 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       return reply.code(403).send({ error: "Only the listing owner can upload images." });
     }
 
+    const hasOrganizationAccess = await requireListingOrganizationAccess({
+      request,
+      userId: authUser.userId,
+      organizationId: listing.organizationId
+    });
+
+    if (!hasOrganizationAccess) {
+      return reply.code(403).send({ error: "Invalid organization context." });
+    }
+
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
     const apiSecret = process.env.CLOUDINARY_API_SECRET;
 
@@ -288,6 +298,16 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
 
     if (listing.sellerId !== authUser.userId) {
       return reply.code(403).send({ error: "Only the listing owner can add images." });
+    }
+
+    const hasOrganizationAccess = await requireListingOrganizationAccess({
+      request,
+      userId: authUser.userId,
+      organizationId: listing.organizationId
+    });
+
+    if (!hasOrganizationAccess) {
+      return reply.code(403).send({ error: "Invalid organization context." });
     }
 
     const imageCount = await prisma.listingImage.count({

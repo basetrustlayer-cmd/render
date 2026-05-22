@@ -46,7 +46,9 @@ export async function registerSafeDealRoutes(
     const listing = await prisma.listing.findFirst({
       where: {
         id: parsed.data.listingId,
-        deletedAt: null
+        deletedAt: null,
+        status: "LIVE",
+        organizationId: requestedOrganizationId ?? null
       }
     });
 
@@ -175,7 +177,7 @@ export async function registerSafeDealRoutes(
 
     const safeDeals = await prisma.safeDeal.findMany({
       where: {
-        ...(requestedOrganizationId ? { organizationId: requestedOrganizationId } : {}),
+        organizationId: requestedOrganizationId ?? null,
         OR: [
           { buyerId: authUser.userId },
           { sellerId: authUser.userId }
@@ -207,8 +209,11 @@ export async function registerSafeDealRoutes(
       return reply.code(400).send({ error: "Invalid Safe Deal ID." });
     }
 
-    const safeDeal = await prisma.safeDeal.findUnique({
-      where: { id: params.data.id }
+    const safeDeal = await prisma.safeDeal.findFirst({
+      where: {
+        id: params.data.id,
+        organizationId: getRequestedOrganizationId(request) ?? null
+      }
     });
 
     if (!safeDeal) {
@@ -281,8 +286,11 @@ export async function registerSafeDealRoutes(
       });
     }
 
-    const safeDeal = await prisma.safeDeal.findUnique({
-      where: { id: params.data.id },
+    const safeDeal = await prisma.safeDeal.findFirst({
+      where: {
+        id: params.data.id,
+        organizationId: getRequestedOrganizationId(request) ?? null
+      },
       include: {
         dispute: true
       }
@@ -426,7 +434,7 @@ export async function registerSafeDealRoutes(
     const safeDeal = await prisma.safeDeal.findFirst({
       where: {
         id: params.data.id,
-        ...(requestedOrganizationId ? { organizationId: requestedOrganizationId } : {}),
+        organizationId: requestedOrganizationId ?? null,
         OR: [
           { buyerId: authUser.userId },
           { sellerId: authUser.userId }
@@ -482,7 +490,7 @@ export async function registerSafeDealRoutes(
     const safeDeal = await prisma.safeDeal.findFirst({
       where: {
         id: parsed.data.id,
-        ...(requestedOrganizationId ? { organizationId: requestedOrganizationId } : {}),
+        organizationId: requestedOrganizationId ?? null,
         OR: [
           { buyerId: authUser.userId },
           { sellerId: authUser.userId }
