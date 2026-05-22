@@ -12,12 +12,14 @@
     "test": "tsc --noEmit"
   },
   "dependencies": {
+    "@prisma/client": "6.19.0",
     "@render/queue": "workspace:*",
     "bullmq": "^5.64.1",
     "ioredis": "^5.8.2"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",
+    "prisma": "6.19.0",
     "tsx": "^4.20.5",
     "typescript": "^5.8.3"
   }

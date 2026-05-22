@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../database/client.js";
+import { verifyPaystackSignature } from "../payments/paystack.js";
 import { writeAuditLog } from "../audit/log.js";
 
 function verifyHmac({
@@ -52,15 +53,19 @@ type RawBodyRequest = {
   rawBody?: string;
 };
 
+function firstHeaderValue(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
 export async function registerWebhookRoutes(app: FastifyInstance): Promise<void> {
   app.post("/webhooks/paystack", { config: { rawBody: true } }, async (request, reply) => {
     const rawBody = (request as RawBodyRequest).rawBody ?? JSON.stringify(request.body ?? {});
-    const signature = request.headers["x-paystack-signature"];
+    const signature = firstHeaderValue(request.headers["x-paystack-signature"]);
 
     if (
-      !verifyHmac({
+      !verifyPaystackSignature({
         payload: rawBody,
-        signature: Array.isArray(signature) ? signature[0] : signature,
+        signature,
         secret: process.env.PAYSTACK_SECRET_KEY
       })
     ) {
@@ -74,10 +79,12 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
       return reply.code(400).send({ error: "Invalid Paystack webhook payload." });
     }
 
+    let updatedSafeDeals = 0;
+
     if (parsed.data.event === "charge.success" && parsed.data.data.reference) {
       const paidAt = parsed.data.data.paid_at ? new Date(parsed.data.data.paid_at) : new Date();
 
-      await prisma.safeDeal.updateMany({
+      const result = await prisma.safeDeal.updateMany({
         where: {
           paystackReference: parsed.data.data.reference,
           status: "INITIATED"
@@ -88,22 +95,31 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
           inspectionDeadline: new Date(paidAt.getTime() + 48 * 60 * 60 * 1000)
         }
       });
+
+      updatedSafeDeals = result.count;
     }
 
-    void writeAuditLog({ request, action: "WEBHOOK_PAYSTACK_RECEIVED", metadata: { event: parsed.data.event, reference: parsed.data.data.reference } });
+    void writeAuditLog({
+      request,
+      action: "WEBHOOK_PAYSTACK_RECEIVED",
+      metadata: {
+        event: parsed.data.event,
+        reference: parsed.data.data.reference,
+        updatedSafeDeals
+      }
+    });
 
-
-    return { received: true };
+    return { received: true, updatedSafeDeals };
   });
 
   app.post("/webhooks/trustlayer", { config: { rawBody: true } }, async (request, reply) => {
     const rawBody = (request as RawBodyRequest).rawBody ?? JSON.stringify(request.body ?? {});
-    const signature = request.headers["x-trustlayer-signature"];
+    const signature = firstHeaderValue(request.headers["x-trustlayer-signature"]);
 
     if (
       !verifyHmac({
         payload: rawBody,
-        signature: Array.isArray(signature) ? signature[0] : signature,
+        signature,
         secret: process.env.TRUSTLAYER_WEBHOOK_SECRET
       })
     ) {
@@ -119,7 +135,14 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
 
     const { userId, trustlayerUserId, verificationLevel, trustScore, trustTier } = parsed.data.data;
 
-      void writeAuditLog({ request, actorUserId: userId, action: "WEBHOOK_TRUSTLAYER_RECEIVED", entityType: userId ? "USER" : undefined, entityId: userId, metadata: { event: parsed.data.event, trustlayerUserId } });
+    void writeAuditLog({
+      request,
+      actorUserId: userId,
+      action: "WEBHOOK_TRUSTLAYER_RECEIVED",
+      entityType: userId ? "USER" : undefined,
+      entityId: userId,
+      metadata: { event: parsed.data.event, trustlayerUserId }
+    });
 
     if (userId || trustlayerUserId) {
       await prisma.user.updateMany({

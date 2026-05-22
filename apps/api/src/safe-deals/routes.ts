@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { createRenderQueue, RENDER_QUEUE_NAMES } from "@render/queue";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../database/client.js";
@@ -249,6 +250,17 @@ export async function registerSafeDealRoutes(
       };
     });
 
+    const settlementQueue = createRenderQueue(RENDER_QUEUE_NAMES.settlementProcessing);
+
+    const settlementJob = await settlementQueue.add("process-settlement", {
+      safeDealId: result.safeDeal.id,
+      settlementId: result.settlement.id,
+      triggeredBy: "buyer_confirmation",
+      triggeredAt: new Date().toISOString()
+    });
+
+    await settlementQueue.close();
+
     void writeAuditLog({
       request,
       actorUserId: authUser.userId,
@@ -257,11 +269,18 @@ export async function registerSafeDealRoutes(
       entityId: result.safeDeal.id,
       metadata: {
         settlementId: result.settlement.id,
-        ledgerEntryCount: result.ledgerEntries.length
+        ledgerEntryCount: result.ledgerEntries.length,
+        settlementJobId: settlementJob.id
       }
     });
 
-    return result;
+    return {
+      ...result,
+      settlementJob: {
+        id: settlementJob.id,
+        queue: RENDER_QUEUE_NAMES.settlementProcessing
+      }
+    };
   });
 
   app.post("/safe-deals/:id/dispute", { preHandler: authenticate }, async (request, reply) => {
