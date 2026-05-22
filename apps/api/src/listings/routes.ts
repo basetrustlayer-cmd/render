@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "../database/client.js";
 import { authenticate, requireAuthUser } from "../auth/middleware.js";
 import { writeAuditLog } from "../audit/log.js";
+import { resolveOptionalOrganizationContext } from "../organizations/context.js";
 
 const listListingsQuerySchema = z.object({
   verifiedOnly: z.coerce.boolean().optional()
@@ -166,16 +167,28 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       return reply.code(400).send({ error: "Invalid listing payload." });
     }
 
+    const organizationMembership = await resolveOptionalOrganizationContext({
+      request,
+      userId: authUser.userId
+    });
+
+    const requestedOrganizationId = request.headers["x-render-organization-id"];
+
+    if (requestedOrganizationId && !organizationMembership) {
+      return reply.code(403).send({ error: "Invalid organization context." });
+    }
+
     const listing = await prisma.listing.create({
       data: {
         ...parsed.data,
         sellerId: authUser.userId,
+        organizationId: organizationMembership?.organizationId,
         status: "PENDING"
       },
       include: listingInclude
     });
 
-    void writeAuditLog({ request, actorUserId: authUser.userId, action: "LISTING_CREATED", entityType: "LISTING", entityId: listing.id });
+    void writeAuditLog({ request, actorUserId: authUser.userId, organizationId: organizationMembership?.organizationId, action: "LISTING_CREATED", entityType: "LISTING", entityId: listing.id });
 
     return reply.code(201).send({ listing });
   });
@@ -219,7 +232,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
 
     const listing = await prisma.listing.findUnique({
       where: { id: params.data.id },
-      select: { id: true, sellerId: true }
+      select: { id: true, sellerId: true, organizationId: true }
     });
 
     if (!listing) {
@@ -266,7 +279,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
 
     const listing = await prisma.listing.findUnique({
       where: { id: params.data.id },
-      select: { id: true, sellerId: true }
+      select: { id: true, sellerId: true, organizationId: true }
     });
 
     if (!listing) {
