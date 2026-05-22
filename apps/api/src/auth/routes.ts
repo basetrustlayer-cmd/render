@@ -209,9 +209,6 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     void writeAuditLog({ request, actorUserId: user.id, action: "AUTH_LOGIN_SUCCESS", entityType: "USER", entityId: user.id });
 
     return toAuthResponse(user, {
-    void writeAuditLog({ request, actorUserId: user.id, action: "AUTH_DEV_LOGIN_SUCCESS", entityType: "USER", entityId: user.id });
-
-      return toAuthResponse(user, {
       userAgent: request.headers["user-agent"],
       ipAddress: request.ip,
       deviceFingerprint: request.headers["x-render-device-fingerprint"] as string | undefined
