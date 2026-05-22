@@ -57,6 +57,24 @@ enum SafeDealStatus {
   COMPLETE
 }
 
+enum EscrowLedgerEntryType {
+  BUYER_HOLD
+  PLATFORM_FEE
+  SELLER_PAYABLE
+  BUYER_REFUND
+  SETTLEMENT_RELEASE
+  ADJUSTMENT
+}
+
+enum SettlementStatus {
+  PENDING
+  READY
+  PROCESSING
+  PAID
+  FAILED
+  CANCELLED
+}
+
 model User {
   id                String    @id @default(uuid()) @db.Uuid
   trustlayerUserId  String    @unique @map("trustlayer_user_id") @db.VarChar(64)
@@ -84,6 +102,7 @@ model User {
   reviewsReceived   Review[] @relation("ReviewsReceived")
   authSessions      AuthSession[]
   auditLogs         AuditLog[]
+  settlements       Settlement[]
 
   @@map("users")
 }
@@ -166,12 +185,58 @@ model SafeDeal {
   buyer               User           @relation("BuyerDeals", fields: [buyerId], references: [id])
   seller              User           @relation("SellerDeals", fields: [sellerId], references: [id])
   review              Review?
+  ledgerEntries       EscrowLedgerEntry[]
+  settlement          Settlement?
 
   @@index([listingId])
   @@index([buyerId])
   @@index([sellerId])
   @@index([status])
   @@map("safe_deals")
+}
+
+model EscrowLedgerEntry {
+  id             String                @id @default(uuid()) @db.Uuid
+  safeDealId     String                @map("safe_deal_id") @db.Uuid
+  entryType      EscrowLedgerEntryType @map("entry_type")
+  amount         Decimal               @db.Decimal(12, 2)
+  currency       String                @default("GHS") @db.VarChar(3)
+  idempotencyKey String                @unique @map("idempotency_key") @db.VarChar(160)
+  metadata       Json?
+  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  safeDeal       SafeDeal              @relation(fields: [safeDealId], references: [id], onDelete: Cascade)
+
+  @@index([safeDealId])
+  @@index([entryType])
+  @@index([createdAt])
+  @@map("escrow_ledger_entries")
+}
+
+model Settlement {
+  id                    String           @id @default(uuid()) @db.Uuid
+  safeDealId            String           @unique @map("safe_deal_id") @db.Uuid
+  sellerId              String           @map("seller_id") @db.Uuid
+  grossAmount           Decimal          @map("gross_amount") @db.Decimal(12, 2)
+  platformFeeAmount     Decimal          @map("platform_fee_amount") @db.Decimal(12, 2)
+  sellerReceivableAmount Decimal         @map("seller_receivable_amount") @db.Decimal(12, 2)
+  currency              String           @default("GHS") @db.VarChar(3)
+  status                SettlementStatus @default(PENDING)
+  provider              String?          @db.VarChar(40)
+  providerReference     String?          @map("provider_reference") @db.VarChar(120)
+  failureReason         String?          @map("failure_reason")
+  readyAt               DateTime?        @map("ready_at") @db.Timestamptz(6)
+  paidAt                DateTime?        @map("paid_at") @db.Timestamptz(6)
+  createdAt             DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  safeDeal              SafeDeal         @relation(fields: [safeDealId], references: [id], onDelete: Cascade)
+  seller                User             @relation(fields: [sellerId], references: [id])
+
+  @@index([sellerId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("settlements")
 }
 
 model Review {
