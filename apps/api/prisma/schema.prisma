@@ -94,6 +94,18 @@ enum SettlementStatus {
   CANCELLED
 }
 
+enum OrganizationRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
 model User {
   id                String    @id @default(uuid()) @db.Uuid
   trustlayerUserId  String    @unique @map("trustlayer_user_id") @db.VarChar(64)
@@ -121,6 +133,7 @@ model User {
   auditLogs         AuditLog[]
   settlements       Settlement[]
   disputesOpened   Dispute[]
+  organizationMemberships OrganizationMember[]
 
   @@map("users")
 }
@@ -389,4 +402,37 @@ model DisputeEvent {
   @@index([eventType])
   @@index([createdAt])
   @@map("dispute_events")
+}
+
+
+model Organization {
+  id                 String             @id @default(uuid()) @db.Uuid
+  name               String             @db.VarChar(200)
+  slug               String             @unique @db.VarChar(120)
+  trustlayerTenantId String?            @unique @map("trustlayer_tenant_id") @db.VarChar(100)
+  status             OrganizationStatus @default(ACTIVE)
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  members            OrganizationMember[]
+
+  @@index([status])
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  userId         String           @map("user_id") @db.Uuid
+  role           OrganizationRole @default(MEMBER)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@index([organizationId])
+  @@map("organization_members")
 }
