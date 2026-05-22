@@ -231,30 +231,58 @@ export async function registerSafeDealRoutes(
 
   app.post("/safe-deals/:id/dispute", { preHandler: authenticate }, async (request, reply) => {
     const authUser = requireAuthUser(request);
-    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
 
-    if (!params.success) {
-      return reply.code(400).send({ error: "Invalid Safe Deal ID." });
+    const params = z.object({
+      id: z.string().uuid()
+    }).safeParse(request.params);
+
+    const body = z.object({
+      reason: z.string().min(10).max(500)
+    }).safeParse(request.body);
+
+    if (!params.success || !body.success) {
+      return reply.code(400).send({
+        error: "Invalid dispute payload."
+      });
     }
 
     const safeDeal = await prisma.safeDeal.findUnique({
-      where: { id: params.data.id }
+      where: { id: params.data.id },
+      include: {
+        dispute: true
+      }
     });
 
     if (!safeDeal) {
-      return reply.code(404).send({ error: "Safe Deal not found." });
+      return reply.code(404).send({
+        error: "Safe Deal not found."
+      });
     }
 
-    if (![safeDeal.buyerId, safeDeal.sellerId].includes(authUser.userId)) {
-      return reply.code(403).send({ error: "Only deal participants can dispute this Safe Deal." });
+    if (
+      ![safeDeal.buyerId, safeDeal.sellerId].includes(authUser.userId)
+    ) {
+      return reply.code(403).send({
+        error: "Only deal participants can dispute this Safe Deal."
+      });
     }
 
     if (!safeDeal.trustLayerEscrowId) {
-      return reply.code(409).send({ error: "Safe Deal is missing TrustLayer escrow reference." });
+      return reply.code(409).send({
+        error: "Safe Deal is missing TrustLayer escrow reference."
+      });
     }
 
     if (!["FUNDED", "DELIVERED"].includes(safeDeal.status)) {
-      return reply.code(400).send({ error: "Only funded or delivered Safe Deals can be disputed." });
+      return reply.code(400).send({
+        error: "Only funded or delivered Safe Deals can be disputed."
+      });
+    }
+
+    if (safeDeal.dispute) {
+      return reply.code(409).send({
+        error: "A dispute already exists for this Safe Deal."
+      });
     }
 
     const trustLayer = getTrustLayerClient();
@@ -267,28 +295,59 @@ export async function registerSafeDealRoutes(
       }
     );
 
-    await prisma.safeDeal.update({
-      where: { id: safeDeal.id },
-      data: {
-        escrowStatusCached: command.status,
-        escrowLastSyncedAt: new Date()
-      }
+    const result = await prisma.$transaction(async (tx) => {
+      const updatedSafeDeal = await tx.safeDeal.update({
+        where: { id: safeDeal.id },
+        data: {
+          escrowStatusCached: command.status,
+          escrowLastSyncedAt: new Date(),
+          status: "DISPUTED"
+        }
+      });
+
+      const dispute = await tx.dispute.create({
+        data: {
+          safeDealId: safeDeal.id,
+          openedById: authUser.userId,
+          reason: body.data.reason,
+          status: "OPEN"
+        }
+      });
+
+      await tx.disputeEvent.create({
+        data: {
+          disputeId: dispute.id,
+          actorUserId: authUser.userId,
+          eventType: "OPENED",
+          note: body.data.reason,
+          metadata: {
+            trustLayerEscrowId: safeDeal.trustLayerEscrowId,
+            trustLayerStatus: command.status
+          }
+        }
+      });
+
+      return {
+        safeDeal: updatedSafeDeal,
+        dispute
+      };
     });
 
     void writeAuditLog({
       request,
       actorUserId: authUser.userId,
-      action: "SAFE_DEAL_DISPUTE_COMMAND_SENT",
-      entityType: "SAFE_DEAL",
-      entityId: safeDeal.id,
+      action: "SAFE_DEAL_DISPUTE_OPENED",
+      entityType: "DISPUTE",
+      entityId: result.dispute.id,
       metadata: {
-        trustLayerEscrowId: safeDeal.trustLayerEscrowId,
-        trustLayerStatus: command.status
+        safeDealId: safeDeal.id,
+        trustLayerEscrowId: safeDeal.trustLayerEscrowId
       }
     });
 
     return {
       safeDealId: safeDeal.id,
+      disputeId: result.dispute.id,
       trustLayer: command,
       sync: "PENDING_WEBHOOK"
     };
