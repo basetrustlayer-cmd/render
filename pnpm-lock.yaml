@@ -25,6 +25,9 @@ importers:
       '@render/queue':
         specifier: workspace:^
         version: link:../../packages/queue
+      '@render/trustlayer-sdk':
+        specifier: workspace:^
+        version: link:../../packages/trustlayer-sdk
       fastify:
         specifier: ^5.2.1
         version: 5.8.5

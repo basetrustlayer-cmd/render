@@ -23,7 +23,7 @@ export type TrustLayerIdentityVerificationResponse = {
   status: "pending" | "verified" | "rejected" | "manual_review";
   verificationLevel: number;
   trustScore?: number;
-  trustTier?: string;
+  trustTier?: "NEW" | "BUILDING" | "VERIFIED" | "TRUSTED";
 };
 
 export type TrustLayerSafeDealIntentRequest = {
@@ -50,7 +50,7 @@ export type TrustLayerSafeDealConfirmResponse = {
 export type TrustLayerTrustScoreResponse = {
   userId: string;
   trustScore: number;
-  trustTier: string;
+  trustTier: "NEW" | "BUILDING" | "VERIFIED" | "TRUSTED";
   badge?: string;
   lastUpdatedAt: string;
 };
