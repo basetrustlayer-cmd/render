@@ -1,0 +1,20 @@
+{
+  "name": "@render/observability",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "test": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@render/events": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "@types/node": "^22.13.10"
+  }
+}

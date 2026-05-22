@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
@@ -16,9 +17,11 @@ import { registerTrustLayerRoutes } from "./trustlayer/routes.js";
 import { registerTrustScoreRoutes } from "./trustscore/routes.js";
 import { registerWebhookRoutes } from "./webhooks/routes.js";
 import { apiEnv } from "./env.js";
+import { elapsedMs, nowMs, recordOperationalMetric, writeOperationalLog } from "@render/observability";
 
 const app = Fastify({
-  logger: true
+  logger: true,
+  genReqId: () => crypto.randomUUID()
 });
 
 const allowedOrigins = apiEnv.corsOrigins
@@ -47,11 +50,48 @@ await app.register(rawBody, {
   runFirst: true
 });
 
+app.addHook("onRequest", async (request) => {
+  request.headers["x-render-request-start-ms"] = String(nowMs());
+});
+
+app.addHook("onResponse", async (request, reply) => {
+  const startedAt = Number(request.headers["x-render-request-start-ms"] ?? Date.now());
+  const durationMs = elapsedMs(startedAt);
+  const correlationId = request.id;
+
+  recordOperationalMetric({
+    name: "api.request.completed",
+    value: durationMs,
+    unit: "ms",
+    correlationId,
+    aggregateId: request.url,
+    source: "render.api",
+    metadata: {
+      method: request.method,
+      url: request.url,
+      statusCode: reply.statusCode
+    }
+  });
+});
+
 app.setErrorHandler((error, request, reply) => {
   app.log.error({
     err: error,
     method: request.method,
     url: request.url
+  });
+
+  writeOperationalLog({
+    severity: "ERROR",
+    event: "api.error",
+    message: error instanceof Error ? error.message : "Unexpected API error.",
+    correlationId: request.id,
+    aggregateId: request.url,
+    source: "render.api",
+    metadata: {
+      method: request.method,
+      url: request.url
+    }
   });
 
   const normalizedError =

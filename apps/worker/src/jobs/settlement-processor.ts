@@ -6,6 +6,7 @@ import {
   type SettlementProcessingJobData
 } from "@render/queue";
 import { prisma } from "../database.js";
+import { elapsedMs, nowMs, recordOperationalMetric, writeOperationalLog } from "@render/observability";
 
 const connection = createQueueConnection();
 const MAX_SETTLEMENT_RETRIES = 5;
@@ -35,6 +36,22 @@ export const settlementWorker =
   new Worker<SettlementProcessingJobData>(
     RENDER_QUEUE_NAMES.settlementProcessing,
     async (job) => {
+      const startedAt = nowMs();
+      const correlationId = `settlement_${job.data.settlementId}`;
+
+      writeOperationalLog({
+        severity: "INFO",
+        event: "settlement.processing.started",
+        message: "Settlement processing started.",
+        correlationId,
+        aggregateId: job.data.settlementId,
+        source: "render.worker",
+        metadata: {
+          jobId: job.id,
+          safeDealId: job.data.safeDealId,
+          triggeredBy: job.data.triggeredBy
+        }
+      });
       const settlement = await prisma.settlement.findUnique({
         where: { id: job.data.settlementId },
         include: { safeDeal: true }
@@ -144,7 +161,49 @@ export const settlementWorker =
           }
         });
 
-        throw new Error(message);
+        recordOperationalMetric({
+        name: "settlement.processing.duration_ms",
+        value: elapsedMs(startedAt),
+        unit: "ms",
+        correlationId,
+        aggregateId: settlement.id,
+        source: "render.worker",
+        metadata: {
+          safeDealId: settlement.safeDealId,
+          attemptCount,
+          status: "FAILED"
+        }
+      });
+
+      if (attemptCount >= MAX_SETTLEMENT_RETRIES) {
+        recordOperationalMetric({
+          name: "settlement.retry.exhausted",
+          value: 1,
+          unit: "count",
+          correlationId,
+          aggregateId: settlement.id,
+          source: "render.worker",
+          metadata: {
+            safeDealId: settlement.safeDealId,
+            attemptCount
+          }
+        });
+      }
+
+      writeOperationalLog({
+        severity: attemptCount >= MAX_SETTLEMENT_RETRIES ? "CRITICAL" : "ERROR",
+        event: "settlement.processing.failed",
+        message,
+        correlationId,
+        aggregateId: settlement.id,
+        source: "render.worker",
+        metadata: {
+          safeDealId: settlement.safeDealId,
+          attemptCount
+        }
+      });
+
+      throw new Error(message);
       }
     },
     { connection }
