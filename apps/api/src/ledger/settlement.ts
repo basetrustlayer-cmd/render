@@ -12,6 +12,33 @@ export function calculateSellerReceivable(input: {
   return input.amount.minus(input.feeAmount);
 }
 
+export function assertSettlementLedgerInvariant(input: {
+  safeDealId: string;
+  buyerHoldAmount: Prisma.Decimal;
+  platformFeeAmount: Prisma.Decimal;
+  sellerPayableAmount: Prisma.Decimal;
+}): void {
+  const expected = input.platformFeeAmount.plus(input.sellerPayableAmount);
+
+  if (!input.buyerHoldAmount.equals(expected)) {
+    throw new Error(
+      `Ledger invariant failed for SafeDeal ${input.safeDealId}: BUYER_HOLD must equal PLATFORM_FEE + SELLER_PAYABLE.`
+    );
+  }
+}
+
+export function assertSettlementReleaseInvariant(input: {
+  safeDealId: string;
+  sellerPayableAmount: Prisma.Decimal;
+  settlementReleaseAmount: Prisma.Decimal;
+}): void {
+  if (!input.sellerPayableAmount.equals(input.settlementReleaseAmount)) {
+    throw new Error(
+      `Ledger invariant failed for SafeDeal ${input.safeDealId}: SETTLEMENT_RELEASE must equal SELLER_PAYABLE.`
+    );
+  }
+}
+
 export async function createSettlementLedgerForConfirmedDeal(input: {
   tx: TransactionClient;
   safeDeal: {
@@ -24,6 +51,13 @@ export async function createSettlementLedgerForConfirmedDeal(input: {
   const sellerReceivableAmount = calculateSellerReceivable({
     amount: input.safeDeal.amount,
     feeAmount: input.safeDeal.feeAmount
+  });
+
+  assertSettlementLedgerInvariant({
+    safeDealId: input.safeDeal.id,
+    buyerHoldAmount: input.safeDeal.amount,
+    platformFeeAmount: input.safeDeal.feeAmount,
+    sellerPayableAmount: sellerReceivableAmount
   });
 
   const settlement = await input.tx.settlement.upsert({
@@ -87,6 +121,12 @@ export async function finalizeSettlementReleaseFromTrustLayer(input: {
   if (!settlement) {
     return null;
   }
+
+  assertSettlementReleaseInvariant({
+    safeDealId: input.safeDealId,
+    sellerPayableAmount: settlement.sellerReceivableAmount,
+    settlementReleaseAmount: settlement.sellerReceivableAmount
+  });
 
   const paidSettlement = await input.tx.settlement.update({
     where: { id: settlement.id },
