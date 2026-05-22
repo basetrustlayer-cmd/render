@@ -45,7 +45,11 @@ const trustLayerWebhookSchema = z.object({
     trustlayerUserId: z.string().optional(),
     verificationLevel: z.number().int().min(0).max(5).optional(),
     trustScore: z.number().int().min(0).max(1000).optional(),
-    trustTier: z.enum(["NEW", "BUILDING", "VERIFIED", "TRUSTED"]).optional()
+    trustTier: z.enum(["NEW", "BUILDING", "VERIFIED", "TRUSTED"]).optional(),
+    escrowId: z.string().optional(),
+    escrowStatus: z.string().optional(),
+    paymentUrl: z.string().optional(),
+    syncedAt: z.string().optional()
   }).passthrough()
 });
 
@@ -55,6 +59,17 @@ type RawBodyRequest = {
 
 function firstHeaderValue(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function mapTrustLayerEscrowStatus(status: string | undefined) {
+  if (status === "FUNDED") return "FUNDED";
+  if (status === "DELIVERED") return "DELIVERED";
+  if (status === "DISPUTED") return "DISPUTED";
+  if (status === "CONFIRMED") return "CONFIRMED";
+  if (status === "COMPLETE") return "COMPLETE";
+  if (status === "REFUNDED") return "REFUNDED";
+
+  return undefined;
 }
 
 export async function registerWebhookRoutes(app: FastifyInstance): Promise<void> {
@@ -79,26 +94,17 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
       return reply.code(400).send({ error: "Invalid Paystack webhook payload." });
     }
 
-    let updatedSafeDeals = 0;
-
-    if (parsed.data.event === "charge.success" && parsed.data.data.reference) {
-      const paidAt = parsed.data.data.paid_at ? new Date(parsed.data.data.paid_at) : new Date();
-
-      void paidAt;
-      updatedSafeDeals = 0;
-    }
-
     void writeAuditLog({
       request,
-      action: "WEBHOOK_PAYSTACK_RECEIVED",
+      action: "WEBHOOK_PAYSTACK_RECEIVED_TRANSITIONAL_NOOP",
       metadata: {
         event: parsed.data.event,
         reference: parsed.data.data.reference,
-        updatedSafeDeals
+        boundary: "PAYSTACK_EVENTS_OWNED_BY_TRUSTLAYER"
       }
     });
 
-    return { received: true, updatedSafeDeals };
+    return { received: true, updatedSafeDeals: 0 };
   });
 
   app.post("/webhooks/trustlayer", { config: { rawBody: true } }, async (request, reply) => {
@@ -122,15 +128,30 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
       return reply.code(400).send({ error: "Invalid TrustLayer webhook payload." });
     }
 
-    const { userId, trustlayerUserId, verificationLevel, trustScore, trustTier } = parsed.data.data;
+    const {
+      userId,
+      trustlayerUserId,
+      verificationLevel,
+      trustScore,
+      trustTier,
+      escrowId,
+      escrowStatus,
+      paymentUrl,
+      syncedAt
+    } = parsed.data.data;
 
     void writeAuditLog({
       request,
       actorUserId: userId,
       action: "WEBHOOK_TRUSTLAYER_RECEIVED",
-      entityType: userId ? "USER" : undefined,
+      entityType: userId ? "USER" : escrowId ? "SAFE_DEAL" : undefined,
       entityId: userId,
-      metadata: { event: parsed.data.event, trustlayerUserId }
+      metadata: {
+        event: parsed.data.event,
+        trustlayerUserId,
+        escrowId,
+        escrowStatus
+      }
     });
 
     if (userId || trustlayerUserId) {
@@ -144,6 +165,52 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
       });
     }
 
-    return { received: true };
+    let updatedEscrows = 0;
+
+    if (escrowId) {
+      const mappedStatus = mapTrustLayerEscrowStatus(escrowStatus);
+
+      if (mappedStatus) {
+        const eventTime = syncedAt ? new Date(syncedAt) : new Date();
+
+        const result = await prisma.safeDeal.updateMany({
+          where: {
+            trustLayerEscrowId: escrowId
+          },
+          data: {
+            status: mappedStatus,
+            escrowStatusCached: escrowStatus,
+            checkoutUrl: paymentUrl ?? undefined,
+            escrowLastSyncedAt: eventTime,
+
+            ...(mappedStatus === "FUNDED"
+              ? {
+                  fundedAt: eventTime,
+                  inspectionDeadline: new Date(eventTime.getTime() + 48 * 60 * 60 * 1000)
+                }
+              : {}),
+
+            ...(mappedStatus === "CONFIRMED"
+              ? {
+                  confirmedAt: eventTime
+                }
+              : {}),
+
+            ...(mappedStatus === "DELIVERED"
+              ? {
+                  deliveredAt: eventTime
+                }
+              : {})
+          }
+        });
+
+        updatedEscrows = result.count;
+      }
+    }
+
+    return {
+      received: true,
+      updatedEscrows
+    };
   });
 }
