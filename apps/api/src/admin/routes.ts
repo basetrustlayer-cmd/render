@@ -222,6 +222,93 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     return { safeDeals };
   });
 
+
+  app.get("/admin/finance/reconciliation", { preHandler: [authenticate, requireAdmin] }, async (request) => {
+    const authUser = requireAuthUser(request);
+
+    const [
+      failedSettlements,
+      retryableSettlements,
+      processingSettlements,
+      orphanReadySettlements,
+      duplicateReleaseEntries
+    ] = await Promise.all([
+      prisma.settlement.findMany({
+        where: { status: "FAILED" },
+        include: { safeDeal: true },
+        orderBy: { updatedAt: "desc" },
+        take: 100
+      }),
+      prisma.settlement.findMany({
+        where: {
+          status: "FAILED",
+          OR: [
+            { nextRetryAt: null },
+            { nextRetryAt: { lte: new Date() } }
+          ]
+        },
+        include: { safeDeal: true },
+        orderBy: { updatedAt: "asc" },
+        take: 100
+      }),
+      prisma.settlement.findMany({
+        where: { status: "PROCESSING" },
+        include: { safeDeal: true },
+        orderBy: { updatedAt: "asc" },
+        take: 100
+      }),
+      prisma.settlement.findMany({
+        where: {
+          status: "READY",
+          safeDeal: {
+            status: { not: "CONFIRMED" }
+          }
+        },
+        include: { safeDeal: true },
+        orderBy: { updatedAt: "desc" },
+        take: 100
+      }),
+      prisma.escrowLedgerEntry.groupBy({
+        by: ["safeDealId", "entryType"],
+        where: { entryType: "SETTLEMENT_RELEASE" },
+        _count: { id: true },
+        having: {
+          id: {
+            _count: {
+              gt: 1
+            }
+          }
+        }
+      })
+    ]);
+
+    const summary = {
+      failedSettlementCount: failedSettlements.length,
+      retryableSettlementCount: retryableSettlements.length,
+      processingSettlementCount: processingSettlements.length,
+      orphanReadySettlementCount: orphanReadySettlements.length,
+      duplicateReleaseEntryCount: duplicateReleaseEntries.length,
+      generatedAt: new Date().toISOString()
+    };
+
+    void writeAuditLog({
+      request,
+      actorUserId: authUser.userId,
+      action: "ADMIN_FINANCE_RECONCILIATION_VIEWED",
+      entityType: "SETTLEMENT",
+      metadata: summary
+    });
+
+    return {
+      summary,
+      failedSettlements,
+      retryableSettlements,
+      processingSettlements,
+      orphanReadySettlements,
+      duplicateReleaseEntries
+    };
+  });
+
   app.get("/admin/audit-logs", { preHandler: [authenticate, requireAdmin] }, async () => {
     const auditLogs = await prisma.auditLog.findMany({
       orderBy: { createdAt: "desc" },
