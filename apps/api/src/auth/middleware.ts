@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { prisma } from "../database/client.js";
+import { writeAuditLog } from "../audit/log.js";
 import { verifyAccessToken, type AuthTokenPayload } from "./jwt.js";
 
 declare module "fastify" {
@@ -37,6 +38,7 @@ export async function authenticate(
   const header = request.headers.authorization;
 
   if (!header?.startsWith("Bearer ")) {
+    void writeAuditLog({ request, action: "AUTH_MISSING_BEARER_TOKEN" });
     reply.code(401).send({ error: "Missing bearer token." });
     return;
   }
@@ -46,6 +48,7 @@ export async function authenticate(
     const payload = verifyAccessToken(token);
 
     if (payload.isSuspended) {
+      void writeAuditLog({ request, actorUserId: payload.userId, action: "AUTH_SUSPENDED_USER_REJECTED", entityType: "USER", entityId: payload.userId });
       reply.code(403).send({ error: "User account is suspended." });
       return;
     }
@@ -68,11 +71,13 @@ export async function authenticate(
     ]);
 
     if (!user) {
+      void writeAuditLog({ request, actorUserId: payload.userId, action: "AUTH_USER_NOT_FOUND", entityType: "USER", entityId: payload.userId });
       reply.code(401).send({ error: "User not found." });
       return;
     }
 
     if (user.isSuspended) {
+      void writeAuditLog({ request, actorUserId: payload.userId, action: "AUTH_SUSPENDED_USER_REJECTED", entityType: "USER", entityId: payload.userId });
       reply.code(403).send({ error: "User account is suspended." });
       return;
     }
@@ -83,6 +88,7 @@ export async function authenticate(
       session.revokedAt ||
       session.expiresAt <= new Date()
     ) {
+      void writeAuditLog({ request, actorUserId: payload.userId, action: "AUTH_SESSION_INVALID", entityType: "USER", entityId: payload.userId });
       reply.code(401).send({ error: "Session is no longer valid." });
       return;
     }
@@ -91,6 +97,7 @@ export async function authenticate(
       const csrfToken = getHeaderValue(request.headers["x-render-csrf"]);
 
       if (!csrfToken || !session.csrfTokenHash) {
+        void writeAuditLog({ request, actorUserId: payload.userId, action: "AUTH_CSRF_MISSING", entityType: "USER", entityId: payload.userId });
         reply.code(403).send({ error: "Missing CSRF token." });
         return;
       }
@@ -98,6 +105,7 @@ export async function authenticate(
       const submittedHash = hashCsrfToken(csrfToken);
 
       if (!timingSafeEqualString(submittedHash, session.csrfTokenHash)) {
+        void writeAuditLog({ request, actorUserId: payload.userId, action: "AUTH_CSRF_INVALID", entityType: "USER", entityId: payload.userId });
         reply.code(403).send({ error: "Invalid CSRF token." });
         return;
       }
@@ -105,6 +113,7 @@ export async function authenticate(
 
     request.authUser = payload;
   } catch {
+    void writeAuditLog({ request, action: "AUTH_TOKEN_INVALID" });
     reply.code(401).send({ error: "Invalid or expired token." });
   }
 }
