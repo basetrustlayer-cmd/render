@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "../database/client.js";
 import { authenticate, requireAuthUser } from "../auth/middleware.js";
 import { writeAuditLog } from "../audit/log.js";
+import { getRequestedOrganizationId, requireActiveOrganizationMembership } from "../organizations/context.js";
 import { createRiskSignal } from "@render/risk";
 
 const createSafeDealSchema = z.object({
@@ -40,6 +41,8 @@ export async function registerSafeDealRoutes(
       });
     }
 
+    const requestedOrganizationId = getRequestedOrganizationId(request);
+
     const listing = await prisma.listing.findFirst({
       where: {
         id: parsed.data.listingId,
@@ -59,6 +62,21 @@ export async function registerSafeDealRoutes(
       return reply.code(404).send({
         error: "Listing not found."
       });
+    }
+
+    if (listing.organizationId) {
+      if (requestedOrganizationId !== listing.organizationId) {
+        return reply.code(403).send({ error: "Invalid organization context for this listing." });
+      }
+
+      const membership = await requireActiveOrganizationMembership({
+        userId: authUser.userId,
+        organizationId: listing.organizationId
+      });
+
+      if (!membership) {
+        return reply.code(403).send({ error: "Buyer is not a member of this organization context." });
+      }
     }
 
     if (listing.sellerId === authUser.userId) {
@@ -114,6 +132,7 @@ export async function registerSafeDealRoutes(
         listingId: listing.id,
         buyerId: authUser.userId,
         sellerId: listing.sellerId,
+        organizationId: listing.organizationId,
         amount,
         feeAmount: 0,
         status: "INITIATED",
@@ -124,9 +143,9 @@ export async function registerSafeDealRoutes(
       }
     });
 
-    void writeAuditLog({ request, actorUserId: authUser.userId, action: "SAFE_DEAL_INTENT_CREATED", entityType: "SAFE_DEAL", entityId: safeDeal.id, metadata: { listingId: listing.id, sellerId: listing.sellerId, trustLayerEscrowId: intent.escrowId } });
+    void writeAuditLog({ request, actorUserId: authUser.userId, organizationId: listing.organizationId, action: "SAFE_DEAL_INTENT_CREATED", entityType: "SAFE_DEAL", entityId: safeDeal.id, metadata: { listingId: listing.id, sellerId: listing.sellerId, trustLayerEscrowId: intent.escrowId } });
 
-    void writeAuditLog({ request, actorUserId: authUser.userId, action: "SAFE_DEAL_INITIATED", entityType: "SAFE_DEAL", entityId: safeDeal.id, metadata: { listingId: listing.id, sellerId: listing.sellerId } });
+    void writeAuditLog({ request, actorUserId: authUser.userId, organizationId: listing.organizationId, action: "SAFE_DEAL_INITIATED", entityType: "SAFE_DEAL", entityId: safeDeal.id, metadata: { listingId: listing.id, sellerId: listing.sellerId } });
 
     return reply.code(201).send({
       safeDeal,
@@ -141,9 +160,22 @@ export async function registerSafeDealRoutes(
 
   app.get("/safe-deals/my", { preHandler: authenticate }, async (request) => {
     const authUser = requireAuthUser(request);
+    const requestedOrganizationId = getRequestedOrganizationId(request);
+
+    if (requestedOrganizationId) {
+      const membership = await requireActiveOrganizationMembership({
+        userId: authUser.userId,
+        organizationId: requestedOrganizationId
+      });
+
+      if (!membership) {
+        return { safeDeals: [] };
+      }
+    }
 
     const safeDeals = await prisma.safeDeal.findMany({
       where: {
+        ...(requestedOrganizationId ? { organizationId: requestedOrganizationId } : {}),
         OR: [
           { buyerId: authUser.userId },
           { sellerId: authUser.userId }
@@ -378,9 +410,23 @@ export async function registerSafeDealRoutes(
       return reply.code(400).send({ error: "Invalid Safe Deal ID." });
     }
 
+    const requestedOrganizationId = getRequestedOrganizationId(request);
+
+    if (requestedOrganizationId) {
+      const membership = await requireActiveOrganizationMembership({
+        userId: authUser.userId,
+        organizationId: requestedOrganizationId
+      });
+
+      if (!membership) {
+        return reply.code(403).send({ error: "Invalid organization context." });
+      }
+    }
+
     const safeDeal = await prisma.safeDeal.findFirst({
       where: {
         id: params.data.id,
+        ...(requestedOrganizationId ? { organizationId: requestedOrganizationId } : {}),
         OR: [
           { buyerId: authUser.userId },
           { sellerId: authUser.userId }
@@ -420,9 +466,23 @@ export async function registerSafeDealRoutes(
       });
     }
 
+    const requestedOrganizationId = getRequestedOrganizationId(request);
+
+    if (requestedOrganizationId) {
+      const membership = await requireActiveOrganizationMembership({
+        userId: authUser.userId,
+        organizationId: requestedOrganizationId
+      });
+
+      if (!membership) {
+        return reply.code(403).send({ error: "Invalid organization context." });
+      }
+    }
+
     const safeDeal = await prisma.safeDeal.findFirst({
       where: {
         id: parsed.data.id,
+        ...(requestedOrganizationId ? { organizationId: requestedOrganizationId } : {}),
         OR: [
           { buyerId: authUser.userId },
           { sellerId: authUser.userId }
