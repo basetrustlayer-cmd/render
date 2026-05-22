@@ -17,6 +17,32 @@ const rejectListingSchema = z.object({
   reason: z.string().min(3).max(500)
 });
 
+
+const disputeNoteSchema = z.object({
+  note: z.string().min(3).max(2000)
+});
+
+const disputeStatusSchema = z.object({
+  status: z.enum([
+    "UNDER_REVIEW",
+    "NEEDS_BUYER_RESPONSE",
+    "NEEDS_SELLER_RESPONSE"
+  ]),
+  note: z.string().max(2000).optional()
+});
+
+const disputeListQuerySchema = z.object({
+  status: z.enum([
+    "OPEN",
+    "UNDER_REVIEW",
+    "NEEDS_BUYER_RESPONSE",
+    "NEEDS_SELLER_RESPONSE",
+    "RESOLVED_BUYER_REFUND",
+    "RESOLVED_SELLER_RELEASE",
+    "CANCELLED"
+  ]).optional()
+});
+
 export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
   app.get("/admin/users", { preHandler: [authenticate, requireAdmin] }, async (request) => {
     const authUser = requireAuthUser(request);
@@ -317,4 +343,207 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
     return { auditLogs };
   });
+
+  app.get("/admin/disputes", { preHandler: [authenticate, requireModerator] }, async (request, reply) => {
+    const query = disputeListQuerySchema.safeParse(request.query);
+
+    if (!query.success) {
+      return reply.code(400).send({ error: "Invalid dispute query." });
+    }
+
+    const disputes = await prisma.dispute.findMany({
+      where: query.data.status ? { status: query.data.status } : {},
+      include: {
+        safeDeal: {
+          include: {
+            listing: {
+              select: {
+                id: true,
+                title: true,
+                price: true,
+                category: true
+              }
+            },
+            buyer: {
+              select: {
+                id: true,
+                phone: true,
+                email: true,
+                trustScore: true,
+                trustTier: true
+              }
+            },
+            seller: {
+              select: {
+                id: true,
+                phone: true,
+                email: true,
+                trustScore: true,
+                trustTier: true
+              }
+            }
+          }
+        },
+        openedBy: {
+          select: {
+            id: true,
+            phone: true,
+            email: true
+          }
+        },
+        events: {
+          orderBy: { createdAt: "desc" },
+          take: 5
+        }
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 100
+    });
+
+    return { disputes };
+  });
+
+  app.get("/admin/disputes/:id", { preHandler: [authenticate, requireModerator] }, async (request, reply) => {
+    const params = idParamsSchema.safeParse(request.params);
+
+    if (!params.success) {
+      return reply.code(400).send({ error: "Invalid dispute ID." });
+    }
+
+    const dispute = await prisma.dispute.findUnique({
+      where: { id: params.data.id },
+      include: {
+        safeDeal: {
+          include: {
+            listing: true,
+            buyer: {
+              select: {
+                id: true,
+                phone: true,
+                email: true,
+                trustScore: true,
+                trustTier: true
+              }
+            },
+            seller: {
+              select: {
+                id: true,
+                phone: true,
+                email: true,
+                trustScore: true,
+                trustTier: true
+              }
+            },
+            settlement: true,
+            ledgerEntries: {
+              orderBy: { createdAt: "asc" }
+            }
+          }
+        },
+        openedBy: {
+          select: {
+            id: true,
+            phone: true,
+            email: true
+          }
+        },
+        events: {
+          orderBy: { createdAt: "asc" }
+        }
+      }
+    });
+
+    if (!dispute) {
+      return reply.code(404).send({ error: "Dispute not found." });
+    }
+
+    return { dispute };
+  });
+
+  app.post("/admin/disputes/:id/note", { preHandler: [authenticate, requireModerator] }, async (request, reply) => {
+    const authUser = requireAuthUser(request);
+    const params = idParamsSchema.safeParse(request.params);
+    const body = disputeNoteSchema.safeParse(request.body);
+
+    if (!params.success || !body.success) {
+      return reply.code(400).send({ error: "Invalid dispute note payload." });
+    }
+
+    const dispute = await prisma.dispute.findUnique({
+      where: { id: params.data.id }
+    });
+
+    if (!dispute) {
+      return reply.code(404).send({ error: "Dispute not found." });
+    }
+
+    const event = await prisma.disputeEvent.create({
+      data: {
+        disputeId: dispute.id,
+        actorUserId: authUser.userId,
+        eventType: "MODERATOR_NOTE",
+        note: body.data.note
+      }
+    });
+
+    void writeAuditLog({
+      request,
+      actorUserId: authUser.userId,
+      action: "ADMIN_DISPUTE_NOTE_ADDED",
+      entityType: "DISPUTE",
+      entityId: dispute.id
+    });
+
+    return { event };
+  });
+
+  app.post("/admin/disputes/:id/status", { preHandler: [authenticate, requireModerator] }, async (request, reply) => {
+    const authUser = requireAuthUser(request);
+    const params = idParamsSchema.safeParse(request.params);
+    const body = disputeStatusSchema.safeParse(request.body);
+
+    if (!params.success || !body.success) {
+      return reply.code(400).send({ error: "Invalid dispute status payload." });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const dispute = await tx.dispute.update({
+        where: { id: params.data.id },
+        data: {
+          status: body.data.status
+        }
+      });
+
+      const event = await tx.disputeEvent.create({
+        data: {
+          disputeId: dispute.id,
+          actorUserId: authUser.userId,
+          eventType: "STATUS_CHANGED",
+          note: body.data.note,
+          metadata: {
+            status: body.data.status,
+            boundary: "RENDER_PROJECTION_ONLY"
+          }
+        }
+      });
+
+      return { dispute, event };
+    });
+
+    void writeAuditLog({
+      request,
+      actorUserId: authUser.userId,
+      action: "ADMIN_DISPUTE_STATUS_UPDATED",
+      entityType: "DISPUTE",
+      entityId: result.dispute.id,
+      metadata: {
+        status: result.dispute.status,
+        boundary: "RENDER_PROJECTION_ONLY"
+      }
+    });
+
+    return result;
+  });
+
+
 }
