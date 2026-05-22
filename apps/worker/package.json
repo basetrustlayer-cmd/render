@@ -17,7 +17,8 @@
     "@render/trustlayer-sdk": "workspace:^",
     "bullmq": "^5.64.1",
     "ioredis": "^5.8.2",
-    "@render/observability": "workspace:*"
+    "@render/observability": "workspace:*",
+    "@render/reliability": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",
