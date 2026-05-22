@@ -9,7 +9,8 @@ export type OperationalMetricName =
   | "settlement.processing.duration_ms"
   | "settlement.retry.exhausted"
   | "dispute.resolution.duration_ms"
-  | "trustlayer.request.duration_ms";
+  | "trustlayer.request.duration_ms"
+  | "risk.signal.detected";
 
 export type OperationalLogInput = {
   severity: OperationalSeverity;

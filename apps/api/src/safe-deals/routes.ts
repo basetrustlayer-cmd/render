@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "../database/client.js";
 import { authenticate, requireAuthUser } from "../auth/middleware.js";
 import { writeAuditLog } from "../audit/log.js";
+import { createRiskSignal } from "@render/risk";
 
 const createSafeDealSchema = z.object({
   listingId: z.string().uuid()
@@ -342,6 +343,20 @@ export async function registerSafeDealRoutes(
       metadata: {
         safeDealId: safeDeal.id,
         trustLayerEscrowId: safeDeal.trustLayerEscrowId
+      }
+    });
+
+    createRiskSignal({
+      signalType: "DISPUTE_CLUSTER",
+      severity: "MEDIUM",
+      aggregateId: result.dispute.id,
+      correlationId: request.id,
+      source: "render.api",
+      actorUserId: authUser.userId,
+      metadata: {
+        safeDealId: safeDeal.id,
+        trustLayerEscrowId: safeDeal.trustLayerEscrowId,
+        boundary: "NON_AUTHORITATIVE_RENDER_SIGNAL"
       }
     });
 
