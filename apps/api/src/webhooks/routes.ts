@@ -6,29 +6,7 @@ import { verifyPaystackSignature } from "../payments/paystack.js";
 import { writeAuditLog } from "../audit/log.js";
 import { createSettlementLedgerForConfirmedDeal } from "../ledger/settlement.js";
 
-function verifyHmac({
-  payload,
-  signature,
-  secret,
-  digest = "hex"
-}: {
-  payload: string;
-  signature: string | undefined;
-  secret: string | undefined;
-  digest?: crypto.BinaryToTextEncoding;
-}): boolean {
-  if (!signature || !secret) {
-    return false;
-  }
-
-  const expected = crypto.createHmac("sha512", secret).update(payload).digest(digest);
-
-  try {
-    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
-  } catch {
-    return false;
-  }
-}
+import { deriveTrustLayerEventId, isUniqueConstraintError, mapTrustLayerEscrowStatus, verifyHmac } from "./helpers.js";
 
 const paystackWebhookSchema = z.object({
   event: z.string(),
@@ -62,17 +40,6 @@ type RawBodyRequest = {
 
 function firstHeaderValue(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
-}
-
-function mapTrustLayerEscrowStatus(status: string | undefined) {
-  if (status === "FUNDED") return "FUNDED";
-  if (status === "DELIVERED") return "DELIVERED";
-  if (status === "DISPUTED") return "DISPUTED";
-  if (status === "CONFIRMED") return "CONFIRMED";
-  if (status === "COMPLETE") return "COMPLETE";
-  if (status === "REFUNDED") return "REFUNDED";
-
-  return undefined;
 }
 
 export async function registerWebhookRoutes(app: FastifyInstance): Promise<void> {
@@ -131,10 +98,11 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
       return reply.code(400).send({ error: "Invalid TrustLayer webhook payload." });
     }
 
-    const trustLayerEventId = parsed.data.eventId ?? parsed.data.id ?? crypto
-      .createHash("sha256")
-      .update(rawBody)
-      .digest("hex");
+    const trustLayerEventId = deriveTrustLayerEventId({
+      explicitEventId: parsed.data.eventId,
+      id: parsed.data.id,
+      rawBody
+    });
 
     try {
       await prisma.webhookEvent.create({
@@ -147,12 +115,7 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
         }
       });
     } catch (error) {
-      if (
-        typeof error === "object" &&
-        error !== null &&
-        "code" in error &&
-        error.code === "P2002"
-      ) {
+      if (isUniqueConstraintError(error)) {
         void writeAuditLog({
           request,
           action: "WEBHOOK_TRUSTLAYER_DUPLICATE_IGNORED",
