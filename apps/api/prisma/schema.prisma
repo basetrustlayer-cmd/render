@@ -307,3 +307,22 @@ model AuditLog {
   @@index([createdAt])
   @@map("audit_logs")
 }
+
+model WebhookEvent {
+  id            String    @id @default(uuid()) @db.Uuid
+  provider      String    @db.VarChar(40)
+  eventId       String    @map("event_id") @db.VarChar(160)
+  eventType     String    @map("event_type") @db.VarChar(120)
+  status        String    @default("RECEIVED") @db.VarChar(40)
+  processedAt   DateTime? @map("processed_at") @db.Timestamptz(6)
+  payload       Json?
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([provider, eventId])
+  @@index([provider])
+  @@index([eventType])
+  @@index([status])
+  @@index([createdAt])
+  @@map("webhook_events")
+}

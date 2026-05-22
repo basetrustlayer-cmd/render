@@ -40,6 +40,8 @@ const paystackWebhookSchema = z.object({
 });
 
 const trustLayerWebhookSchema = z.object({
+  id: z.string().optional(),
+  eventId: z.string().optional(),
   event: z.string(),
   data: z.object({
     userId: z.string().uuid().optional(),
@@ -127,6 +129,46 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
 
     if (!parsed.success) {
       return reply.code(400).send({ error: "Invalid TrustLayer webhook payload." });
+    }
+
+    const trustLayerEventId = parsed.data.eventId ?? parsed.data.id ?? crypto
+      .createHash("sha256")
+      .update(rawBody)
+      .digest("hex");
+
+    try {
+      await prisma.webhookEvent.create({
+        data: {
+          provider: "TRUSTLAYER",
+          eventId: trustLayerEventId,
+          eventType: parsed.data.event,
+          status: "RECEIVED",
+          payload: JSON.parse(JSON.stringify(parsed.data))
+        }
+      });
+    } catch (error) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        error.code === "P2002"
+      ) {
+        void writeAuditLog({
+          request,
+          action: "WEBHOOK_TRUSTLAYER_DUPLICATE_IGNORED",
+          metadata: {
+            event: parsed.data.event,
+            eventId: trustLayerEventId
+          }
+        });
+
+        return {
+          received: true,
+          duplicate: true
+        };
+      }
+
+      throw error;
     }
 
     const {
@@ -248,6 +290,19 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
         }
       }
     }
+
+    await prisma.webhookEvent.update({
+      where: {
+        provider_eventId: {
+          provider: "TRUSTLAYER",
+          eventId: trustLayerEventId
+        }
+      },
+      data: {
+        status: "PROCESSED",
+        processedAt: new Date()
+      }
+    });
 
     return {
       received: true,
