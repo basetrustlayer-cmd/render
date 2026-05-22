@@ -84,19 +84,8 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
     if (parsed.data.event === "charge.success" && parsed.data.data.reference) {
       const paidAt = parsed.data.data.paid_at ? new Date(parsed.data.data.paid_at) : new Date();
 
-      const result = await prisma.safeDeal.updateMany({
-        where: {
-          paystackReference: parsed.data.data.reference,
-          status: "INITIATED"
-        },
-        data: {
-          status: "FUNDED",
-          fundedAt: paidAt,
-          inspectionDeadline: new Date(paidAt.getTime() + 48 * 60 * 60 * 1000)
-        }
-      });
-
-      updatedSafeDeals = result.count;
+      void paidAt;
+      updatedSafeDeals = 0;
     }
 
     void writeAuditLog({

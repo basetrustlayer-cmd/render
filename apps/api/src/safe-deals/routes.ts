@@ -1,67 +1,14 @@
-import crypto from "node:crypto";
 import { createRenderQueue, RENDER_QUEUE_NAMES } from "@render/queue";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../database/client.js";
 import { authenticate, requireAuthUser } from "../auth/middleware.js";
-import { apiEnv } from "../env.js";
 import { writeAuditLog } from "../audit/log.js";
 import { createSettlementLedgerForConfirmedDeal } from "../ledger/settlement.js";
 
 const createSafeDealSchema = z.object({
   listingId: z.string().uuid()
 });
-
-async function initializePaystackTransaction(input: {
-  amountGhs: number;
-  buyerEmail: string;
-  reference: string;
-  safeDealId: string;
-  listingId: string;
-}) {
-  const secretKey = process.env.PAYSTACK_SECRET_KEY;
-
-  if (!secretKey) {
-    throw new Error("PAYSTACK_SECRET_KEY is required.");
-  }
-
-  const callbackUrl = `${apiEnv.publicAppUrl}/safe-deal/${input.safeDealId}`;
-
-  const response = await fetch("https://api.paystack.co/transaction/initialize", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${secretKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      email: input.buyerEmail,
-      amount: Math.round(input.amountGhs * 100),
-      currency: "GHS",
-      reference: input.reference,
-      callback_url: callbackUrl,
-      metadata: {
-        safeDealId: input.safeDealId,
-        listingId: input.listingId
-      }
-    })
-  });
-
-  const data = await response.json() as {
-    status: boolean;
-    message?: string;
-    data?: {
-      authorization_url?: string;
-      access_code?: string;
-      reference?: string;
-    };
-  };
-
-  if (!response.ok || !data.status || !data.data?.authorization_url) {
-    throw new Error(data.message ?? "Unable to initialize Paystack transaction.");
-  }
-
-  return data.data;
-}
 
 export async function registerSafeDealRoutes(
   app: FastifyInstance
@@ -119,8 +66,6 @@ export async function registerSafeDealRoutes(
       });
     }
 
-    const reference = `render-${crypto.randomUUID().replace(/-/g, "")}`;
-
     const safeDeal = await prisma.safeDeal.create({
       data: {
         listingId: listing.id,
@@ -128,27 +73,21 @@ export async function registerSafeDealRoutes(
         sellerId: listing.sellerId,
         amount,
         feeAmount,
-        paystackReference: reference,
-        status: "INITIATED"
+        status: "INITIATED",
+        escrowStatusCached: "INITIATED",
+        escrowLastSyncedAt: new Date()
       }
     });
 
-    const checkout = await initializePaystackTransaction({
-      amountGhs: amountNumber,
-      buyerEmail: buyer.email ?? `${buyer.phone}@render.com.gh`,
-      reference,
-      safeDealId: safeDeal.id,
-      listingId: listing.id
-    });
-
-    void writeAuditLog({ request, actorUserId: authUser.userId, action: "SAFE_DEAL_INITIATED", entityType: "SAFE_DEAL", entityId: safeDeal.id, metadata: { listingId: listing.id, sellerId: listing.sellerId } });
+    void writeAuditLog({ request, actorUserId: authUser.userId, action: "SAFE_DEAL_INITIATED", entityType: "SAFE_DEAL", entityId: safeDeal.id, metadata: { listingId: listing.id, sellerId: listing.sellerId, boundary: "TRUSTLAYER_PROJECTION_PENDING" } });
 
     return reply.code(201).send({
       safeDeal,
       checkout: {
-        provider: "PAYSTACK",
-        authorizationUrl: checkout.authorization_url,
-        reference: checkout.reference ?? reference
+        provider: "TRUSTLAYER",
+        authorizationUrl: safeDeal.checkoutUrl,
+        escrowId: safeDeal.trustLayerEscrowId,
+        status: safeDeal.escrowStatusCached
       }
     });
   });
@@ -190,15 +129,7 @@ export async function registerSafeDealRoutes(
     }
 
     const safeDeal = await prisma.safeDeal.findUnique({
-      where: { id: params.data.id },
-      include: {
-        seller: {
-          select: {
-            payoutReady: true,
-            paystackRecipientCode: true
-          }
-        }
-      }
+      where: { id: params.data.id }
     });
 
     if (!safeDeal) {
@@ -211,12 +142,6 @@ export async function registerSafeDealRoutes(
 
     if (!["FUNDED", "DELIVERED"].includes(safeDeal.status)) {
       return reply.code(400).send({ error: "Only funded or delivered Safe Deals can be confirmed." });
-    }
-
-    if (!safeDeal.seller.payoutReady || !safeDeal.seller.paystackRecipientCode) {
-      return reply.code(409).send({
-        error: "Seller payout setup is incomplete. Safe Deal cannot be confirmed for payout yet."
-      });
     }
 
     const result = await prisma.$transaction(async (tx) => {
