@@ -2,7 +2,8 @@ import { Queue } from "bullmq";
 import { Redis } from "ioredis";
 
 export const RENDER_QUEUE_NAMES = {
-  smoke: "render.smoke"
+  smoke: "render.smoke",
+  settlementProcessing: "render.settlement.processing"
 } as const;
 
 export type RenderQueueName =
@@ -14,8 +15,19 @@ export type SmokeJobData = {
   correlationId: string;
 };
 
+export type SettlementProcessingJobData = {
+  safeDealId: string;
+  settlementId: string;
+  triggeredBy:
+    | "buyer_confirmation"
+    | "webhook"
+    | "retry_worker";
+  triggeredAt: string;
+};
+
 export type RenderJobDataByQueue = {
   [RENDER_QUEUE_NAMES.smoke]: SmokeJobData;
+  [RENDER_QUEUE_NAMES.settlementProcessing]: SettlementProcessingJobData;
 };
 
 export function getRedisUrl(): string {
