@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { prisma } from "../database/client.js";
 import { verifyAccessToken, type AuthTokenPayload } from "./jwt.js";
@@ -6,6 +7,27 @@ declare module "fastify" {
   interface FastifyRequest {
     authUser?: AuthTokenPayload;
   }
+}
+
+const csrfProtectedMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+function hashCsrfToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+function getHeaderValue(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function timingSafeEqualString(a: string, b: string): boolean {
+  const left = Buffer.from(a);
+  const right = Buffer.from(b);
+
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(left, right);
 }
 
 export async function authenticate(
@@ -39,7 +61,8 @@ export async function authenticate(
           id: true,
           userId: true,
           revokedAt: true,
-          expiresAt: true
+          expiresAt: true,
+          csrfTokenHash: true
         }
       })
     ]);
@@ -62,6 +85,22 @@ export async function authenticate(
     ) {
       reply.code(401).send({ error: "Session is no longer valid." });
       return;
+    }
+
+    if (csrfProtectedMethods.has(request.method.toUpperCase())) {
+      const csrfToken = getHeaderValue(request.headers["x-render-csrf"]);
+
+      if (!csrfToken || !session.csrfTokenHash) {
+        reply.code(403).send({ error: "Missing CSRF token." });
+        return;
+      }
+
+      const submittedHash = hashCsrfToken(csrfToken);
+
+      if (!timingSafeEqualString(submittedHash, session.csrfTokenHash)) {
+        reply.code(403).send({ error: "Invalid CSRF token." });
+        return;
+      }
     }
 
     request.authUser = payload;
