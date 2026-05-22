@@ -54,3 +54,17 @@ export type TrustLayerTrustScoreResponse = {
   badge?: string;
   lastUpdatedAt: string;
 };
+
+export type TrustLayerSettlementReleaseRequest = {
+  escrowId: string;
+  settlementId: string;
+  safeDealId: string;
+  amountGhs: number;
+};
+
+export type TrustLayerSettlementReleaseResponse = {
+  escrowId: string;
+  settlementId: string;
+  status: string;
+  providerReference?: string;
+};

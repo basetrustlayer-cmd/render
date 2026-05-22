@@ -16,5 +16,7 @@ export type {
   TrustLayerSafeDealConfirmResponse,
   TrustLayerSafeDealIntentRequest,
   TrustLayerSafeDealIntentResponse,
-  TrustLayerTrustScoreResponse
+  TrustLayerTrustScoreResponse,
+  TrustLayerSettlementReleaseRequest,
+  TrustLayerSettlementReleaseResponse
 } from "./types.js";

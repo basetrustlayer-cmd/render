@@ -9,7 +9,9 @@ import type {
   TrustLayerSafeDealConfirmResponse,
   TrustLayerSafeDealIntentRequest,
   TrustLayerSafeDealIntentResponse,
-  TrustLayerTrustScoreResponse
+  TrustLayerTrustScoreResponse,
+  TrustLayerSettlementReleaseRequest,
+  TrustLayerSettlementReleaseResponse
 } from "./types.js";
 
 export class TrustLayerClient {
@@ -101,6 +103,25 @@ export class TrustLayerClient {
       {
         correlationId: options.correlationId ?? createCorrelationId("safedeal_dispute"),
         idempotencyKey: options.idempotencyKey ?? createIdempotencyKey("safedeal_dispute"),
+        timeoutMs: options.timeoutMs
+      }
+    );
+  }
+
+  async releaseSettlement(
+    input: TrustLayerSettlementReleaseRequest,
+    options: TrustLayerRequestOptions = {}
+  ): Promise<TrustLayerSettlementReleaseResponse> {
+    return trustLayerRequest<TrustLayerSettlementReleaseResponse>(
+      this.config,
+      `/safedeals/${encodeURIComponent(input.escrowId)}/settlement-release`,
+      {
+        method: "POST",
+        body: JSON.stringify(input)
+      },
+      {
+        correlationId: options.correlationId ?? createCorrelationId("settlement_release"),
+        idempotencyKey: options.idempotencyKey ?? createIdempotencyKey("settlement_release"),
         timeoutMs: options.timeoutMs
       }
     );
