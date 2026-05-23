@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 describe("notification route contract", () => {
   const source = readFileSync(resolve(process.cwd(), "src/notifications/routes.ts"), "utf8");
   const hubtelSource = readFileSync(resolve(process.cwd(), "src/notifications/hubtel.ts"), "utf8");
+  const schema = readFileSync(resolve(process.cwd(), "prisma/schema.prisma"), "utf8");
 
   it("keeps notification health public and provider-aware", () => {
     expect(source).toContain('app.get("/notifications/health", async () => {');
@@ -13,10 +14,10 @@ describe("notification route contract", () => {
     expect(source).toContain("FIREBASE_SERVER_KEY");
   });
 
-  it("keeps notification preference routes authenticated and explicitly pending", () => {
+  it("keeps notification preference routes authenticated", () => {
     expect(source).toContain('app.get("/notification-preferences", { preHandler: authenticate }');
     expect(source).toContain('app.put("/notification-preferences", { preHandler: authenticate }');
-    expect(source.match(/Notification preference persistence pending\./g)?.length).toBe(2);
+    expect(source).toContain("requireAuthUser(request)");
   });
 
   it("validates notification preference channel and purpose fields", () => {
@@ -29,19 +30,36 @@ describe("notification route contract", () => {
     expect(source).toContain("Invalid notification preference payload.");
   });
 
-  it("returns deterministic placeholder preference defaults before persistence exists", () => {
-    expect(source).toContain("email: true");
-    expect(source).toContain("sms: true");
-    expect(source).toContain("push: false");
-    expect(source).toContain("marketing: false");
-    expect(source).toContain("transactional: true");
+  it("uses Prisma-backed notification preference persistence", () => {
+    expect(source).toContain("prisma.notificationPreference.upsert");
+    expect(source).toContain("where: { userId: authUser.userId }");
+    expect(source).toContain("create: { userId: authUser.userId }");
+    expect(source).toContain("update: parsed.data");
+    expect(source).not.toContain("Notification preference persistence pending.");
+  });
+
+  it("defines notification preference schema with safe defaults", () => {
+    expect(schema).toContain("model NotificationPreference");
+    expect(schema).toContain("userId        String   @unique @map(\"user_id\") @db.Uuid");
+    expect(schema).toContain("email         Boolean  @default(true)");
+    expect(schema).toContain("sms           Boolean  @default(true)");
+    expect(schema).toContain("push          Boolean  @default(false)");
+    expect(schema).toContain("marketing     Boolean  @default(false)");
+    expect(schema).toContain("transactional Boolean  @default(true)");
+    expect(schema).toContain("@@map(\"notification_preferences\")");
+  });
+
+  it("audits notification preference updates", () => {
+    expect(source).toContain("NOTIFICATION_PREFERENCES_UPDATED");
+    expect(source).toContain("updatedFields: Object.keys(parsed.data)");
+    expect(source).toContain("writeAuditLog");
   });
 
   it("keeps outbound notification provider routes explicitly pending", () => {
     expect(source).toContain("Email provider integration pending.");
     expect(source).toContain("Hubtel SMS integration pending.");
     expect(source).toContain("Push notification integration pending.");
-    expect(source.match(/reply\.code\(501\)/g)?.length).toBe(5);
+    expect(source.match(/reply\.code\(501\)/g)?.length).toBe(3);
   });
 
   it("validates email, sms, and push payloads before provider handling", () => {
@@ -58,12 +76,6 @@ describe("notification route contract", () => {
     expect(source).toContain('app.post("/notifications/sms", async (request, reply) => {');
     expect(source).toContain('app.post("/notifications/push", async (request, reply) => {');
     expect(source).not.toContain('app.post("/notifications/email", { preHandler: authenticate }');
-  });
-
-  it("does not expose notification preference persistence before schema is ready", () => {
-    expect(source).not.toContain("prisma.notificationPreference");
-    expect(source).not.toContain("prisma.notification");
-    expect(source).not.toContain("../database/client.js");
   });
 
   it("keeps delivery payload limits bounded", () => {

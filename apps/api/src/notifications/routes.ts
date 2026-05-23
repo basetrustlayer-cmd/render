@@ -1,6 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { authenticate } from "../auth/middleware.js";
+import { authenticate, requireAuthUser } from "../auth/middleware.js";
+import { prisma } from "../database/client.js";
+import { writeAuditLog } from "../audit/log.js";
 
 const emailNotificationSchema = z.object({
   to: z.string().email(),
@@ -30,30 +32,63 @@ const notificationPreferenceSchema = z.object({
 
 
 export async function registerNotificationRoutes(app: FastifyInstance): Promise<void> {
-  app.get("/notification-preferences", { preHandler: authenticate }, async (_request, reply) => {
-    return reply.code(501).send({
-      error: "Notification preference persistence pending.",
-      preferences: {
+  app.get("/notification-preferences", { preHandler: authenticate }, async (request) => {
+    const authUser = requireAuthUser(request);
+
+    const preferences = await prisma.notificationPreference.upsert({
+      where: { userId: authUser.userId },
+      update: {},
+      create: { userId: authUser.userId },
+      select: {
         email: true,
         sms: true,
-        push: false,
-        marketing: false,
-        transactional: true
+        push: true,
+        marketing: true,
+        transactional: true,
+        createdAt: true,
+        updatedAt: true
       }
     });
+
+    return { preferences };
   });
 
   app.put("/notification-preferences", { preHandler: authenticate }, async (request, reply) => {
+    const authUser = requireAuthUser(request);
     const parsed = notificationPreferenceSchema.safeParse(request.body);
 
     if (!parsed.success) {
       return reply.code(400).send({ error: "Invalid notification preference payload." });
     }
 
-    return reply.code(501).send({
-      error: "Notification preference persistence pending.",
-      preferences: parsed.data
+    const preferences = await prisma.notificationPreference.upsert({
+      where: { userId: authUser.userId },
+      update: parsed.data,
+      create: {
+        userId: authUser.userId,
+        ...parsed.data
+      },
+      select: {
+        email: true,
+        sms: true,
+        push: true,
+        marketing: true,
+        transactional: true,
+        createdAt: true,
+        updatedAt: true
+      }
     });
+
+    void writeAuditLog({
+      request,
+      actorUserId: authUser.userId,
+      action: "NOTIFICATION_PREFERENCES_UPDATED",
+      entityType: "USER",
+      entityId: authUser.userId,
+      metadata: { updatedFields: Object.keys(parsed.data) }
+    });
+
+    return { preferences };
   });
 
   app.get("/notifications/health", async () => {

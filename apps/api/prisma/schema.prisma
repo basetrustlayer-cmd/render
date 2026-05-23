@@ -137,6 +137,7 @@ model User {
   conversationsAsBuyer Conversation[] @relation("BuyerConversations")
   conversationsAsSeller Conversation[] @relation("SellerConversations")
   messagesSent Message[] @relation("SentMessages")
+  notificationPreference NotificationPreference?
 
   @@map("users")
 }
@@ -364,6 +365,24 @@ model Message {
   @@index([senderId])
   @@index([createdAt])
   @@map("messages")
+}
+
+
+model NotificationPreference {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @unique @map("user_id") @db.Uuid
+  email         Boolean  @default(true)
+  sms           Boolean  @default(true)
+  push          Boolean  @default(false)
+  marketing     Boolean  @default(false)
+  transactional Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("notification_preferences")
 }
 
 model OtpChallenge {
