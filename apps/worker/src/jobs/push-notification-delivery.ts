@@ -5,7 +5,7 @@ import {
   RENDER_QUEUE_NAMES,
   type PushNotificationDeliveryJobData
 } from "@render/queue";
-import { writeOperationalLog } from "@render/observability";
+import { elapsedMs, nowMs, recordOperationalMetric, writeOperationalLog } from "@render/observability";
 import { createRenderEvent, RENDER_EVENT_TYPES } from "@render/events";
 
 const connection = createQueueConnection();
@@ -14,6 +14,8 @@ export const pushNotificationDeliveryWorker =
   new Worker<PushNotificationDeliveryJobData>(
     RENDER_QUEUE_NAMES.pushNotificationDelivery,
     async (job) => {
+      const startedAt = nowMs();
+
       const notificationDeliveryStartedEvent = createRenderEvent({
         id: crypto.randomUUID(),
         type: RENDER_EVENT_TYPES.notificationDeliveryStarted,
@@ -43,6 +45,20 @@ export const pushNotificationDeliveryWorker =
         }
       });
 
+      recordOperationalMetric({
+        name: "notification.delivery.started",
+        value: 1,
+        unit: "count",
+        correlationId: job.data.correlationId,
+        aggregateId: job.data.userId,
+        source: "render.worker",
+        metadata: {
+          queue: RENDER_QUEUE_NAMES.pushNotificationDelivery,
+          jobId: String(job.id ?? ""),
+          channel: "push"
+        }
+      });
+
       writeOperationalLog({
         severity: "INFO",
         event: "notification.push_delivery.started",
@@ -56,6 +72,36 @@ export const pushNotificationDeliveryWorker =
           deliveryStatus: "PROVIDER_DELIVERY_PENDING",
           startedEvent: notificationDeliveryStartedEvent,
           deferredEvent: notificationDeliveryDeferredEvent
+        }
+      });
+
+      recordOperationalMetric({
+        name: "notification.delivery.deferred",
+        value: 1,
+        unit: "count",
+        correlationId: job.data.correlationId,
+        aggregateId: job.data.userId,
+        source: "render.worker",
+        metadata: {
+          queue: RENDER_QUEUE_NAMES.pushNotificationDelivery,
+          jobId: String(job.id ?? ""),
+          channel: "push",
+          reason: "provider_integration_pending"
+        }
+      });
+
+      recordOperationalMetric({
+        name: "notification.delivery.duration_ms",
+        value: elapsedMs(startedAt),
+        unit: "ms",
+        correlationId: job.data.correlationId,
+        aggregateId: job.data.userId,
+        source: "render.worker",
+        metadata: {
+          queue: RENDER_QUEUE_NAMES.pushNotificationDelivery,
+          jobId: String(job.id ?? ""),
+          channel: "push",
+          status: "DEFERRED"
         }
       });
 
@@ -79,6 +125,23 @@ pushNotificationDeliveryWorker.on("completed", (job) => {
 });
 
 pushNotificationDeliveryWorker.on("failed", (job, error) => {
+  if (job) {
+    recordOperationalMetric({
+      name: "notification.delivery.failed",
+      value: 1,
+      unit: "count",
+      correlationId: job.data.correlationId,
+      aggregateId: job.data.userId,
+      source: "render.worker",
+      metadata: {
+        queue: RENDER_QUEUE_NAMES.pushNotificationDelivery,
+        jobId: String(job.id ?? ""),
+        channel: "push",
+        error: error.message
+      }
+    });
+  }
+
   console.error(JSON.stringify({
     event: "push_notification_delivery_failed",
     jobId: job?.id,

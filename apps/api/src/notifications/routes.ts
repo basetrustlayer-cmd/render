@@ -6,6 +6,7 @@ import { prisma } from "../database/client.js";
 import { writeAuditLog } from "../audit/log.js";
 import { createRenderQueue, RENDER_QUEUE_NAMES, type PushNotificationDeliveryJobData } from "@render/queue";
 import { createRenderEvent, RENDER_EVENT_TYPES } from "@render/events";
+import { recordOperationalMetric } from "@render/observability";
 
 const emailNotificationSchema = z.object({
   to: z.string().email(),
@@ -162,6 +163,20 @@ export async function registerNotificationRoutes(app: FastifyInstance): Promise<
         jobId: String(job.id ?? ""),
         channel: "push",
         status: "QUEUED"
+      }
+    });
+
+    recordOperationalMetric({
+      name: "notification.delivery.queued",
+      value: 1,
+      unit: "count",
+      correlationId: data.correlationId,
+      aggregateId: parsed.data.userId,
+      source: "render.api",
+      metadata: {
+        queue: RENDER_QUEUE_NAMES.pushNotificationDelivery,
+        jobId: String(job.id ?? ""),
+        channel: "push"
       }
     });
 
