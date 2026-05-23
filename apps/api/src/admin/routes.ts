@@ -119,6 +119,26 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         metadata: { blockedEvent }
       });
 
+      void writeAuditLog({
+        request,
+        actorUserId: authUser.userId,
+        action: "NOTIFICATION_DEAD_LETTER_REPLAY_BLOCKED",
+        entityType: "NOTIFICATION_DEAD_LETTER",
+        entityId: params.data.id,
+        metadata: {
+          reason: "DEAD_LETTER_JOB_NOT_FOUND",
+          blockedEvent: {
+            id: blockedEvent.id,
+            type: blockedEvent.type,
+            correlationId: blockedEvent.correlationId,
+            occurredAt: blockedEvent.occurredAt
+          },
+          manualApproval,
+          automaticReplay,
+          replayMode
+        }
+      });
+
       return reply.code(404).send({ error: "Notification dead-letter job not found." });
     }
 
@@ -182,7 +202,16 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         manualApproval,
         automaticReplay,
         replayMode,
-        reason: body.data.reason
+        reason: body.data.reason,
+        requestedEvent: {
+          id: requestedEvent.id,
+          type: requestedEvent.type,
+          correlationId: requestedEvent.correlationId,
+          occurredAt: requestedEvent.occurredAt
+        },
+        deadLetterJobId: replayRequest.deadLetterJobId,
+        userId: data.userId,
+        originalQueue: data.originalQueue
       }
     });
 
