@@ -17,7 +17,7 @@ describe("notification route contract", () => {
     expect(source).toContain("Email provider integration pending.");
     expect(source).toContain("Hubtel SMS integration pending.");
     expect(source).toContain("Push notification integration pending.");
-    expect(source.match(/reply.code\(501\)/g)?.length).toBe(3);
+    expect(source.match(/reply\.code\(501\)/g)?.length).toBe(3);
   });
 
   it("validates email, sms, and push payloads before provider handling", () => {
@@ -31,7 +31,20 @@ describe("notification route contract", () => {
 
   it("keeps direct notification routes unauthenticated only while integration is pending", () => {
     expect(source).not.toContain("preHandler: authenticate");
-    expect(source.match(/reply.code\(501\)/g)?.length).toBe(3);
+    expect(source.match(/reply\.code\(501\)/g)?.length).toBe(3);
+  });
+
+  it("does not expose notification preference persistence before schema is ready", () => {
+    expect(source).not.toContain("notificationPreference");
+    expect(source).not.toContain("prisma.notification");
+    expect(source).not.toContain("../database/client.js");
+  });
+
+  it("keeps delivery payload limits bounded", () => {
+    expect(source).toContain("subject: z.string().min(1).max(200)");
+    expect(source).toContain("body: z.string().min(1).max(5000)");
+    expect(source).toContain("body: z.string().min(1).max(1000)");
+    expect(source).toContain("title: z.string().min(1).max(120)");
   });
 
   it("requires Hubtel credentials in production for OTP SMS", () => {
