@@ -452,6 +452,96 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     });
   });
 
+
+  app.get("/admin/notifications/dead-letter/:id/replay-status", { preHandler: [authenticate, requireSuperAdmin] }, async (request, reply) => {
+    const authUser = requireAuthUser(request);
+    const params = idParamsSchema.safeParse(request.params);
+
+    if (!params.success) {
+      return reply.code(400).send({ error: "Invalid notification dead-letter ID." });
+    }
+
+    const replayActions = [
+      "NOTIFICATION_DEAD_LETTER_REPLAY_REQUESTED",
+      "NOTIFICATION_DEAD_LETTER_REPLAY_DUPLICATE_REJECTED",
+      "NOTIFICATION_DEAD_LETTER_REPLAY_RATE_LIMITED",
+      "NOTIFICATION_DEAD_LETTER_REPLAY_EXPIRED",
+      "NOTIFICATION_DEAD_LETTER_REPLAY_BLOCKED"
+    ];
+
+    const [auditTrail] = await Promise.all([
+      prisma.auditLog.findMany({
+        where: {
+          entityType: "NOTIFICATION_DEAD_LETTER",
+          entityId: params.data.id,
+          action: { in: replayActions }
+        },
+        orderBy: { createdAt: "desc" },
+        take: 25
+      })
+    ]);
+
+    const queue = createRenderQueue(RENDER_QUEUE_NAMES.notificationDeadLetter);
+
+    try {
+      const deadLetterJob = await queue.getJob(params.data.id);
+      const deadLetterState = deadLetterJob ? await deadLetterJob.getState() : "not_found";
+      const latestAction = auditTrail[0]?.action ?? null;
+
+      const replayStatus =
+        latestAction === "NOTIFICATION_DEAD_LETTER_REPLAY_REQUESTED"
+          ? "REQUESTED"
+          : latestAction === "NOTIFICATION_DEAD_LETTER_REPLAY_DUPLICATE_REJECTED"
+            ? "DUPLICATE_REJECTED"
+            : latestAction === "NOTIFICATION_DEAD_LETTER_REPLAY_RATE_LIMITED"
+              ? "RATE_LIMITED"
+              : latestAction === "NOTIFICATION_DEAD_LETTER_REPLAY_EXPIRED"
+                ? "EXPIRED"
+                : latestAction === "NOTIFICATION_DEAD_LETTER_REPLAY_BLOCKED"
+                  ? "BLOCKED"
+                  : deadLetterJob
+                    ? "REPLAY_READY"
+                    : "NOT_FOUND";
+
+      const deadLetter = deadLetterJob
+        ? {
+            id: String(deadLetterJob.id ?? ""),
+            queue: RENDER_QUEUE_NAMES.notificationDeadLetter,
+            state: deadLetterState,
+            payload: deadLetterJob.data,
+            attemptsMade: deadLetterJob.attemptsMade,
+            failedReason: deadLetterJob.failedReason,
+            timestamp: deadLetterJob.timestamp,
+            processedOn: deadLetterJob.processedOn,
+            finishedOn: deadLetterJob.finishedOn
+          }
+        : null;
+
+      void writeAuditLog({
+        request,
+        actorUserId: authUser.userId,
+        action: "ADMIN_NOTIFICATION_REPLAY_STATUS_VIEWED",
+        entityType: "NOTIFICATION_DEAD_LETTER",
+        entityId: params.data.id,
+        metadata: {
+          replayStatus,
+          deadLetterState,
+          auditTrailCount: auditTrail.length,
+          replayMode: "MANUAL_OPERATOR_REVIEW_REQUIRED"
+        }
+      });
+
+      return {
+        replayStatus,
+        replayMode: "MANUAL_OPERATOR_REVIEW_REQUIRED",
+        deadLetter,
+        auditTrail
+      };
+    } finally {
+      await queue.close();
+    }
+  });
+
   app.get("/admin/users", { preHandler: [authenticate, requireAdmin] }, async (request) => {
     const authUser = requireAuthUser(request);
 
