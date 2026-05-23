@@ -11,7 +11,7 @@ describe("queue route contract", () => {
 
   it("requires authenticated actor context before enqueueing", () => {
     expect(source).toContain("const authUser = requireAuthUser(request)");
-    expect(source.indexOf("requireAuthUser")).toBeLessThan(source.indexOf("createRenderQueue"));
+    expect(source.indexOf("const authUser = requireAuthUser(request)")).toBeLessThan(source.indexOf("const queue = createRenderQueue"));
   });
 
   it("uses the canonical smoke queue name and typed payload", () => {
