@@ -36,6 +36,11 @@ const cards = [
     href: "/admin/audit-logs",
     title: "Audit Logs",
     description: "Inspect privileged actions and security-sensitive events."
+  },
+  {
+    href: "/admin/notifications-replay",
+    title: "Notification Replay",
+    description: "Inspect governed notification replay controls, dead-letter status, and replay governance outcomes."
   }
 ];
 
