@@ -163,7 +163,28 @@ export const RENDER_EVENT_REGISTRY: RenderEventRegistryEntry[] = [
     replaySafe: true,
     description: "Push notification delivery failed and needs retry or operator visibility."
 
+  },
+  {
+    type: RENDER_EVENT_TYPES.notificationDeliveryRetryExhausted,
+    version: 1,
+    source: "render.worker",
+    aggregate: "notification_delivery",
+    producer: "apps/worker/src/jobs/push-notification-delivery.ts",
+    consumers: ["dead-letter queue", "future notification observability views"],
+    replaySafe: true,
+    description: "Push notification delivery exhausted retry attempts."
+  },
+  {
+    type: RENDER_EVENT_TYPES.notificationDeadLetterQueued,
+    version: 1,
+    source: "render.worker",
+    aggregate: "notification_delivery",
+    producer: "apps/worker/src/jobs/push-notification-delivery.ts",
+    consumers: ["operator review", "future replay tooling"],
+    replaySafe: true,
+    description: "Failed push notification delivery was moved to the dead-letter queue."
   }
+
 ];
 
 export function findRenderEventRegistryEntry(

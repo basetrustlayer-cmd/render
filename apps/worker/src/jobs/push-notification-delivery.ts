@@ -2,13 +2,16 @@ import crypto from "node:crypto";
 import { Worker } from "bullmq";
 import {
   createQueueConnection,
+  createRenderQueue,
   RENDER_QUEUE_NAMES,
+  type NotificationDeadLetterJobData,
   type PushNotificationDeliveryJobData
 } from "@render/queue";
 import { elapsedMs, nowMs, recordOperationalMetric, writeOperationalLog } from "@render/observability";
 import { createRenderEvent, RENDER_EVENT_TYPES } from "@render/events";
 
 const connection = createQueueConnection();
+const MAX_PUSH_NOTIFICATION_ATTEMPTS = 3;
 
 export const pushNotificationDeliveryWorker =
   new Worker<PushNotificationDeliveryJobData>(
@@ -124,8 +127,11 @@ pushNotificationDeliveryWorker.on("completed", (job) => {
   }));
 });
 
-pushNotificationDeliveryWorker.on("failed", (job, error) => {
+pushNotificationDeliveryWorker.on("failed", async (job, error) => {
   if (job) {
+    const attemptsMade = job.attemptsMade;
+    const retryExhausted = attemptsMade >= MAX_PUSH_NOTIFICATION_ATTEMPTS;
+
     recordOperationalMetric({
       name: "notification.delivery.failed",
       value: 1,
@@ -137,9 +143,86 @@ pushNotificationDeliveryWorker.on("failed", (job, error) => {
         queue: RENDER_QUEUE_NAMES.pushNotificationDelivery,
         jobId: String(job.id ?? ""),
         channel: "push",
+        attemptsMade,
+        retryExhausted,
         error: error.message
       }
     });
+
+    if (retryExhausted) {
+      const retryExhaustedEvent = createRenderEvent({
+        id: crypto.randomUUID(),
+        type: RENDER_EVENT_TYPES.notificationDeliveryRetryExhausted,
+        aggregateId: job.data.userId,
+        correlationId: job.data.correlationId,
+        source: "render.worker",
+        payload: {
+          userId: job.data.userId,
+          channel: "push",
+          status: "RETRY_EXHAUSTED",
+          jobId: String(job.id ?? ""),
+          attemptsMade,
+          error: error.message
+        }
+      });
+
+      const deadLetterData: NotificationDeadLetterJobData = {
+        originalQueue: RENDER_QUEUE_NAMES.pushNotificationDelivery,
+        failedJobId: String(job.id ?? ""),
+        userId: job.data.userId,
+        title: job.data.title,
+        body: job.data.body,
+        attemptsMade,
+        failedAt: new Date().toISOString(),
+        error: error.message,
+        correlationId: job.data.correlationId
+      };
+
+      const deadLetterQueue = createRenderQueue(RENDER_QUEUE_NAMES.notificationDeadLetter);
+      const deadLetterJob = await deadLetterQueue.add("notification-dead-letter", deadLetterData);
+      await deadLetterQueue.close();
+
+      const deadLetterQueuedEvent = createRenderEvent({
+        id: crypto.randomUUID(),
+        type: RENDER_EVENT_TYPES.notificationDeadLetterQueued,
+        aggregateId: job.data.userId,
+        correlationId: job.data.correlationId,
+        causationId: retryExhaustedEvent.id,
+        source: "render.worker",
+        payload: {
+          userId: job.data.userId,
+          channel: "push",
+          status: "DEAD_LETTER_QUEUED",
+          deadLetterJobId: String(deadLetterJob.id ?? ""),
+          originalJobId: String(job.id ?? ""),
+          attemptsMade
+        }
+      });
+
+      recordOperationalMetric({
+        name: "notification.delivery.retry_exhausted",
+        value: 1,
+        unit: "count",
+        correlationId: job.data.correlationId,
+        aggregateId: job.data.userId,
+        source: "render.worker",
+        metadata: { retryExhaustedEvent, attemptsMade }
+      });
+
+      recordOperationalMetric({
+        name: "notification.dead_letter.queued",
+        value: 1,
+        unit: "count",
+        correlationId: job.data.correlationId,
+        aggregateId: job.data.userId,
+        source: "render.worker",
+        metadata: {
+          deadLetterQueuedEvent,
+          deadLetterJobId: String(deadLetterJob.id ?? ""),
+          originalJobId: String(job.id ?? "")
+        }
+      });
+    }
   }
 
   console.error(JSON.stringify({

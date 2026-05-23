@@ -15,7 +15,9 @@ export type OperationalMetricName =
   | "notification.delivery.started"
   | "notification.delivery.deferred"
   | "notification.delivery.failed"
-  | "notification.delivery.duration_ms";
+  | "notification.delivery.duration_ms"
+  | "notification.delivery.retry_exhausted"
+  | "notification.dead_letter.queued";
 
 export type OperationalLogInput = {
   severity: OperationalSeverity;
