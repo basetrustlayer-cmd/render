@@ -1,10 +1,10 @@
 import { createTrustLayerClient } from "@render/trustlayer-sdk";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { authenticate, requireAdmin, requireAuthUser, requireModerator, requireSuperAdmin } from "../auth/middleware.js";
 import { writeAuditLog } from "../audit/log.js";
 import { prisma } from "../database/client.js";
-import { getRequestedOrganizationId, requireActiveOrganizationMembership } from "../organizations/context.js";
+import { requireAdminOrganizationScope } from "./scope.js";
 
 const idParamsSchema = z.object({
   id: z.string().uuid()
@@ -65,27 +65,6 @@ const disputeListQuerySchema = z.object({
     "CANCELLED"
   ]).optional()
 });
-
-async function requireAdminOrganizationScope(request: FastifyRequest, reply: FastifyReply) {
-  const authUser = requireAuthUser(request);
-  const organizationId = getRequestedOrganizationId(request);
-
-  if (!organizationId) {
-    return { authUser, organizationId: null };
-  }
-
-  const membership = await requireActiveOrganizationMembership({
-    userId: authUser.userId,
-    organizationId
-  });
-
-  if (!membership || !["OWNER", "ADMIN"].includes(membership.role)) {
-    reply.code(403).send({ error: "Invalid organization admin context." });
-    return null;
-  }
-
-  return { authUser, organizationId };
-}
 
 export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
   app.get("/admin/users", { preHandler: [authenticate, requireAdmin] }, async (request) => {
