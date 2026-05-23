@@ -37,7 +37,9 @@ export const RENDER_EVENT_TYPES = {
   notificationDeliveryDeferred: "render.notification.delivery_deferred",
   notificationDeliveryFailed: "render.notification.delivery_failed",
   notificationDeliveryRetryExhausted: "render.notification.delivery_retry_exhausted",
-  notificationDeadLetterQueued: "render.notification.dead_letter_queued"
+  notificationDeadLetterQueued: "render.notification.dead_letter_queued",
+  notificationDeadLetterProcessed: "render.notification.dead_letter_processed",
+  notificationDeadLetterReplayReady: "render.notification.dead_letter_replay_ready"
 } as const;
 
 export type RenderEventType =

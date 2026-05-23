@@ -184,7 +184,27 @@ export const RENDER_EVENT_REGISTRY: RenderEventRegistryEntry[] = [
     replaySafe: true,
     description: "Failed push notification delivery was moved to the dead-letter queue."
   }
-
+,
+  {
+    type: RENDER_EVENT_TYPES.notificationDeadLetterProcessed,
+    version: 1,
+    source: "render.worker",
+    aggregate: "notification_delivery",
+    producer: "apps/worker/src/jobs/notification-dead-letter.ts",
+    consumers: ["operator review", "future replay tooling"],
+    replaySafe: true,
+    description: "Notification dead-letter worker processed a failed delivery artifact."
+  },
+  {
+    type: RENDER_EVENT_TYPES.notificationDeadLetterReplayReady,
+    version: 1,
+    source: "render.worker",
+    aggregate: "notification_delivery",
+    producer: "apps/worker/src/jobs/notification-dead-letter.ts",
+    consumers: ["future replay tooling", "future notification observability views"],
+    replaySafe: true,
+    description: "Notification dead-letter payload is preserved and ready for future controlled replay."
+  }
 ];
 
 export function findRenderEventRegistryEntry(
