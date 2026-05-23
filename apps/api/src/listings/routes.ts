@@ -7,11 +7,7 @@ import { writeAuditLog } from "../audit/log.js";
 import { resolveOptionalOrganizationContext, requireListingOrganizationAccess } from "../organizations/context.js";
 
 const listListingsQuerySchema = z.object({
-  verifiedOnly: z.coerce.boolean().optional(),
-  q: z.string().trim().max(100).optional(),
-  category: z.enum(["VEHICLES", "REAL_ESTATE", "ELECTRONICS", "JOBS", "SERVICES", "FASHION"]).optional(),
-  locationRegion: z.string().trim().max(100).optional(),
-  sort: z.enum(["newest", "price_asc", "price_desc"]).default("newest")
+  verifiedOnly: z.coerce.boolean().optional()
 });
 
 const createListingSchema = z.object({
@@ -55,30 +51,10 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       return reply.code(400).send({ error: "Invalid listings query." });
     }
 
-    const orderBy =
-      query.data.sort === "price_asc"
-        ? { price: "asc" as const }
-        : query.data.sort === "price_desc"
-          ? { price: "desc" as const }
-          : { createdAt: "desc" as const };
-
     const listings = await prisma.listing.findMany({
       where: {
         status: "LIVE",
         deletedAt: null,
-        ...(query.data.category ? { category: query.data.category } : {}),
-        ...(query.data.locationRegion
-          ? { locationRegion: { contains: query.data.locationRegion } }
-          : {}),
-        ...(query.data.q
-          ? {
-              OR: [
-                { title: { contains: query.data.q } },
-                { description: { contains: query.data.q } },
-                { locationRegion: { contains: query.data.q } }
-              ]
-            }
-          : {}),
         ...(query.data.verifiedOnly
           ? { seller: { verificationLevel: { gte: 1 } } }
           : {})
@@ -96,7 +72,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
           }
         }
       },
-      orderBy
+      orderBy: { createdAt: "desc" }
     });
 
     return { listings };
