@@ -59,18 +59,15 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
           ? { seller: { verificationLevel: { gte: 1 } } }
           : {})
       },
-      include: {
-        images: true,
-        seller: {
-          select: {
-            id: true,
-            verificationLevel: true,
-            trustScore: true,
-            trustTier: true,
-            isBusiness: true,
-            createdAt: true
-          }
-        }
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        price: true,
+        category: true,
+        condition: true,
+        locationRegion: true,
+        createdAt: true
       },
       orderBy: { createdAt: "desc" }
     });
