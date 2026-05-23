@@ -25,7 +25,8 @@ export type OperationalMetricName =
   | "notification.replay.delivery_enqueued"
   | "notification.replay.duplicate_rejected"
   | "notification.replay.rate_limited"
-  | "notification.replay.expired";
+  | "notification.replay.expired"
+  | "notification.replay.summary_viewed";
 
 export type OperationalLogInput = {
   severity: OperationalSeverity;

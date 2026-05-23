@@ -453,6 +453,85 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
   });
 
 
+  app.get("/admin/notifications/replay-summary", { preHandler: [authenticate, requireSuperAdmin] }, async (request) => {
+    const authUser = requireAuthUser(request);
+    const replayActions = [
+      "NOTIFICATION_DEAD_LETTER_REPLAY_REQUESTED",
+      "NOTIFICATION_DEAD_LETTER_REPLAY_DUPLICATE_REJECTED",
+      "NOTIFICATION_DEAD_LETTER_REPLAY_RATE_LIMITED",
+      "NOTIFICATION_DEAD_LETTER_REPLAY_EXPIRED",
+      "NOTIFICATION_DEAD_LETTER_REPLAY_BLOCKED"
+    ];
+
+    const [auditTrail] = await Promise.all([
+      prisma.auditLog.findMany({
+        where: {
+          entityType: "NOTIFICATION_DEAD_LETTER",
+          action: { in: replayActions }
+        },
+        select: {
+          action: true,
+          createdAt: true
+        },
+        orderBy: { createdAt: "desc" },
+        take: 500
+      })
+    ]);
+
+    const queue = createRenderQueue(RENDER_QUEUE_NAMES.notificationDeadLetter);
+
+    try {
+      const queueCounts = await queue.getJobCounts("waiting", "delayed", "failed");
+      const replayReadyCount =
+        (queueCounts.waiting ?? 0) +
+        (queueCounts.delayed ?? 0) +
+        (queueCounts.failed ?? 0);
+
+      const requestedCount = auditTrail.filter((entry) => entry.action === "NOTIFICATION_DEAD_LETTER_REPLAY_REQUESTED").length;
+      const duplicateRejectedCount = auditTrail.filter((entry) => entry.action === "NOTIFICATION_DEAD_LETTER_REPLAY_DUPLICATE_REJECTED").length;
+      const rateLimitedCount = auditTrail.filter((entry) => entry.action === "NOTIFICATION_DEAD_LETTER_REPLAY_RATE_LIMITED").length;
+      const expiredCount = auditTrail.filter((entry) => entry.action === "NOTIFICATION_DEAD_LETTER_REPLAY_EXPIRED").length;
+      const blockedCount = auditTrail.filter((entry) => entry.action === "NOTIFICATION_DEAD_LETTER_REPLAY_BLOCKED").length;
+
+      const summary = {
+        replayReadyCount,
+        requestedCount,
+        duplicateRejectedCount,
+        rateLimitedCount,
+        expiredCount,
+        blockedCount,
+        auditSampleSize: auditTrail.length,
+        replayMode: "MANUAL_OPERATOR_REVIEW_REQUIRED",
+        generatedAt: new Date().toISOString()
+      };
+
+      recordOperationalMetric({
+        name: "notification.replay.summary_viewed",
+        value: 1,
+        unit: "count",
+        correlationId: request.id,
+        aggregateId: authUser.userId,
+        source: "render.api",
+        metadata: summary
+      });
+
+      void writeAuditLog({
+        request,
+        actorUserId: authUser.userId,
+        action: "ADMIN_NOTIFICATION_REPLAY_SUMMARY_VIEWED",
+        entityType: "NOTIFICATION_DEAD_LETTER",
+        metadata: summary
+      });
+
+      return {
+        summary,
+        queueCounts
+      };
+    } finally {
+      await queue.close();
+    }
+  });
+
   app.get("/admin/notifications/dead-letter/:id/replay-status", { preHandler: [authenticate, requireSuperAdmin] }, async (request, reply) => {
     const authUser = requireAuthUser(request);
     const params = idParamsSchema.safeParse(request.params);
