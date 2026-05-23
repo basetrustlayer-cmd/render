@@ -1,8 +1,10 @@
+import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { authenticate, requireAuthUser } from "../auth/middleware.js";
 import { prisma } from "../database/client.js";
 import { writeAuditLog } from "../audit/log.js";
+import { createRenderQueue, RENDER_QUEUE_NAMES, type PushNotificationDeliveryJobData } from "@render/queue";
 
 const emailNotificationSchema = z.object({
   to: z.string().email(),
@@ -135,9 +137,36 @@ export async function registerNotificationRoutes(app: FastifyInstance): Promise<
       return reply.code(400).send({ error: "Invalid push notification payload." });
     }
 
-    return reply.code(501).send({
-      error: "Push notification integration pending.",
-      notification: parsed.data
+    const queue = createRenderQueue(RENDER_QUEUE_NAMES.pushNotificationDelivery);
+    const data: PushNotificationDeliveryJobData = {
+      userId: parsed.data.userId,
+      title: parsed.data.title,
+      body: parsed.data.body,
+      triggeredAt: new Date().toISOString(),
+      correlationId: randomUUID()
+    };
+
+    const job = await queue.add("push-notification-delivery", data);
+    await queue.close();
+
+    void writeAuditLog({
+      request,
+      actorUserId: parsed.data.userId,
+      action: "PUSH_NOTIFICATION_DELIVERY_ENQUEUED",
+      entityType: "USER",
+      entityId: parsed.data.userId,
+      metadata: {
+        queue: RENDER_QUEUE_NAMES.pushNotificationDelivery,
+        jobId: String(job.id ?? ""),
+        correlationId: data.correlationId
+      }
+    });
+
+    return reply.code(202).send({
+      queued: true,
+      queue: RENDER_QUEUE_NAMES.pushNotificationDelivery,
+      jobId: job.id,
+      correlationId: data.correlationId
     });
   });
 }

@@ -55,11 +55,13 @@ describe("notification route contract", () => {
     expect(source).toContain("writeAuditLog");
   });
 
-  it("keeps outbound notification provider routes explicitly pending", () => {
+  it("keeps email and sms provider routes pending while push delivery is queued", () => {
     expect(source).toContain("Email provider integration pending.");
     expect(source).toContain("Hubtel SMS integration pending.");
-    expect(source).toContain("Push notification integration pending.");
-    expect(source.match(/reply\.code\(501\)/g)?.length).toBe(3);
+    expect(source.match(/reply\.code\(501\)/g)?.length).toBe(2);
+    expect(source).toContain("createRenderQueue(RENDER_QUEUE_NAMES.pushNotificationDelivery)");
+    expect(source).toContain("PUSH_NOTIFICATION_DELIVERY_ENQUEUED");
+    expect(source).toContain("return reply.code(202).send");
   });
 
   it("validates email, sms, and push payloads before provider handling", () => {
