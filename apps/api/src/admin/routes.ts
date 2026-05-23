@@ -4,6 +4,7 @@ import { z } from "zod";
 import { authenticate, requireAdmin, requireAuthUser, requireModerator, requireSuperAdmin } from "../auth/middleware.js";
 import { writeAuditLog } from "../audit/log.js";
 import { prisma } from "../database/client.js";
+import { createRenderQueue, RENDER_QUEUE_NAMES } from "@render/queue";
 import { requireAdminOrganizationScope } from "./scope.js";
 
 const idParamsSchema = z.object({
@@ -52,6 +53,11 @@ const disputeStatusSchema = z.object({
     "NEEDS_SELLER_RESPONSE"
   ]),
   note: z.string().max(2000).optional()
+});
+
+const deadLetterListQuerySchema = z.object({
+  status: z.enum(["waiting", "delayed", "failed", "completed"]).default("waiting"),
+  take: z.coerce.number().int().min(1).max(100).default(50)
 });
 
 const disputeListQuerySchema = z.object({
@@ -306,6 +312,61 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     return { safeDeals };
   });
 
+
+
+  app.get("/admin/notifications/dead-letter", { preHandler: [authenticate, requireSuperAdmin] }, async (request, reply) => {
+    const authUser = requireAuthUser(request);
+    const parsed = deadLetterListQuerySchema.safeParse(request.query);
+
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid dead-letter query." });
+    }
+
+    const queue = createRenderQueue(RENDER_QUEUE_NAMES.notificationDeadLetter);
+
+    try {
+      const jobs = await queue.getJobs([parsed.data.status], 0, parsed.data.take - 1, false);
+      const deadLetters = jobs.map((job) => ({
+        id: String(job.id ?? ""),
+        queue: RENDER_QUEUE_NAMES.notificationDeadLetter,
+        status: parsed.data.status,
+        payload: job.data,
+        attemptsMade: job.attemptsMade,
+        failedReason: job.failedReason,
+        timestamp: job.timestamp,
+        processedOn: job.processedOn,
+        finishedOn: job.finishedOn,
+        replayReady: true,
+        replayMode: "MANUAL_OPERATOR_REVIEW_REQUIRED"
+      }));
+
+      void writeAuditLog({
+        request,
+        actorUserId: authUser.userId,
+        action: "ADMIN_NOTIFICATION_DEAD_LETTERS_VIEWED",
+        entityType: "NOTIFICATION_DEAD_LETTER",
+        metadata: {
+          queue: RENDER_QUEUE_NAMES.notificationDeadLetter,
+          status: parsed.data.status,
+          count: deadLetters.length,
+          replayMode: "MANUAL_OPERATOR_REVIEW_REQUIRED"
+        }
+      });
+
+      return {
+        summary: {
+          queue: RENDER_QUEUE_NAMES.notificationDeadLetter,
+          status: parsed.data.status,
+          count: deadLetters.length,
+          replayEnabled: false,
+          replayMode: "MANUAL_OPERATOR_REVIEW_REQUIRED"
+        },
+        deadLetters
+      };
+    } finally {
+      await queue.close();
+    }
+  });
 
   app.get("/admin/finance/reconciliation", { preHandler: [authenticate, requireSuperAdmin] }, async (request) => {
     const authUser = requireAuthUser(request);
