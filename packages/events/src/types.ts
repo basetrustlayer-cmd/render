@@ -41,7 +41,9 @@ export const RENDER_EVENT_TYPES = {
   notificationDeadLetterProcessed: "render.notification.dead_letter_processed",
   notificationDeadLetterReplayReady: "render.notification.dead_letter_replay_ready",
   notificationReplayRequested: "render.notification.replay_requested",
-  notificationReplayBlocked: "render.notification.replay_blocked"
+  notificationReplayBlocked: "render.notification.replay_blocked",
+  notificationReplayStarted: "render.notification.replay_started",
+  notificationReplayDeliveryEnqueued: "render.notification.replay_delivery_enqueued"
 } as const;
 
 export type RenderEventType =

@@ -21,7 +21,8 @@ export type OperationalMetricName =
   | "notification.dead_letter.processed"
   | "notification.dead_letter.replayed_pending"
   | "notification.replay.requested"
-  | "notification.replay.blocked";
+  | "notification.replay.blocked"
+  | "notification.replay.delivery_enqueued";
 
 export type OperationalLogInput = {
   severity: OperationalSeverity;
