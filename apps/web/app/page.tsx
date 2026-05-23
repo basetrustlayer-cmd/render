@@ -1,5 +1,120 @@
-import { redirect } from "next/navigation";
+import Link from "next/link";
+import { TrustScoreBadge } from "../components/trust-score-badge";
+import { getListings } from "../lib/get-listings";
 
-export default function HomePage() {
-  redirect("/listings");
+export const dynamic = "force-dynamic";
+
+const categories = ["Vehicles", "Property", "Electronics", "Home", "Jobs", "Services"];
+
+export default async function HomePage() {
+  const { listings } = await getListings();
+  const featured = listings.slice(0, 6);
+
+  return (
+    <main className="min-h-screen bg-gray-50">
+      <section className="bg-gradient-to-br from-gray-950 via-gray-900 to-amber-950 px-6 py-16 text-white">
+        <div className="mx-auto max-w-7xl">
+          <p className="text-sm font-bold uppercase tracking-wide text-amber-300">
+            Ghana classifieds marketplace
+          </p>
+          <h1 className="mt-4 max-w-4xl text-4xl font-black tracking-tight md:text-6xl">
+            Buy and sell with trust, speed, and local confidence.
+          </h1>
+          <p className="mt-5 max-w-2xl text-lg text-gray-200">
+            Discover verified sellers, safer listings, and marketplace tools built for Ghana.
+          </p>
+
+          <form action="/listings" className="mt-8 grid gap-3 rounded-2xl bg-white p-3 shadow-xl md:grid-cols-[1fr_auto]">
+            <input
+              name="q"
+              placeholder="Search cars, phones, apartments, services..."
+              className="rounded-xl border border-gray-200 px-4 py-3 text-gray-950 outline-none focus:border-amber-500"
+            />
+            <button className="rounded-xl bg-amber-500 px-6 py-3 font-bold text-gray-950 hover:bg-amber-400">
+              Search listings
+            </button>
+          </form>
+
+          <div className="mt-6 flex flex-wrap gap-2">
+            {categories.map((category) => (
+              <Link
+                key={category}
+                href={`/listings?category=${encodeURIComponent(category)}`}
+                className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20"
+              >
+                {category}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-6 py-10">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <p className="text-sm font-bold uppercase tracking-wide text-amber-700">
+              Featured listings
+            </p>
+            <h2 className="mt-1 text-3xl font-black text-gray-950">Fresh marketplace picks</h2>
+          </div>
+          <Link href="/listings" className="rounded-xl bg-black px-4 py-2 text-sm font-bold text-white">
+            View all
+          </Link>
+        </div>
+
+        {featured.length === 0 ? (
+          <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-8 text-gray-600 shadow-sm">
+            No live listings yet.
+          </div>
+        ) : (
+          <div className="mt-6 grid gap-5 md:grid-cols-3">
+            {featured.map((listing) => {
+              const coverImage = listing.images?.[0]?.url;
+              const score = listing.seller?.trustScore ?? 500;
+              const tier = listing.seller?.trustTier ?? "NEW";
+              const verified = (listing.seller?.verificationLevel ?? 0) >= 1;
+
+              return (
+                <article key={listing.id} className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                  {coverImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={coverImage} alt={listing.title} className="h-48 w-full object-cover" />
+                  ) : (
+                    <div className="h-48 bg-gradient-to-br from-amber-100 to-emerald-100" />
+                  )}
+
+                  <div className="p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-sm font-bold text-amber-700">{listing.category}</p>
+                      {verified && (
+                        <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700">
+                          Verified
+                        </span>
+                      )}
+                    </div>
+
+                    <h3 className="mt-2 text-xl font-bold text-gray-950">{listing.title}</h3>
+                    <p className="mt-2 line-clamp-2 text-sm text-gray-600">{listing.description}</p>
+                    <p className="mt-4 text-lg font-black text-gray-950">GH₵ {String(listing.price)}</p>
+                    <p className="text-sm text-gray-600">{listing.locationRegion ?? "Ghana"}</p>
+
+                    <div className="mt-4">
+                      <TrustScoreBadge score={score} tier={tier} />
+                    </div>
+
+                    <Link
+                      href={`/listings/${listing.id}`}
+                      className="mt-4 block rounded-xl bg-black px-4 py-2 text-center text-sm font-bold text-white hover:bg-gray-800"
+                    >
+                      View details
+                    </Link>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
+    </main>
+  );
 }
