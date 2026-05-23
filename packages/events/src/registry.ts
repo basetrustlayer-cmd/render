@@ -244,6 +244,16 @@ export const RENDER_EVENT_REGISTRY: RenderEventRegistryEntry[] = [
     consumers: ["push notification delivery queue", "future notification observability views"],
     replaySafe: true,
     description: "Governed notification replay request re-enqueued a push delivery job."
+  },
+  {
+    type: RENDER_EVENT_TYPES.notificationReplayDuplicateRejected,
+    version: 1,
+    source: "render.api",
+    aggregate: "notification_delivery",
+    producer: "apps/api/src/admin/routes.ts",
+    consumers: ["operator audit review", "future notification observability views"],
+    replaySafe: true,
+    description: "Duplicate notification replay request rejected by deterministic idempotency controls."
   }
 ];
 

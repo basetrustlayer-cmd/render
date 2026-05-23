@@ -157,6 +157,80 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     };
 
     const replayQueue = createRenderQueue(RENDER_QUEUE_NAMES.notificationReplayRequest);
+    const existingReplayJob = await replayQueue.getJob(replayRequest.idempotencyKey);
+
+    if (existingReplayJob) {
+      await replayQueue.close();
+
+      const duplicateEvent = createRenderEvent({
+        id: crypto.randomUUID(),
+        type: RENDER_EVENT_TYPES.notificationReplayDuplicateRejected,
+        aggregateId: data.userId,
+        correlationId: data.correlationId,
+        source: "render.api",
+        payload: {
+          deadLetterJobId: replayRequest.deadLetterJobId,
+          existingReplayJobId: String(existingReplayJob.id ?? ""),
+          userId: data.userId,
+          status: "DUPLICATE_REPLAY_REJECTED",
+          manualApproval,
+          automaticReplay,
+          replayMode,
+          idempotencyKey: replayRequest.idempotencyKey
+        }
+      });
+
+      recordOperationalMetric({
+        name: "notification.replay.duplicate_rejected",
+        value: 1,
+        unit: "count",
+        correlationId: data.correlationId,
+        aggregateId: data.userId,
+        source: "render.api",
+        metadata: {
+          deadLetterJobId: replayRequest.deadLetterJobId,
+          existingReplayJobId: String(existingReplayJob.id ?? ""),
+          idempotencyKey: replayRequest.idempotencyKey
+        }
+      });
+
+      void writeAuditLog({
+        request,
+        actorUserId: authUser.userId,
+        action: "NOTIFICATION_DEAD_LETTER_REPLAY_DUPLICATE_REJECTED",
+        entityType: "NOTIFICATION_DEAD_LETTER",
+        entityId: replayRequest.deadLetterJobId,
+        metadata: {
+          existingReplayJobId: String(existingReplayJob.id ?? ""),
+          idempotencyKey: replayRequest.idempotencyKey,
+          deadLetterJobId: replayRequest.deadLetterJobId,
+          userId: data.userId,
+          originalQueue: data.originalQueue,
+          duplicateEvent: {
+            id: duplicateEvent.id,
+            type: duplicateEvent.type,
+            correlationId: duplicateEvent.correlationId,
+            occurredAt: duplicateEvent.occurredAt
+          },
+          manualApproval,
+          automaticReplay,
+          replayMode,
+          reason: body.data.reason
+        }
+      });
+
+      return reply.code(409).send({
+        duplicateRejected: true,
+        replayRequested: false,
+        existingReplayJobId: existingReplayJob.id,
+        deadLetterJobId: replayRequest.deadLetterJobId,
+        manualApproval,
+        automaticReplay,
+        replayMode,
+        idempotencyKey: replayRequest.idempotencyKey
+      });
+    }
+
     const replayJob = await replayQueue.add("notification-replay-request", replayRequest, {
       jobId: replayRequest.idempotencyKey
     });
