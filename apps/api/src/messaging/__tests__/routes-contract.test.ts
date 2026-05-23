@@ -5,10 +5,11 @@ import { describe, expect, it } from "vitest";
 describe("messaging route contract", () => {
   const source = readFileSync(resolve(process.cwd(), "src/messaging/routes.ts"), "utf8");
 
-  it("keeps conversation and message routes authenticated", () => {
+  it("keeps conversation, message, and read receipt routes authenticated", () => {
     expect(source).toContain('app.get("/conversations", { preHandler: authenticate }');
     expect(source).toContain('app.post("/conversations", { preHandler: authenticate }');
     expect(source).toContain('app.get("/conversations/:id/messages", { preHandler: authenticate }');
+    expect(source).toContain('app.post("/messages/:id/read", { preHandler: authenticate }');
     expect(source).toContain('app.post("/messages", { preHandler: authenticate }');
     expect(source).toContain("requireAuthUser(request)");
   });
@@ -20,6 +21,25 @@ describe("messaging route contract", () => {
     expect(source).toContain("prisma.message.findMany");
     expect(source).toContain("tx.message.create");
     expect(source).toContain("tx.conversation.update");
+  });
+
+  it("supports message read receipt persistence", () => {
+    expect(source).toContain("messageParamsSchema.safeParse(request.params)");
+    expect(source).toContain("Invalid message ID.");
+    expect(source).toContain("prisma.message.findUnique");
+    expect(source).toContain("prisma.message.update");
+    expect(source).toContain("data: { readAt: new Date() }");
+    expect(source).toContain("MESSAGE_READ");
+  });
+
+  it("keeps read receipt marking idempotent", () => {
+    expect(source).toContain("if (message.readAt)");
+    expect(source).toContain("read: true");
+  });
+
+  it("prevents senders from marking their own messages as read", () => {
+    expect(source).toContain("message.senderId === authUser.userId");
+    expect(source).toContain("Message sender cannot mark own message as read.");
   });
 
   it("enforces participant access boundaries", () => {
@@ -57,9 +77,10 @@ describe("messaging route contract", () => {
     expect(source).toContain("prisma.$transaction");
   });
 
-  it("audits conversation and message creation without blocking flow", () => {
+  it("audits conversation, message creation, and read receipts", () => {
     expect(source).toContain("CONVERSATION_CREATED");
     expect(source).toContain("MESSAGE_SENT");
+    expect(source).toContain("MESSAGE_READ");
     expect(source).toContain("writeAuditLog");
   });
 

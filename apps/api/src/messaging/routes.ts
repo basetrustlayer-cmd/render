@@ -14,6 +14,10 @@ const conversationParamsSchema = z.object({
   id: z.string().uuid()
 });
 
+const messageParamsSchema = z.object({
+  id: z.string().uuid()
+});
+
 const sendMessageSchema = z.object({
   conversationId: z.string().uuid(),
   senderId: z.string().uuid(),
@@ -156,6 +160,69 @@ export async function registerMessagingRoutes(app: FastifyInstance): Promise<voi
     return {
       messages,
       conversationId: conversation.id
+    };
+  });
+
+
+  app.post("/messages/:id/read", { preHandler: authenticate }, async (request, reply) => {
+    const authUser = requireAuthUser(request);
+    const params = messageParamsSchema.safeParse(request.params);
+
+    if (!params.success) {
+      return reply.code(400).send({ error: "Invalid message ID." });
+    }
+
+    const message = await prisma.message.findUnique({
+      where: { id: params.data.id },
+      include: {
+        conversation: {
+          select: {
+            id: true,
+            buyerId: true,
+            sellerId: true
+          }
+        }
+      }
+    });
+
+    if (!message) {
+      return reply.code(404).send({ error: "Message not found." });
+    }
+
+    if (!isConversationParticipant(message.conversation, authUser.userId)) {
+      return reply.code(403).send({ error: "Conversation participant access required." });
+    }
+
+    if (message.senderId === authUser.userId) {
+      return reply.code(403).send({ error: "Message sender cannot mark own message as read." });
+    }
+
+    if (message.readAt) {
+      return {
+        message,
+        read: true
+      };
+    }
+
+    const readMessage = await prisma.message.update({
+      where: { id: message.id },
+      data: { readAt: new Date() }
+    });
+
+    void writeAuditLog({
+      request,
+      actorUserId: authUser.userId,
+      action: "MESSAGE_READ",
+      entityType: "MESSAGE",
+      entityId: readMessage.id,
+      metadata: {
+        conversationId: message.conversation.id
+      }
+    });
+
+    return {
+      message: readMessage,
+      read: true
     };
   });
 
