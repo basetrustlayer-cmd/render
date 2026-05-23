@@ -5,6 +5,7 @@ import { authenticate, requireAuthUser } from "../auth/middleware.js";
 import { prisma } from "../database/client.js";
 import { writeAuditLog } from "../audit/log.js";
 import { createRenderQueue, RENDER_QUEUE_NAMES, type PushNotificationDeliveryJobData } from "@render/queue";
+import { createRenderEvent, RENDER_EVENT_TYPES } from "@render/events";
 
 const emailNotificationSchema = z.object({
   to: z.string().email(),
@@ -149,6 +150,21 @@ export async function registerNotificationRoutes(app: FastifyInstance): Promise<
     const job = await queue.add("push-notification-delivery", data);
     await queue.close();
 
+    const notificationDeliveryQueuedEvent = createRenderEvent({
+      id: randomUUID(),
+      type: RENDER_EVENT_TYPES.notificationDeliveryQueued,
+      aggregateId: parsed.data.userId,
+      correlationId: data.correlationId,
+      source: "render.api",
+      payload: {
+        userId: parsed.data.userId,
+        queue: RENDER_QUEUE_NAMES.pushNotificationDelivery,
+        jobId: String(job.id ?? ""),
+        channel: "push",
+        status: "QUEUED"
+      }
+    });
+
     void writeAuditLog({
       request,
       actorUserId: parsed.data.userId,
@@ -158,7 +174,8 @@ export async function registerNotificationRoutes(app: FastifyInstance): Promise<
       metadata: {
         queue: RENDER_QUEUE_NAMES.pushNotificationDelivery,
         jobId: String(job.id ?? ""),
-        correlationId: data.correlationId
+        correlationId: data.correlationId,
+        event: JSON.parse(JSON.stringify(notificationDeliveryQueuedEvent))
       }
     });
 

@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { Worker } from "bullmq";
 import {
   createQueueConnection,
@@ -5,6 +6,7 @@ import {
   type PushNotificationDeliveryJobData
 } from "@render/queue";
 import { writeOperationalLog } from "@render/observability";
+import { createRenderEvent, RENDER_EVENT_TYPES } from "@render/events";
 
 const connection = createQueueConnection();
 
@@ -12,6 +14,35 @@ export const pushNotificationDeliveryWorker =
   new Worker<PushNotificationDeliveryJobData>(
     RENDER_QUEUE_NAMES.pushNotificationDelivery,
     async (job) => {
+      const notificationDeliveryStartedEvent = createRenderEvent({
+        id: crypto.randomUUID(),
+        type: RENDER_EVENT_TYPES.notificationDeliveryStarted,
+        aggregateId: job.data.userId,
+        correlationId: job.data.correlationId,
+        source: "render.worker",
+        payload: {
+          userId: job.data.userId,
+          channel: "push",
+          status: "STARTED",
+          jobId: String(job.id ?? "")
+        }
+      });
+
+      const notificationDeliveryDeferredEvent = createRenderEvent({
+        id: crypto.randomUUID(),
+        type: RENDER_EVENT_TYPES.notificationDeliveryDeferred,
+        aggregateId: job.data.userId,
+        correlationId: job.data.correlationId,
+        causationId: notificationDeliveryStartedEvent.id,
+        source: "render.worker",
+        payload: {
+          userId: job.data.userId,
+          channel: "push",
+          status: "PROVIDER_DELIVERY_PENDING",
+          jobId: String(job.id ?? "")
+        }
+      });
+
       writeOperationalLog({
         severity: "INFO",
         event: "notification.push_delivery.started",
@@ -22,7 +53,9 @@ export const pushNotificationDeliveryWorker =
         metadata: {
           jobId: job.id,
           userId: job.data.userId,
-          deliveryStatus: "PROVIDER_DELIVERY_PENDING"
+          deliveryStatus: "PROVIDER_DELIVERY_PENDING",
+          startedEvent: notificationDeliveryStartedEvent,
+          deferredEvent: notificationDeliveryDeferredEvent
         }
       });
 

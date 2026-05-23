@@ -4,7 +4,7 @@ export type RenderEventRegistryEntry = {
   type: RenderEventType;
   version: number;
   source: RenderEventSource;
-  aggregate: "audit_log" | "webhook_event" | "queue_job" | "safe_deal" | "dispute" | "settlement" | "conversation" | "message";
+  aggregate: "audit_log" | "webhook_event" | "queue_job" | "safe_deal" | "dispute" | "settlement" | "conversation" | "message" | "notification_delivery";
   producer: string;
   consumers: string[];
   replaySafe: boolean;
@@ -121,6 +121,48 @@ export const RENDER_EVENT_REGISTRY: RenderEventRegistryEntry[] = [
     consumers: ["future unread-count projection", "future realtime gateway"],
     replaySafe: true,
     description: "Message read receipt recorded inside Render marketplace messaging."
+
+  },
+  {
+    type: RENDER_EVENT_TYPES.notificationDeliveryQueued,
+    version: 1,
+    source: "render.api",
+    aggregate: "notification_delivery",
+    producer: "apps/api/src/notifications/routes.ts",
+    consumers: ["apps/worker/src/jobs/push-notification-delivery.ts", "future notification observability views"],
+    replaySafe: true,
+    description: "Push notification delivery job queued by Render API."
+  },
+  {
+    type: RENDER_EVENT_TYPES.notificationDeliveryStarted,
+    version: 1,
+    source: "render.worker",
+    aggregate: "notification_delivery",
+    producer: "apps/worker/src/jobs/push-notification-delivery.ts",
+    consumers: ["future notification observability views"],
+    replaySafe: true,
+    description: "Push notification delivery worker started processing a queued job."
+  },
+  {
+    type: RENDER_EVENT_TYPES.notificationDeliveryDeferred,
+    version: 1,
+    source: "render.worker",
+    aggregate: "notification_delivery",
+    producer: "apps/worker/src/jobs/push-notification-delivery.ts",
+    consumers: ["future Firebase adapter", "future notification observability views"],
+    replaySafe: true,
+    description: "Push notification provider delivery intentionally deferred while provider integration is pending."
+  },
+  {
+    type: RENDER_EVENT_TYPES.notificationDeliveryFailed,
+    version: 1,
+    source: "render.worker",
+    aggregate: "notification_delivery",
+    producer: "apps/worker/src/jobs/push-notification-delivery.ts",
+    consumers: ["future retry and dead-letter queue"],
+    replaySafe: true,
+    description: "Push notification delivery failed and needs retry or operator visibility."
+
   }
 ];
 

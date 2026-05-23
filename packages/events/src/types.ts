@@ -31,7 +31,11 @@ export const RENDER_EVENT_TYPES = {
   settlementReadyProjected: "render.settlement.ready_projected",
   conversationCreated: "render.messaging.conversation_created",
   messageSent: "render.messaging.message_sent",
-  messageRead: "render.messaging.message_read"
+  messageRead: "render.messaging.message_read",
+  notificationDeliveryQueued: "render.notification.delivery_queued",
+  notificationDeliveryStarted: "render.notification.delivery_started",
+  notificationDeliveryDeferred: "render.notification.delivery_deferred",
+  notificationDeliveryFailed: "render.notification.delivery_failed"
 } as const;
 
 export type RenderEventType =
