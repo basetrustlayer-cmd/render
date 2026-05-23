@@ -32,12 +32,15 @@ describe("messaging event emission contract", () => {
     expect(routeSource).toContain('source: "render.api"');
   });
 
-  it("stores messaging events as audit metadata without queue fanout yet", () => {
+  it("stores messaging events as audit metadata and queues message fanout safely", () => {
     expect(routeSource).toContain("metadata: JSON.parse(JSON.stringify(conversationCreatedEvent))");
     expect(routeSource).toContain("metadata: JSON.parse(JSON.stringify(messageSentEvent))");
     expect(routeSource).toContain("metadata: JSON.parse(JSON.stringify(messageReadEvent))");
-    expect(routeSource).not.toContain("queueMessaging");
-    expect(routeSource).not.toContain("notification fanout");
+    expect(routeSource).toContain("enqueueMessagingNotificationFanout");
+    expect(routeSource).toContain("RENDER_QUEUE_NAMES.messagingNotificationFanout");
+    expect(routeSource).toContain("MESSAGING_NOTIFICATION_FANOUT_ENQUEUED");
+    expect(routeSource).toContain("MESSAGING_NOTIFICATION_FANOUT_SKIPPED");
+    expect(routeSource).toContain("QUEUE_UNAVAILABLE");
   });
 
   it("keeps TrustLayer authority out of messaging events", () => {

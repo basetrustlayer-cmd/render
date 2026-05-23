@@ -4,6 +4,7 @@ import { z } from "zod";
 import { authenticate, requireAuthUser } from "../auth/middleware.js";
 import { prisma } from "../database/client.js";
 import { createRenderEvent, RENDER_EVENT_TYPES } from "@render/events";
+import { createRenderQueue, RENDER_QUEUE_NAMES, type MessagingNotificationFanoutJobData } from "@render/queue";
 import { writeAuditLog } from "../audit/log.js";
 import {
   getRequestedOrganizationId,
@@ -32,6 +33,68 @@ const sendMessageSchema = z.object({
 
 function isConversationParticipant(conversation: { buyerId: string; sellerId: string }, userId: string): boolean {
   return conversation.buyerId === userId || conversation.sellerId === userId;
+}
+
+
+async function enqueueMessagingNotificationFanout(input: {
+  request: FastifyRequest;
+  eventId: string;
+  eventType: MessagingNotificationFanoutJobData["eventType"];
+  conversationId: string;
+  messageId?: string;
+  senderId?: string;
+  recipientUserIds: string[];
+  organizationId?: string | null;
+}): Promise<void> {
+  try {
+    const queue = createRenderQueue(RENDER_QUEUE_NAMES.messagingNotificationFanout);
+
+    const data: MessagingNotificationFanoutJobData = {
+      eventId: input.eventId,
+      eventType: input.eventType,
+      conversationId: input.conversationId,
+      messageId: input.messageId,
+      senderId: input.senderId,
+      recipientUserIds: input.recipientUserIds,
+      organizationId: input.organizationId,
+      triggeredAt: new Date().toISOString(),
+      correlationId: input.request.id
+    };
+
+    const job = await queue.add("messaging.notification_fanout", data);
+    await queue.close();
+
+    void writeAuditLog({
+      request: input.request,
+      organizationId: input.organizationId,
+      action: "MESSAGING_NOTIFICATION_FANOUT_ENQUEUED",
+      entityType: "QUEUE",
+      entityId: String(job.id ?? ""),
+      metadata: {
+        queue: RENDER_QUEUE_NAMES.messagingNotificationFanout,
+        eventId: input.eventId,
+        eventType: input.eventType,
+        conversationId: input.conversationId,
+        messageId: input.messageId,
+        recipientUserIds: input.recipientUserIds,
+        correlationId: input.request.id
+      }
+    });
+  } catch {
+    void writeAuditLog({
+      request: input.request,
+      organizationId: input.organizationId,
+      action: "MESSAGING_NOTIFICATION_FANOUT_SKIPPED",
+      entityType: "QUEUE",
+      entityId: input.eventId,
+      metadata: {
+        queue: RENDER_QUEUE_NAMES.messagingNotificationFanout,
+        eventType: input.eventType,
+        reason: "QUEUE_UNAVAILABLE",
+        correlationId: input.request.id
+      }
+    });
+  }
 }
 
 async function resolveMessagingOrganizationContext(request: FastifyRequest, userId: string): Promise<string | null> {
@@ -423,6 +486,19 @@ export async function registerMessagingRoutes(app: FastifyInstance): Promise<voi
       entityType: "MESSAGE",
       entityId: message.id,
       metadata: JSON.parse(JSON.stringify(messageSentEvent))
+    });
+
+    void enqueueMessagingNotificationFanout({
+      request,
+      eventId: messageSentEvent.id,
+      eventType: RENDER_EVENT_TYPES.messageSent,
+      conversationId: conversation.id,
+      messageId: message.id,
+      senderId: authUser.userId,
+      recipientUserIds: [
+        conversation.buyerId === authUser.userId ? conversation.sellerId : conversation.buyerId
+      ],
+      organizationId: conversation.organizationId
     });
 
     return reply.code(201).send({ message });
