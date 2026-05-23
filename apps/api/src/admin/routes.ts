@@ -62,6 +62,10 @@ const deadLetterListQuerySchema = z.object({
   take: z.coerce.number().int().min(1).max(100).default(50)
 });
 
+const notificationReplayRateLimitWindowMs = 60_000;
+const notificationReplayRateLimitMaxRequests = 3;
+const notificationReplayRateLimitHits = new Map<string, { count: number; resetAt: number }>();
+
 const disputeListQuerySchema = z.object({
   status: z.enum([
     "OPEN",
@@ -87,6 +91,78 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     const manualApproval = true;
     const automaticReplay = false;
     const replayMode = "MANUAL_OPERATOR_REVIEW_REQUIRED";
+    const rateLimitKey = `${authUser.userId}:${params.data.id}`;
+    const now = Date.now();
+    const currentRateLimit = notificationReplayRateLimitHits.get(rateLimitKey);
+
+    if (currentRateLimit && currentRateLimit.resetAt > now && currentRateLimit.count >= notificationReplayRateLimitMaxRequests) {
+      const retryAfterSeconds = Math.ceil((currentRateLimit.resetAt - now) / 1000);
+      const rateLimitEvent = createRenderEvent({
+        id: crypto.randomUUID(),
+        type: RENDER_EVENT_TYPES.notificationReplayRateLimited,
+        aggregateId: params.data.id,
+        correlationId: crypto.randomUUID(),
+        source: "render.api",
+        payload: {
+          deadLetterJobId: params.data.id,
+          userId: authUser.userId,
+          status: "REPLAY_RATE_LIMITED",
+          retryAfterSeconds,
+          manualApproval,
+          automaticReplay,
+          replayMode
+        }
+      });
+
+      recordOperationalMetric({
+        name: "notification.replay.rate_limited",
+        value: 1,
+        unit: "count",
+        correlationId: rateLimitEvent.correlationId,
+        aggregateId: params.data.id,
+        source: "render.api",
+        metadata: {
+          deadLetterJobId: params.data.id,
+          userId: authUser.userId,
+          retryAfterSeconds
+        }
+      });
+
+      void writeAuditLog({
+        request,
+        actorUserId: authUser.userId,
+        action: "NOTIFICATION_DEAD_LETTER_REPLAY_RATE_LIMITED",
+        entityType: "NOTIFICATION_DEAD_LETTER",
+        entityId: params.data.id,
+        metadata: {
+          rateLimitKey,
+          retryAfterSeconds,
+          rateLimitEvent: {
+            id: rateLimitEvent.id,
+            type: rateLimitEvent.type,
+            correlationId: rateLimitEvent.correlationId,
+            occurredAt: rateLimitEvent.occurredAt
+          },
+          manualApproval,
+          automaticReplay,
+          replayMode
+        }
+      });
+
+      return reply.code(429).send({
+        replayRequested: false,
+        rateLimited: true,
+        retryAfterSeconds,
+        manualApproval,
+        automaticReplay,
+        replayMode
+      });
+    }
+
+    notificationReplayRateLimitHits.set(rateLimitKey, {
+      count: currentRateLimit && currentRateLimit.resetAt > now ? currentRateLimit.count + 1 : 1,
+      resetAt: currentRateLimit && currentRateLimit.resetAt > now ? currentRateLimit.resetAt : now + notificationReplayRateLimitWindowMs
+    });
 
     const deadLetterQueue = createRenderQueue(RENDER_QUEUE_NAMES.notificationDeadLetter);
     const deadLetterJob = await deadLetterQueue.getJob(params.data.id);

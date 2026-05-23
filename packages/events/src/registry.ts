@@ -254,6 +254,16 @@ export const RENDER_EVENT_REGISTRY: RenderEventRegistryEntry[] = [
     consumers: ["operator audit review", "future notification observability views"],
     replaySafe: true,
     description: "Duplicate notification replay request rejected by deterministic idempotency controls."
+  },
+  {
+    type: RENDER_EVENT_TYPES.notificationReplayRateLimited,
+    version: 1,
+    source: "render.api",
+    aggregate: "notification_delivery",
+    producer: "apps/api/src/admin/routes.ts",
+    consumers: ["operator audit review", "future notification observability views"],
+    replaySafe: true,
+    description: "Notification replay request rejected by operator rate-limit controls."
   }
 ];
 
