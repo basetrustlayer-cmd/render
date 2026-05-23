@@ -4,7 +4,9 @@ import { z } from "zod";
 import { authenticate, requireAdmin, requireAuthUser, requireModerator, requireSuperAdmin } from "../auth/middleware.js";
 import { writeAuditLog } from "../audit/log.js";
 import { prisma } from "../database/client.js";
-import { createRenderQueue, RENDER_QUEUE_NAMES } from "@render/queue";
+import { createRenderQueue, RENDER_QUEUE_NAMES, type NotificationReplayRequestJobData } from "@render/queue";
+import { createRenderEvent, RENDER_EVENT_TYPES } from "@render/events";
+import { recordOperationalMetric } from "@render/observability";
 import { requireAdminOrganizationScope } from "./scope.js";
 
 const idParamsSchema = z.object({
@@ -73,6 +75,128 @@ const disputeListQuerySchema = z.object({
 });
 
 export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
+  app.post("/admin/notifications/dead-letter/:id/replay-request", { preHandler: [authenticate, requireSuperAdmin] }, async (request, reply) => {
+    const authUser = requireAuthUser(request);
+    const params = idParamsSchema.safeParse(request.params);
+    const body = z.object({ reason: z.string().min(10).max(1000) }).safeParse(request.body);
+
+    if (!params.success || !body.success) {
+      return reply.code(400).send({ error: "Invalid notification replay request payload." });
+    }
+
+    const manualApproval = true;
+    const automaticReplay = false;
+    const replayMode = "MANUAL_OPERATOR_REVIEW_REQUIRED";
+
+    const deadLetterQueue = createRenderQueue(RENDER_QUEUE_NAMES.notificationDeadLetter);
+    const deadLetterJob = await deadLetterQueue.getJob(params.data.id);
+    await deadLetterQueue.close();
+
+    if (!deadLetterJob) {
+      const blockedEvent = createRenderEvent({
+        id: crypto.randomUUID(),
+        type: RENDER_EVENT_TYPES.notificationReplayBlocked,
+        aggregateId: params.data.id,
+        correlationId: crypto.randomUUID(),
+        source: "render.api",
+        payload: {
+          deadLetterJobId: params.data.id,
+          status: "BLOCKED",
+          reason: "DEAD_LETTER_JOB_NOT_FOUND",
+          manualApproval,
+          automaticReplay,
+          replayMode
+        }
+      });
+
+      recordOperationalMetric({
+        name: "notification.replay.blocked",
+        value: 1,
+        unit: "count",
+        correlationId: blockedEvent.correlationId,
+        aggregateId: params.data.id,
+        source: "render.api",
+        metadata: { blockedEvent }
+      });
+
+      return reply.code(404).send({ error: "Notification dead-letter job not found." });
+    }
+
+    const data = deadLetterJob.data;
+    const replayRequest: NotificationReplayRequestJobData = {
+      deadLetterJobId: String(deadLetterJob.id ?? params.data.id),
+      originalQueue: data.originalQueue,
+      userId: data.userId,
+      title: data.title,
+      body: data.body,
+      approvedByUserId: authUser.userId,
+      reason: body.data.reason,
+      requestedAt: new Date().toISOString(),
+      idempotencyKey: `notification-replay:${deadLetterJob.id}:${authUser.userId}`,
+      correlationId: data.correlationId
+    };
+
+    const replayQueue = createRenderQueue(RENDER_QUEUE_NAMES.notificationReplayRequest);
+    const replayJob = await replayQueue.add("notification-replay-request", replayRequest, {
+      jobId: replayRequest.idempotencyKey
+    });
+    await replayQueue.close();
+
+    const requestedEvent = createRenderEvent({
+      id: crypto.randomUUID(),
+      type: RENDER_EVENT_TYPES.notificationReplayRequested,
+      aggregateId: data.userId,
+      correlationId: data.correlationId,
+      source: "render.api",
+      payload: {
+        deadLetterJobId: replayRequest.deadLetterJobId,
+        replayJobId: String(replayJob.id ?? ""),
+        userId: data.userId,
+        status: "REPLAY_REQUESTED",
+        manualApproval,
+        automaticReplay,
+        replayMode,
+        idempotencyKey: replayRequest.idempotencyKey
+      }
+    });
+
+    recordOperationalMetric({
+      name: "notification.replay.requested",
+      value: 1,
+      unit: "count",
+      correlationId: data.correlationId,
+      aggregateId: data.userId,
+      source: "render.api",
+      metadata: { requestedEvent }
+    });
+
+    void writeAuditLog({
+      request,
+      actorUserId: authUser.userId,
+      action: "NOTIFICATION_DEAD_LETTER_REPLAY_REQUESTED",
+      entityType: "NOTIFICATION_DEAD_LETTER",
+      entityId: replayRequest.deadLetterJobId,
+      metadata: {
+        replayJobId: String(replayJob.id ?? ""),
+        idempotencyKey: replayRequest.idempotencyKey,
+        manualApproval,
+        automaticReplay,
+        replayMode,
+        reason: body.data.reason
+      }
+    });
+
+    return reply.code(202).send({
+      replayRequested: true,
+      replayJobId: replayJob.id,
+      deadLetterJobId: replayRequest.deadLetterJobId,
+      manualApproval,
+      automaticReplay,
+      replayMode,
+      idempotencyKey: replayRequest.idempotencyKey
+    });
+  });
+
   app.get("/admin/users", { preHandler: [authenticate, requireAdmin] }, async (request) => {
     const authUser = requireAuthUser(request);
 

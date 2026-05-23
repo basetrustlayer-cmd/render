@@ -204,6 +204,26 @@ export const RENDER_EVENT_REGISTRY: RenderEventRegistryEntry[] = [
     consumers: ["future replay tooling", "future notification observability views"],
     replaySafe: true,
     description: "Notification dead-letter payload is preserved and ready for future controlled replay."
+  } ,
+  {
+    type: RENDER_EVENT_TYPES.notificationReplayRequested,
+    version: 1,
+    source: "render.api",
+    aggregate: "notification_delivery",
+    producer: "apps/api/src/admin/routes.ts",
+    consumers: ["manual replay worker", "future notification observability views"],
+    replaySafe: true,
+    description: "Super admin requested controlled replay of a preserved notification dead-letter payload."
+  },
+  {
+    type: RENDER_EVENT_TYPES.notificationReplayBlocked,
+    version: 1,
+    source: "render.api",
+    aggregate: "notification_delivery",
+    producer: "apps/api/src/admin/routes.ts",
+    consumers: ["operator review", "future security policy views"],
+    replaySafe: true,
+    description: "Notification dead-letter replay was blocked by manual policy controls."
   }
 ];
 

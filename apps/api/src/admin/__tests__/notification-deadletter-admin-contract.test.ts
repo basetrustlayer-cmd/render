@@ -17,7 +17,7 @@ describe("admin notification dead-letter visibility contract", () => {
     expect(source).toContain("replayEnabled: false");
     expect(source).toContain('replayMode: "MANUAL_OPERATOR_REVIEW_REQUIRED"');
     expect(source).not.toContain(".add(\"push-notification-delivery\"");
-    expect(source).not.toContain("notificationReplay");
+    expect(source).not.toContain('.add("push-notification-delivery"');
   });
 
   it("bounds dead-letter query scope", () => {

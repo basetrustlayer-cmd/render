@@ -6,7 +6,8 @@ export const RENDER_QUEUE_NAMES = {
   settlementProcessing: "render.settlement.processing",
   messagingNotificationFanout: "render.messaging.notification_fanout",
   pushNotificationDelivery: "render.notification.push_delivery",
-  notificationDeadLetter: "render.notification.dead_letter"
+  notificationDeadLetter: "render.notification.dead_letter",
+  notificationReplayRequest: "render.notification.replay_request"
 } as const;
 
 export type RenderQueueName =
@@ -63,12 +64,26 @@ export type NotificationDeadLetterJobData = {
   correlationId: string;
 };
 
+export type NotificationReplayRequestJobData = {
+  deadLetterJobId: string;
+  originalQueue: typeof RENDER_QUEUE_NAMES.pushNotificationDelivery;
+  userId: string;
+  title: string;
+  body: string;
+  approvedByUserId: string;
+  reason: string;
+  requestedAt: string;
+  idempotencyKey: string;
+  correlationId: string;
+};
+
 export type RenderJobDataByQueue = {
   [RENDER_QUEUE_NAMES.smoke]: SmokeJobData;
   [RENDER_QUEUE_NAMES.settlementProcessing]: SettlementProcessingJobData;
   [RENDER_QUEUE_NAMES.messagingNotificationFanout]: MessagingNotificationFanoutJobData;
   [RENDER_QUEUE_NAMES.pushNotificationDelivery]: PushNotificationDeliveryJobData;
   [RENDER_QUEUE_NAMES.notificationDeadLetter]: NotificationDeadLetterJobData;
+  [RENDER_QUEUE_NAMES.notificationReplayRequest]: NotificationReplayRequestJobData;
 };
 
 export function getRedisUrl(): string {
