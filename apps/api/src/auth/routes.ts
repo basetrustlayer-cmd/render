@@ -21,6 +21,14 @@ const verifyOtpSchema = z.object({
   code: z.string().min(4).max(8)
 });
 
+
+const profileUpdateSchema = z.object({
+  email: z.string().email().optional(),
+  whatsappNumber: z.string().min(8).max(20).optional(),
+  isBusiness: z.boolean().optional()
+});
+
+
 function hashOtp(code: string): string {
   return crypto.createHash("sha256").update(code).digest("hex");
 }
@@ -88,6 +96,37 @@ async function toAuthResponse(user: {
 }
 
 export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
+  app.get("/me", { preHandler: authenticate }, async (request, reply) => {
+    const authUser = requireAuthUser(request);
+
+    return reply.code(501).send({
+      error: "User profile persistence pending.",
+      profile: {
+        id: authUser.userId,
+        verificationLevel: authUser.verificationLevel,
+        isBusiness: authUser.isBusiness,
+        isSuspended: authUser.isSuspended
+      }
+    });
+  });
+
+  app.put("/me", { preHandler: authenticate }, async (request, reply) => {
+    const authUser = requireAuthUser(request);
+    const parsed = profileUpdateSchema.safeParse(request.body);
+
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid profile update payload." });
+    }
+
+    return reply.code(501).send({
+      error: "User profile persistence pending.",
+      profile: {
+        id: authUser.userId,
+        ...parsed.data
+      }
+    });
+  });
+
   app.post("/auth/otp/send", {
     config: {
       rateLimit: {
