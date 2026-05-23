@@ -1,4 +1,4 @@
-import { RENDER_EVENT_TYPES, type RenderEventSource, type RenderEventType } from "./index.js";
+import { RENDER_EVENT_TYPES, type RenderEventSource, type RenderEventType } from "./types.js";
 
 export type RenderEventRegistryEntry = {
   type: RenderEventType;
