@@ -3,7 +3,8 @@ import { Redis } from "ioredis";
 
 export const RENDER_QUEUE_NAMES = {
   smoke: "render.smoke",
-  settlementProcessing: "render.settlement.processing"
+  settlementProcessing: "render.settlement.processing",
+  messagingNotificationFanout: "render.messaging.notification_fanout"
 } as const;
 
 export type RenderQueueName =
@@ -25,9 +26,25 @@ export type SettlementProcessingJobData = {
   triggeredAt: string;
 };
 
+export type MessagingNotificationFanoutJobData = {
+  eventId: string;
+  eventType:
+    | "render.messaging.conversation_created"
+    | "render.messaging.message_sent"
+    | "render.messaging.message_read";
+  conversationId: string;
+  messageId?: string;
+  senderId?: string;
+  recipientUserIds: string[];
+  organizationId?: string | null;
+  triggeredAt: string;
+  correlationId: string;
+};
+
 export type RenderJobDataByQueue = {
   [RENDER_QUEUE_NAMES.smoke]: SmokeJobData;
   [RENDER_QUEUE_NAMES.settlementProcessing]: SettlementProcessingJobData;
+  [RENDER_QUEUE_NAMES.messagingNotificationFanout]: MessagingNotificationFanoutJobData;
 };
 
 export function getRedisUrl(): string {
