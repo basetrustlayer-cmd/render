@@ -18,6 +18,7 @@
     "bullmq": "^5.64.1",
     "ioredis": "^5.8.2",
     "@render/observability": "workspace:*",
+    "@render/events": "workspace:*",
     "@render/reliability": "workspace:*"
   },
   "devDependencies": {

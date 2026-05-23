@@ -1,5 +1,6 @@
 import { Worker } from "bullmq";
 import { settlementWorker } from "./jobs/settlement-processor.js";
+import { messagingNotificationFanoutWorker } from "./jobs/messaging-notification-fanout.js";
 import {
   createQueueConnection,
   RENDER_QUEUE_NAMES,
@@ -35,7 +36,8 @@ smokeWorker.on("ready", () => {
       event: "worker_ready",
       queues: [
         RENDER_QUEUE_NAMES.smoke,
-        RENDER_QUEUE_NAMES.settlementProcessing
+        RENDER_QUEUE_NAMES.settlementProcessing,
+        RENDER_QUEUE_NAMES.messagingNotificationFanout
       ]
     })
   );
@@ -67,6 +69,7 @@ async function shutdown(signal: string): Promise<void> {
 
   await smokeWorker.close();
   await settlementWorker.close();
+  await messagingNotificationFanoutWorker.close();
   await connection.quit();
 
   console.log(JSON.stringify({ event: "worker_shutdown_complete", signal }));
