@@ -13,11 +13,35 @@ describe("notification route contract", () => {
     expect(source).toContain("FIREBASE_SERVER_KEY");
   });
 
+  it("keeps notification preference routes authenticated and explicitly pending", () => {
+    expect(source).toContain('app.get("/notification-preferences", { preHandler: authenticate }');
+    expect(source).toContain('app.put("/notification-preferences", { preHandler: authenticate }');
+    expect(source.match(/Notification preference persistence pending\./g)?.length).toBe(2);
+  });
+
+  it("validates notification preference channel and purpose fields", () => {
+    expect(source).toContain("notificationPreferenceSchema.safeParse(request.body)");
+    expect(source).toContain("email: z.boolean()");
+    expect(source).toContain("sms: z.boolean()");
+    expect(source).toContain("push: z.boolean()");
+    expect(source).toContain("marketing: z.boolean()");
+    expect(source).toContain("transactional: z.boolean()");
+    expect(source).toContain("Invalid notification preference payload.");
+  });
+
+  it("returns deterministic placeholder preference defaults before persistence exists", () => {
+    expect(source).toContain("email: true");
+    expect(source).toContain("sms: true");
+    expect(source).toContain("push: false");
+    expect(source).toContain("marketing: false");
+    expect(source).toContain("transactional: true");
+  });
+
   it("keeps outbound notification provider routes explicitly pending", () => {
     expect(source).toContain("Email provider integration pending.");
     expect(source).toContain("Hubtel SMS integration pending.");
     expect(source).toContain("Push notification integration pending.");
-    expect(source.match(/reply\.code\(501\)/g)?.length).toBe(3);
+    expect(source.match(/reply\.code\(501\)/g)?.length).toBe(5);
   });
 
   it("validates email, sms, and push payloads before provider handling", () => {
@@ -29,13 +53,15 @@ describe("notification route contract", () => {
     expect(source).toContain("Invalid push notification payload.");
   });
 
-  it("keeps direct notification routes unauthenticated only while integration is pending", () => {
-    expect(source).not.toContain("preHandler: authenticate");
-    expect(source.match(/reply\.code\(501\)/g)?.length).toBe(3);
+  it("keeps direct notification provider routes unauthenticated only while integration is pending", () => {
+    expect(source).toContain('app.post("/notifications/email", async (request, reply) => {');
+    expect(source).toContain('app.post("/notifications/sms", async (request, reply) => {');
+    expect(source).toContain('app.post("/notifications/push", async (request, reply) => {');
+    expect(source).not.toContain('app.post("/notifications/email", { preHandler: authenticate }');
   });
 
   it("does not expose notification preference persistence before schema is ready", () => {
-    expect(source).not.toContain("notificationPreference");
+    expect(source).not.toContain("prisma.notificationPreference");
     expect(source).not.toContain("prisma.notification");
     expect(source).not.toContain("../database/client.js");
   });

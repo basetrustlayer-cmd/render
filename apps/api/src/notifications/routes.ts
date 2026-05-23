@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { authenticate } from "../auth/middleware.js";
 
 const emailNotificationSchema = z.object({
   to: z.string().email(),
@@ -18,7 +19,43 @@ const pushNotificationSchema = z.object({
   body: z.string().min(1).max(1000)
 });
 
+
+const notificationPreferenceSchema = z.object({
+  email: z.boolean(),
+  sms: z.boolean(),
+  push: z.boolean(),
+  marketing: z.boolean(),
+  transactional: z.boolean()
+});
+
+
 export async function registerNotificationRoutes(app: FastifyInstance): Promise<void> {
+  app.get("/notification-preferences", { preHandler: authenticate }, async (_request, reply) => {
+    return reply.code(501).send({
+      error: "Notification preference persistence pending.",
+      preferences: {
+        email: true,
+        sms: true,
+        push: false,
+        marketing: false,
+        transactional: true
+      }
+    });
+  });
+
+  app.put("/notification-preferences", { preHandler: authenticate }, async (request, reply) => {
+    const parsed = notificationPreferenceSchema.safeParse(request.body);
+
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid notification preference payload." });
+    }
+
+    return reply.code(501).send({
+      error: "Notification preference persistence pending.",
+      preferences: parsed.data
+    });
+  });
+
   app.get("/notifications/health", async () => {
     return {
       status: "ok",
