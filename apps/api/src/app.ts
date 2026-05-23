@@ -34,7 +34,15 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   await app.register(cors, {
-    origin: allowedOrigins.length > 0 ? allowedOrigins : false,
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+
+      const isConfiguredOrigin = allowedOrigins.includes(origin);
+      const isVercelPreview = /^https:\/\/[-a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*\.vercel\.app$/.test(origin);
+      const isRenderDomain = origin === "https://render.com.gh" || origin === "https://www.render.com.gh";
+
+      return callback(null, isConfiguredOrigin || isVercelPreview || isRenderDomain);
+    },
     credentials: true
   });
 
@@ -110,6 +118,20 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   app.get("/", async () => {
+    return {
+      service: "render-api",
+      status: "ok"
+    };
+  });
+
+  app.get("/health", async () => {
+    return {
+      service: "render-api",
+      status: "ok"
+    };
+  });
+
+  app.get("/health", async () => {
     return {
       service: "render-api",
       status: "ok"

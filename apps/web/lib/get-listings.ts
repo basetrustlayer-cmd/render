@@ -21,6 +21,23 @@ export type Listing = {
   }>;
 };
 
-export async function getListings(): Promise<{ listings: Listing[] }> {
-  return apiFetch<{ listings: Listing[] }>("/listings");
+export type ListingFilters = {
+  q?: string;
+  category?: string;
+  locationRegion?: string;
+  sort?: "newest" | "price_asc" | "price_desc";
+  verifiedOnly?: boolean;
+};
+
+export async function getListings(filters: ListingFilters = {}): Promise<{ listings: Listing[] }> {
+  const params = new URLSearchParams();
+
+  if (filters.q) params.set("q", filters.q);
+  if (filters.category) params.set("category", filters.category);
+  if (filters.locationRegion) params.set("locationRegion", filters.locationRegion);
+  if (filters.sort) params.set("sort", filters.sort);
+  if (filters.verifiedOnly) params.set("verifiedOnly", "true");
+
+  const query = params.toString();
+  return apiFetch<{ listings: Listing[] }>(`/listings${query ? `?${query}` : ""}`);
 }
