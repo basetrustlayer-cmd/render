@@ -42,11 +42,15 @@ describe("messaging route contract", () => {
     expect(source).toContain("Message sender cannot mark own message as read.");
   });
 
-  it("enforces participant access boundaries", () => {
+  it("enforces participant and tenant access boundaries", () => {
     expect(source).toContain("isConversationParticipant");
     expect(source).toContain("Conversation participant access required.");
     expect(source).toContain("Message sender must match authenticated user.");
     expect(source).toContain("parsed.data.senderId !== authUser.userId");
+    expect(source).toContain("getRequestedOrganizationId");
+    expect(source).toContain("requireActiveOrganizationMembership");
+    expect(source).toContain("enforceConversationTenantAccess");
+    expect(source).toContain("Invalid organization context.");
   });
 
   it("validates conversation creation payloads", () => {
@@ -77,11 +81,12 @@ describe("messaging route contract", () => {
     expect(source).toContain("prisma.$transaction");
   });
 
-  it("audits conversation, message creation, and read receipts", () => {
+  it("audits conversation, message creation, and read receipts with organization context", () => {
     expect(source).toContain("CONVERSATION_CREATED");
     expect(source).toContain("MESSAGE_SENT");
     expect(source).toContain("MESSAGE_READ");
     expect(source).toContain("writeAuditLog");
+    expect(source).toContain("organizationId");
   });
 
   it("keeps TrustLayer authority out of messaging persistence", () => {

@@ -1,8 +1,12 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { authenticate, requireAuthUser } from "../auth/middleware.js";
 import { prisma } from "../database/client.js";
 import { writeAuditLog } from "../audit/log.js";
+import {
+  getRequestedOrganizationId,
+  requireActiveOrganizationMembership
+} from "../organizations/context.js";
 
 const createConversationSchema = z.object({
   buyerId: z.string().uuid(),
@@ -28,16 +32,69 @@ function isConversationParticipant(conversation: { buyerId: string; sellerId: st
   return conversation.buyerId === userId || conversation.sellerId === userId;
 }
 
+async function resolveMessagingOrganizationContext(request: FastifyRequest, userId: string): Promise<string | null> {
+  const organizationId = getRequestedOrganizationId(request);
+
+  if (!organizationId) {
+    return null;
+  }
+
+  const membership = await requireActiveOrganizationMembership({
+    userId,
+    organizationId
+  });
+
+  return membership ? organizationId : null;
+}
+
+async function enforceConversationTenantAccess(input: {
+  request: FastifyRequest;
+  userId: string;
+  organizationId: string | null;
+}): Promise<boolean> {
+  if (!input.organizationId) {
+    return true;
+  }
+
+  const requestedOrganizationId = getRequestedOrganizationId(input.request);
+
+  if (requestedOrganizationId !== input.organizationId) {
+    return false;
+  }
+
+  const membership = await requireActiveOrganizationMembership({
+    userId: input.userId,
+    organizationId: input.organizationId
+  });
+
+  return Boolean(membership);
+}
+
 export async function registerMessagingRoutes(app: FastifyInstance): Promise<void> {
-  app.get("/conversations", { preHandler: authenticate }, async (request) => {
+  app.get("/conversations", { preHandler: authenticate }, async (request, reply) => {
     const authUser = requireAuthUser(request);
+    const requestedOrganizationId = getRequestedOrganizationId(request);
+
+    if (requestedOrganizationId) {
+      const membership = await requireActiveOrganizationMembership({
+        userId: authUser.userId,
+        organizationId: requestedOrganizationId
+      });
+
+      if (!membership) {
+        return reply.code(403).send({ error: "Invalid organization context." });
+      }
+    }
 
     const conversations = await prisma.conversation.findMany({
       where: {
         OR: [
           { buyerId: authUser.userId },
           { sellerId: authUser.userId }
-        ]
+        ],
+        ...(requestedOrganizationId
+          ? { organizationId: requestedOrganizationId }
+          : { organizationId: null })
       },
       include: {
         listing: {
@@ -95,11 +152,18 @@ export async function registerMessagingRoutes(app: FastifyInstance): Promise<voi
       return reply.code(400).send({ error: "Conversation requires distinct buyer and seller." });
     }
 
+    const organizationId = await resolveMessagingOrganizationContext(request, authUser.userId);
+
+    if (getRequestedOrganizationId(request) && !organizationId) {
+      return reply.code(403).send({ error: "Invalid organization context." });
+    }
+
     const existing = await prisma.conversation.findFirst({
       where: {
         buyerId: parsed.data.buyerId,
         sellerId: parsed.data.sellerId,
-        listingId: parsed.data.listingId ?? null
+        listingId: parsed.data.listingId ?? null,
+        organizationId
       }
     });
 
@@ -111,13 +175,15 @@ export async function registerMessagingRoutes(app: FastifyInstance): Promise<voi
       data: {
         buyerId: parsed.data.buyerId,
         sellerId: parsed.data.sellerId,
-        listingId: parsed.data.listingId
+        listingId: parsed.data.listingId,
+        organizationId
       }
     });
 
     void writeAuditLog({
       request,
       actorUserId: authUser.userId,
+      organizationId,
       action: "CONVERSATION_CREATED",
       entityType: "CONVERSATION",
       entityId: conversation.id
@@ -139,7 +205,8 @@ export async function registerMessagingRoutes(app: FastifyInstance): Promise<voi
       select: {
         id: true,
         buyerId: true,
-        sellerId: true
+        sellerId: true,
+        organizationId: true
       }
     });
 
@@ -149,6 +216,16 @@ export async function registerMessagingRoutes(app: FastifyInstance): Promise<voi
 
     if (!isConversationParticipant(conversation, authUser.userId)) {
       return reply.code(403).send({ error: "Conversation participant access required." });
+    }
+
+    const hasTenantAccess = await enforceConversationTenantAccess({
+      request,
+      userId: authUser.userId,
+      organizationId: conversation.organizationId
+    });
+
+    if (!hasTenantAccess) {
+      return reply.code(403).send({ error: "Invalid organization context." });
     }
 
     const messages = await prisma.message.findMany({
@@ -162,7 +239,6 @@ export async function registerMessagingRoutes(app: FastifyInstance): Promise<voi
       conversationId: conversation.id
     };
   });
-
 
   app.post("/messages/:id/read", { preHandler: authenticate }, async (request, reply) => {
     const authUser = requireAuthUser(request);
@@ -179,7 +255,8 @@ export async function registerMessagingRoutes(app: FastifyInstance): Promise<voi
           select: {
             id: true,
             buyerId: true,
-            sellerId: true
+            sellerId: true,
+            organizationId: true
           }
         }
       }
@@ -191,6 +268,16 @@ export async function registerMessagingRoutes(app: FastifyInstance): Promise<voi
 
     if (!isConversationParticipant(message.conversation, authUser.userId)) {
       return reply.code(403).send({ error: "Conversation participant access required." });
+    }
+
+    const hasTenantAccess = await enforceConversationTenantAccess({
+      request,
+      userId: authUser.userId,
+      organizationId: message.conversation.organizationId
+    });
+
+    if (!hasTenantAccess) {
+      return reply.code(403).send({ error: "Invalid organization context." });
     }
 
     if (message.senderId === authUser.userId) {
@@ -212,6 +299,7 @@ export async function registerMessagingRoutes(app: FastifyInstance): Promise<voi
     void writeAuditLog({
       request,
       actorUserId: authUser.userId,
+      organizationId: message.conversation.organizationId,
       action: "MESSAGE_READ",
       entityType: "MESSAGE",
       entityId: readMessage.id,
@@ -243,7 +331,8 @@ export async function registerMessagingRoutes(app: FastifyInstance): Promise<voi
       select: {
         id: true,
         buyerId: true,
-        sellerId: true
+        sellerId: true,
+        organizationId: true
       }
     });
 
@@ -253,6 +342,16 @@ export async function registerMessagingRoutes(app: FastifyInstance): Promise<voi
 
     if (!isConversationParticipant(conversation, authUser.userId)) {
       return reply.code(403).send({ error: "Conversation participant access required." });
+    }
+
+    const hasTenantAccess = await enforceConversationTenantAccess({
+      request,
+      userId: authUser.userId,
+      organizationId: conversation.organizationId
+    });
+
+    if (!hasTenantAccess) {
+      return reply.code(403).send({ error: "Invalid organization context." });
     }
 
     const message = await prisma.$transaction(async (tx) => {
@@ -275,6 +374,7 @@ export async function registerMessagingRoutes(app: FastifyInstance): Promise<voi
     void writeAuditLog({
       request,
       actorUserId: authUser.userId,
+      organizationId: conversation.organizationId,
       action: "MESSAGE_SENT",
       entityType: "MESSAGE",
       entityId: message.id,

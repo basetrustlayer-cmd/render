@@ -329,6 +329,7 @@ model Conversation {
   buyerId        String    @map("buyer_id") @db.Uuid
   sellerId       String    @map("seller_id") @db.Uuid
   listingId      String?   @map("listing_id") @db.Uuid
+  organizationId String?   @map("organization_id") @db.Uuid
   lastMessageAt  DateTime? @map("last_message_at") @db.Timestamptz(6)
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -336,11 +337,13 @@ model Conversation {
   buyer          User      @relation("BuyerConversations", fields: [buyerId], references: [id], onDelete: Cascade)
   seller         User      @relation("SellerConversations", fields: [sellerId], references: [id], onDelete: Cascade)
   listing        Listing?  @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   messages       Message[]
 
   @@index([buyerId])
   @@index([sellerId])
   @@index([listingId])
+  @@index([organizationId])
   @@index([lastMessageAt])
   @@unique([buyerId, sellerId, listingId])
   @@map("conversations")
@@ -479,6 +482,7 @@ model Organization {
   safeDeals          SafeDeal[]
   disputes           Dispute[]
   auditLogs          AuditLog[]
+  conversations      Conversation[]
 
   @@index([status])
   @@map("organizations")
