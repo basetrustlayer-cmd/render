@@ -5,19 +5,28 @@ import { describe, expect, it } from "vitest";
 describe("messaging route contract", () => {
   const source = readFileSync(resolve(process.cwd(), "src/messaging/routes.ts"), "utf8");
 
-  it("keeps conversation creation authenticated", () => {
+  it("keeps conversation and message routes authenticated", () => {
+    expect(source).toContain('app.get("/conversations", { preHandler: authenticate }');
     expect(source).toContain('app.post("/conversations", { preHandler: authenticate }');
-  });
-
-  it("keeps message sending authenticated", () => {
+    expect(source).toContain('app.get("/conversations/:id/messages", { preHandler: authenticate }');
     expect(source).toContain('app.post("/messages", { preHandler: authenticate }');
+    expect(source).toContain("requireAuthUser(request)");
   });
 
-  it("keeps message reads public only while persistence is pending", () => {
-    expect(source).toContain('app.get("/conversations/:id/messages", async (request, reply) => {');
-    expect(source).not.toContain('app.get("/conversations/:id/messages", { preHandler: authenticate }');
-    expect(source).toContain("messages: []");
-    expect(source).toContain("conversationId: params.data.id");
+  it("uses Prisma-backed messaging persistence", () => {
+    expect(source).toContain("prisma.conversation.findMany");
+    expect(source).toContain("prisma.conversation.findFirst");
+    expect(source).toContain("prisma.conversation.create");
+    expect(source).toContain("prisma.message.findMany");
+    expect(source).toContain("tx.message.create");
+    expect(source).toContain("tx.conversation.update");
+  });
+
+  it("enforces participant access boundaries", () => {
+    expect(source).toContain("isConversationParticipant");
+    expect(source).toContain("Conversation participant access required.");
+    expect(source).toContain("Message sender must match authenticated user.");
+    expect(source).toContain("parsed.data.senderId !== authUser.userId");
   });
 
   it("validates conversation creation payloads", () => {
@@ -29,9 +38,10 @@ describe("messaging route contract", () => {
   });
 
   it("validates conversation message read params", () => {
+    expect(source).toContain("conversationParamsSchema.safeParse(request.params)");
     expect(source).toContain("id: z.string().uuid()");
     expect(source).toContain("Invalid conversation ID.");
-    expect(source).toContain("conversationId: params.data.id");
+    expect(source).toContain("conversationId: conversation.id");
   });
 
   it("validates outbound message payloads", () => {
@@ -42,15 +52,21 @@ describe("messaging route contract", () => {
     expect(source).toContain("Invalid message payload.");
   });
 
-  it("keeps persistence writes explicitly pending", () => {
-    expect(source).toContain("Messaging persistence is pending Prisma client generation in CI/Render.");
-    expect(source).toContain("Message persistence is pending Prisma client generation in CI/Render.");
-    expect(source.match(/reply\.code\(501\)/g)?.length).toBe(2);
+  it("updates last message projection when messages are sent", () => {
+    expect(source).toContain("lastMessageAt: created.createdAt");
+    expect(source).toContain("prisma.$transaction");
   });
 
-  it("does not introduce messaging Prisma persistence before the schema is ready", () => {
-    expect(source).not.toContain("prisma.conversation");
-    expect(source).not.toContain("prisma.message");
-    expect(source).not.toContain("../database/client.js");
+  it("audits conversation and message creation without blocking flow", () => {
+    expect(source).toContain("CONVERSATION_CREATED");
+    expect(source).toContain("MESSAGE_SENT");
+    expect(source).toContain("writeAuditLog");
+  });
+
+  it("keeps TrustLayer authority out of messaging persistence", () => {
+    expect(source).not.toContain("createTrustLayerClient");
+    expect(source).not.toContain("trustScore");
+    expect(source).not.toContain("escrow");
+    expect(source).not.toContain("settlement");
   });
 });
