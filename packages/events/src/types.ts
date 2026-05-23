@@ -45,7 +45,8 @@ export const RENDER_EVENT_TYPES = {
   notificationReplayStarted: "render.notification.replay_started",
   notificationReplayDeliveryEnqueued: "render.notification.replay_delivery_enqueued",
   notificationReplayDuplicateRejected: "render.notification.replay_duplicate_rejected",
-  notificationReplayRateLimited: "render.notification.replay_rate_limited"
+  notificationReplayRateLimited: "render.notification.replay_rate_limited",
+  notificationReplayExpired: "render.notification.replay_expired"
 } as const;
 
 export type RenderEventType =

@@ -64,6 +64,7 @@ const deadLetterListQuerySchema = z.object({
 
 const notificationReplayRateLimitWindowMs = 60_000;
 const notificationReplayRateLimitMaxRequests = 3;
+const notificationReplayTtlMs = 7 * 24 * 60 * 60 * 1000;
 const notificationReplayRateLimitHits = new Map<string, { count: number; resetAt: number }>();
 
 const disputeListQuerySchema = z.object({
@@ -219,6 +220,81 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const data = deadLetterJob.data;
+    const failedAtMs = Date.parse(data.failedAt);
+    const replayAgeMs = now - failedAtMs;
+
+    if (!Number.isFinite(failedAtMs) || replayAgeMs > notificationReplayTtlMs) {
+      const expiredEvent = createRenderEvent({
+        id: crypto.randomUUID(),
+        type: RENDER_EVENT_TYPES.notificationReplayExpired,
+        aggregateId: data.userId,
+        correlationId: data.correlationId,
+        source: "render.api",
+        payload: {
+          deadLetterJobId: String(deadLetterJob.id ?? params.data.id),
+          userId: data.userId,
+          failedAt: data.failedAt,
+          replayAgeMs,
+          notificationReplayTtlMs,
+          status: "REPLAY_EXPIRED",
+          manualApproval,
+          automaticReplay,
+          replayMode
+        }
+      });
+
+      recordOperationalMetric({
+        name: "notification.replay.expired",
+        value: 1,
+        unit: "count",
+        correlationId: data.correlationId,
+        aggregateId: data.userId,
+        source: "render.api",
+        metadata: {
+          deadLetterJobId: String(deadLetterJob.id ?? params.data.id),
+          userId: data.userId,
+          failedAt: data.failedAt,
+          replayAgeMs,
+          notificationReplayTtlMs
+        }
+      });
+
+      void writeAuditLog({
+        request,
+        actorUserId: authUser.userId,
+        action: "NOTIFICATION_DEAD_LETTER_REPLAY_EXPIRED",
+        entityType: "NOTIFICATION_DEAD_LETTER",
+        entityId: String(deadLetterJob.id ?? params.data.id),
+        metadata: {
+          failedAt: data.failedAt,
+          replayAgeMs,
+          notificationReplayTtlMs,
+          expiredEvent: {
+            id: expiredEvent.id,
+            type: expiredEvent.type,
+            correlationId: expiredEvent.correlationId,
+            occurredAt: expiredEvent.occurredAt
+          },
+          manualApproval,
+          automaticReplay,
+          replayMode,
+          reason: body.data.reason
+        }
+      });
+
+      return reply.code(410).send({
+        replayRequested: false,
+        replayExpired: true,
+        deadLetterJobId: String(deadLetterJob.id ?? params.data.id),
+        failedAt: data.failedAt,
+        replayAgeMs,
+        notificationReplayTtlMs,
+        manualApproval,
+        automaticReplay,
+        replayMode
+      });
+    }
+
     const replayRequest: NotificationReplayRequestJobData = {
       deadLetterJobId: String(deadLetterJob.id ?? params.data.id),
       originalQueue: data.originalQueue,
