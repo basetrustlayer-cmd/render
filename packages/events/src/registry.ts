@@ -224,6 +224,26 @@ export const RENDER_EVENT_REGISTRY: RenderEventRegistryEntry[] = [
     consumers: ["operator review", "future security policy views"],
     replaySafe: true,
     description: "Notification dead-letter replay was blocked by manual policy controls."
+  },
+  {
+    type: RENDER_EVENT_TYPES.notificationReplayStarted,
+    version: 1,
+    source: "render.worker",
+    aggregate: "notification_delivery",
+    producer: "apps/worker/src/jobs/notification-replay-request.ts",
+    consumers: ["future notification observability views"],
+    replaySafe: true,
+    description: "Notification replay request worker started governance processing."
+  },
+  {
+    type: RENDER_EVENT_TYPES.notificationReplayDeliveryEnqueued,
+    version: 1,
+    source: "render.worker",
+    aggregate: "notification_delivery",
+    producer: "apps/worker/src/jobs/notification-replay-request.ts",
+    consumers: ["push notification delivery queue", "future notification observability views"],
+    replaySafe: true,
+    description: "Governed notification replay request re-enqueued a push delivery job."
   }
 ];
 
