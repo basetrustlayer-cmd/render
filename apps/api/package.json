@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/main.js",
   "scripts": {
-    "build": "prisma generate --schema prisma/schema.prisma && tsc",
+    "build": "pnpm --filter @render/trustlayer-sdk build && pnpm --filter @render/queue build && prisma generate --schema prisma/schema.prisma && tsc",
     "start": "node dist/main.js",
     "lint": "prisma generate --schema prisma/schema.prisma && tsc --noEmit",
     "test": "export JWT_SECRET=test_secret_32_chars_minimum_value && prisma generate --schema prisma/schema.prisma && vitest run",
