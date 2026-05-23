@@ -131,13 +131,6 @@ export async function buildApp(): Promise<FastifyInstance> {
     };
   });
 
-  app.get("/health", async () => {
-    return {
-      service: "render-api",
-      status: "ok"
-    };
-  });
-
   await registerAuthRoutes(app);
   await registerAdminRoutes(app);
   await registerListingRoutes(app);
