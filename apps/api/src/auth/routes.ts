@@ -99,15 +99,29 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   app.get("/me", { preHandler: authenticate }, async (request, reply) => {
     const authUser = requireAuthUser(request);
 
-    return reply.code(501).send({
-      error: "User profile persistence pending.",
-      profile: {
-        id: authUser.userId,
-        verificationLevel: authUser.verificationLevel,
-        isBusiness: authUser.isBusiness,
-        isSuspended: authUser.isSuspended
+    const profile = await prisma.user.findUnique({
+      where: { id: authUser.userId },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        whatsappNumber: true,
+        verificationLevel: true,
+        trustScore: true,
+        trustTier: true,
+        isBusiness: true,
+        isSuspended: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true
       }
     });
+
+    if (!profile) {
+      return reply.code(404).send({ error: "User profile not found." });
+    }
+
+    return { profile };
   });
 
   app.put("/me", { preHandler: authenticate }, async (request, reply) => {
@@ -118,13 +132,37 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(400).send({ error: "Invalid profile update payload." });
     }
 
-    return reply.code(501).send({
-      error: "User profile persistence pending.",
-      profile: {
-        id: authUser.userId,
-        ...parsed.data
+    const profile = await prisma.user.update({
+      where: { id: authUser.userId },
+      data: parsed.data,
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        whatsappNumber: true,
+        verificationLevel: true,
+        trustScore: true,
+        trustTier: true,
+        isBusiness: true,
+        isSuspended: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true
       }
     });
+
+    void writeAuditLog({
+      request,
+      actorUserId: authUser.userId,
+      action: "USER_PROFILE_UPDATED",
+      entityType: "USER",
+      entityId: authUser.userId,
+      metadata: {
+        updatedFields: Object.keys(parsed.data)
+      }
+    });
+
+    return { profile };
   });
 
   app.post("/auth/otp/send", {
