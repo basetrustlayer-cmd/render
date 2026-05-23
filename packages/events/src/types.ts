@@ -28,7 +28,10 @@ export const RENDER_EVENT_TYPES = {
   queueJobProcessed: "render.queue.job_processed",
   safeDealProjectionSynced: "render.safedeal.projection_synced",
   disputeProjectionUpdated: "render.dispute.projection_updated",
-  settlementReadyProjected: "render.settlement.ready_projected"
+  settlementReadyProjected: "render.settlement.ready_projected",
+  conversationCreated: "render.messaging.conversation_created",
+  messageSent: "render.messaging.message_sent",
+  messageRead: "render.messaging.message_read"
 } as const;
 
 export type RenderEventType =

@@ -24,7 +24,8 @@
     "zod": "^3.24.2",
     "@render/observability": "workspace:*",
     "@render/risk": "workspace:*",
-    "@render/reliability": "workspace:*"
+    "@render/reliability": "workspace:*",
+    "@render/events": "workspace:*"
   },
   "devDependencies": {
     "@types/jsonwebtoken": "^9.0.10",

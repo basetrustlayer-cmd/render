@@ -4,7 +4,7 @@ export type RenderEventRegistryEntry = {
   type: RenderEventType;
   version: number;
   source: RenderEventSource;
-  aggregate: "audit_log" | "webhook_event" | "queue_job" | "safe_deal" | "dispute" | "settlement";
+  aggregate: "audit_log" | "webhook_event" | "queue_job" | "safe_deal" | "dispute" | "settlement" | "conversation" | "message";
   producer: string;
   consumers: string[];
   replaySafe: boolean;
@@ -91,6 +91,36 @@ export const RENDER_EVENT_REGISTRY: RenderEventRegistryEntry[] = [
     consumers: ["settlement worker", "finance reconciliation endpoint"],
     replaySafe: true,
     description: "Settlement readiness projected after TrustLayer confirmation webhook."
+  },
+  {
+    type: RENDER_EVENT_TYPES.conversationCreated,
+    version: 1,
+    source: "render.api",
+    aggregate: "conversation",
+    producer: "apps/api/src/messaging/routes.ts",
+    consumers: ["future notification fanout", "future realtime gateway", "future observability pipeline"],
+    replaySafe: true,
+    description: "Conversation created inside Render marketplace messaging."
+  },
+  {
+    type: RENDER_EVENT_TYPES.messageSent,
+    version: 1,
+    source: "render.api",
+    aggregate: "message",
+    producer: "apps/api/src/messaging/routes.ts",
+    consumers: ["future notification fanout", "future realtime gateway", "future moderation pipeline"],
+    replaySafe: true,
+    description: "Message sent inside a Render marketplace conversation."
+  },
+  {
+    type: RENDER_EVENT_TYPES.messageRead,
+    version: 1,
+    source: "render.api",
+    aggregate: "message",
+    producer: "apps/api/src/messaging/routes.ts",
+    consumers: ["future unread-count projection", "future realtime gateway"],
+    replaySafe: true,
+    description: "Message read receipt recorded inside Render marketplace messaging."
   }
 ];
 

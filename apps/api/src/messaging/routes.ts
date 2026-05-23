@@ -1,7 +1,9 @@
+import crypto from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { authenticate, requireAuthUser } from "../auth/middleware.js";
 import { prisma } from "../database/client.js";
+import { createRenderEvent, RENDER_EVENT_TYPES } from "@render/events";
 import { writeAuditLog } from "../audit/log.js";
 import {
   getRequestedOrganizationId,
@@ -180,13 +182,29 @@ export async function registerMessagingRoutes(app: FastifyInstance): Promise<voi
       }
     });
 
+    const conversationCreatedEvent = createRenderEvent({
+      id: crypto.randomUUID(),
+      type: RENDER_EVENT_TYPES.conversationCreated,
+      aggregateId: conversation.id,
+      correlationId: request.id,
+      source: "render.api",
+      payload: {
+        conversationId: conversation.id,
+        buyerId: conversation.buyerId,
+        sellerId: conversation.sellerId,
+        listingId: conversation.listingId,
+        organizationId
+      }
+    });
+
     void writeAuditLog({
       request,
       actorUserId: authUser.userId,
       organizationId,
       action: "CONVERSATION_CREATED",
       entityType: "CONVERSATION",
-      entityId: conversation.id
+      entityId: conversation.id,
+      metadata: JSON.parse(JSON.stringify(conversationCreatedEvent))
     });
 
     return reply.code(201).send({ conversation });
@@ -296,6 +314,20 @@ export async function registerMessagingRoutes(app: FastifyInstance): Promise<voi
       data: { readAt: new Date() }
     });
 
+    const messageReadEvent = createRenderEvent({
+      id: crypto.randomUUID(),
+      type: RENDER_EVENT_TYPES.messageRead,
+      aggregateId: readMessage.id,
+      correlationId: request.id,
+      source: "render.api",
+      payload: {
+        messageId: readMessage.id,
+        conversationId: message.conversation.id,
+        readerId: authUser.userId,
+        organizationId: message.conversation.organizationId
+      }
+    });
+
     void writeAuditLog({
       request,
       actorUserId: authUser.userId,
@@ -303,9 +335,7 @@ export async function registerMessagingRoutes(app: FastifyInstance): Promise<voi
       action: "MESSAGE_READ",
       entityType: "MESSAGE",
       entityId: readMessage.id,
-      metadata: {
-        conversationId: message.conversation.id
-      }
+      metadata: JSON.parse(JSON.stringify(messageReadEvent))
     });
 
     return {
@@ -371,6 +401,20 @@ export async function registerMessagingRoutes(app: FastifyInstance): Promise<voi
       return created;
     });
 
+    const messageSentEvent = createRenderEvent({
+      id: crypto.randomUUID(),
+      type: RENDER_EVENT_TYPES.messageSent,
+      aggregateId: message.id,
+      correlationId: request.id,
+      source: "render.api",
+      payload: {
+        messageId: message.id,
+        conversationId: parsed.data.conversationId,
+        senderId: authUser.userId,
+        organizationId: conversation.organizationId
+      }
+    });
+
     void writeAuditLog({
       request,
       actorUserId: authUser.userId,
@@ -378,9 +422,7 @@ export async function registerMessagingRoutes(app: FastifyInstance): Promise<voi
       action: "MESSAGE_SENT",
       entityType: "MESSAGE",
       entityId: message.id,
-      metadata: {
-        conversationId: parsed.data.conversationId
-      }
+      metadata: JSON.parse(JSON.stringify(messageSentEvent))
     });
 
     return reply.code(201).send({ message });
