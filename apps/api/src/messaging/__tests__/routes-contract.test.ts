@@ -15,7 +15,9 @@ describe("messaging route contract", () => {
 
   it("keeps message reads public only while persistence is pending", () => {
     expect(source).toContain('app.get("/conversations/:id/messages", async (request, reply) => {');
+    expect(source).not.toContain('app.get("/conversations/:id/messages", { preHandler: authenticate }');
     expect(source).toContain("messages: []");
+    expect(source).toContain("conversationId: params.data.id");
   });
 
   it("validates conversation creation payloads", () => {
@@ -43,6 +45,12 @@ describe("messaging route contract", () => {
   it("keeps persistence writes explicitly pending", () => {
     expect(source).toContain("Messaging persistence is pending Prisma client generation in CI/Render.");
     expect(source).toContain("Message persistence is pending Prisma client generation in CI/Render.");
-    expect(source.match(/reply.code\(501\)/g)?.length).toBe(2);
+    expect(source.match(/reply\.code\(501\)/g)?.length).toBe(2);
+  });
+
+  it("does not introduce messaging Prisma persistence before the schema is ready", () => {
+    expect(source).not.toContain("prisma.conversation");
+    expect(source).not.toContain("prisma.message");
+    expect(source).not.toContain("../database/client.js");
   });
 });
