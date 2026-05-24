@@ -1,69 +1,52 @@
+import Link from "next/link";
 import { TrustScoreBadge } from "./trust-score-badge";
+import type { Listing } from "../lib/get-listings";
 
 type ListingCardProps = {
-  title: string;
-  price: string;
-  location: string;
-  category: string;
-  trustScore: number;
-  tier: string;
-  verified: boolean;
+  listing: Listing;
+  imageHeightClass?: string;
 };
 
-export function ListingCard({
-  title,
-  price,
-  location,
-  category,
-  trustScore,
-  tier,
-  verified
-}: ListingCardProps) {
+export function ListingCard({ listing, imageHeightClass = "h-44" }: ListingCardProps) {
+  const coverImage = listing.images?.[0]?.url;
+  const score = listing.seller?.trustScore ?? 500;
+  const tier = listing.seller?.trustTier ?? "NEW";
+  const verified = (listing.seller?.verificationLevel ?? 0) >= 1;
+
   return (
-    <article
-      style={{
-        border: "1px solid var(--border)",
-        borderRadius: "22px",
-        padding: "20px",
-        background: "#fff",
-        boxShadow: "0 12px 30px rgba(26, 23, 20, 0.06)"
-      }}
-    >
-      <div
-        style={{
-          height: "160px",
-          borderRadius: "18px",
-          background:
-            "linear-gradient(135deg, rgba(200,144,42,0.22), rgba(26,107,60,0.18))",
-          marginBottom: "18px"
-        }}
-      />
+    <article className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+      {coverImage ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={coverImage} alt={listing.title} className={`${imageHeightClass} w-full object-cover`} />
+      ) : (
+        <div className={`${imageHeightClass} bg-gradient-to-br from-amber-100 to-emerald-100`} />
+      )}
 
-      <p style={{ color: "var(--gold)", margin: 0, fontWeight: 700 }}>
-        {category}
-      </p>
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-sm font-bold text-amber-700">{listing.category}</p>
+          {verified && (
+            <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700">
+              Verified
+            </span>
+          )}
+        </div>
 
-      <h3 style={{ margin: "8px 0", fontSize: "22px" }}>{title}</h3>
+        <h3 className="mt-2 text-xl font-bold text-gray-950">{listing.title}</h3>
+        <p className="mt-2 line-clamp-2 text-sm text-gray-600">{listing.description}</p>
+        <p className="mt-4 text-lg font-black text-gray-950">GH₵ {String(listing.price)}</p>
+        <p className="text-sm text-gray-600">{listing.locationRegion ?? "Ghana"}</p>
 
-      <p style={{ margin: "0 0 12px", fontSize: "20px", fontWeight: 800 }}>
-        {price}
-      </p>
+        <div className="mt-4">
+          <TrustScoreBadge score={score} tier={tier} />
+        </div>
 
-      <p style={{ margin: "0 0 16px", opacity: 0.72 }}>{location}</p>
-
-      <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
-        <TrustScoreBadge score={trustScore} tier={tier} />
-        {verified ? (
-          <span
-            style={{
-              color: "var(--green)",
-              fontWeight: 800,
-              fontSize: "13px"
-            }}
-          >
-            ✓ Verified
-          </span>
-        ) : null}
+        <Link
+          href={`/listings/${listing.id}`}
+          className="mt-4 block rounded-xl bg-black px-4 py-2 text-center text-sm font-bold text-white hover:bg-gray-800"
+        >
+          View details
+        </Link>
       </div>
     </article>
   );

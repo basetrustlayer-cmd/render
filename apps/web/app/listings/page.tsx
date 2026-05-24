@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { TrustScoreBadge } from "../../components/trust-score-badge";
+import { ListingCard } from "../../components/listing-card";
 import { getListings, type ListingFilters } from "../../lib/get-listings";
 
 export const dynamic = "force-dynamic";
@@ -83,47 +83,9 @@ export default async function ListingsPage({ searchParams = {} }: ListingsPagePr
           </div>
         ) : (
           <div className="grid gap-5 md:grid-cols-3">
-            {listings.map((listing) => {
-              const coverImage = listing.images?.[0]?.url;
-              const score = listing.seller?.trustScore ?? 500;
-              const tier = listing.seller?.trustTier ?? "NEW";
-              const verified = (listing.seller?.verificationLevel ?? 0) >= 1;
-
-              return (
-                <article key={listing.id} className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-                  {coverImage ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={coverImage} alt={listing.title} className="h-44 w-full object-cover" />
-                  ) : (
-                    <div className="h-44 bg-gradient-to-br from-amber-100 to-emerald-100" />
-                  )}
-
-                  <div className="p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <p className="text-sm font-bold text-amber-700">{listing.category}</p>
-                      {verified && (
-                        <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700">
-                          Verified
-                        </span>
-                      )}
-                    </div>
-
-                    <h2 className="mt-2 text-xl font-bold text-gray-950">{listing.title}</h2>
-                    <p className="mt-2 line-clamp-2 text-sm text-gray-600">{listing.description}</p>
-                    <p className="mt-4 font-black text-gray-950">GH₵ {String(listing.price)}</p>
-                    <p className="text-sm text-gray-600">{listing.locationRegion ?? "Ghana"}</p>
-
-                    <div className="mt-4">
-                      <TrustScoreBadge score={score} tier={tier} />
-                    </div>
-
-                    <Link href={`/listings/${listing.id}`} className="mt-4 block rounded-xl bg-black px-4 py-2 text-center text-sm font-bold text-white">
-                      View Details
-                    </Link>
-                  </div>
-                </article>
-              );
-            })}
+            {listings.map((listing) => (
+              <ListingCard key={listing.id} listing={listing} />
+            ))}
           </div>
         )}
       </main>
