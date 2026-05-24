@@ -7,7 +7,8 @@ import { writeAuditLog } from "../audit/log.js";
 import { resolveOptionalOrganizationContext, requireListingOrganizationAccess } from "../organizations/context.js";
 
 const listListingsQuerySchema = z.object({
-  verifiedOnly: z.coerce.boolean().optional()
+  verifiedOnly: z.coerce.boolean().optional(),
+  q: z.string().trim().max(100).optional()
 });
 
 const createListingSchema = z.object({
@@ -55,6 +56,14 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       where: {
         status: "LIVE",
         deletedAt: null,
+        ...(query.data.q
+          ? {
+              OR: [
+                { title: { contains: query.data.q } },
+                { description: { contains: query.data.q } }
+              ]
+            }
+          : {}),
         ...(query.data.verifiedOnly
           ? { seller: { verificationLevel: { gte: 1 } } }
           : {})
