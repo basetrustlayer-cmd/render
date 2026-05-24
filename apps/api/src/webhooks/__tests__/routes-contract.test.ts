@@ -53,4 +53,12 @@ describe("webhook route trust and idempotency contract", () => {
     expect(source).toContain('status: "PROCESSED"');
     expect(source).toContain("processedAt: new Date()");
   });
+
+  it("records webhook processing duration for processed and duplicate events", () => {
+    expect(source).toContain("recordOperationalMetric");
+    expect(source).toContain('name: "webhook.processing.duration_ms"');
+    expect(source).toContain('status: "PROCESSED"');
+    expect(source).toContain('status: "DUPLICATE"');
+    expect(source).toContain("elapsedMs(webhookStartedAt)");
+  });
 });

@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../database/client.js";
+import { elapsedMs, nowMs, recordOperationalMetric } from "@render/observability";
 import { writeAuditLog } from "../audit/log.js";
 import { createSettlementLedgerForConfirmedDeal } from "../ledger/settlement.js";
 
@@ -36,6 +37,7 @@ function firstHeaderValue(value: string | string[] | undefined): string | undefi
 
 export async function registerWebhookRoutes(app: FastifyInstance): Promise<void> {
   app.post("/webhooks/trustlayer", { config: { rawBody: true } }, async (request, reply) => {
+    const webhookStartedAt = nowMs();
     const rawBody = (request as RawBodyRequest).rawBody ?? JSON.stringify(request.body ?? {});
     const signature = firstHeaderValue(request.headers["x-trustlayer-signature"]);
 
@@ -93,6 +95,20 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
           data: {
             status: "DUPLICATE",
             processedAt: new Date()
+          }
+        });
+
+        recordOperationalMetric({
+          name: "webhook.processing.duration_ms",
+          value: elapsedMs(webhookStartedAt),
+          unit: "ms",
+          correlationId: request.id,
+          aggregateId: trustLayerEventId,
+          source: "render.api",
+          metadata: {
+            provider: "TRUSTLAYER",
+            event: parsed.data.event,
+            status: "DUPLICATE"
           }
         });
 
@@ -248,6 +264,21 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
       data: {
         status: "PROCESSED",
         processedAt: new Date()
+      }
+    });
+
+    recordOperationalMetric({
+      name: "webhook.processing.duration_ms",
+      value: elapsedMs(webhookStartedAt),
+      unit: "ms",
+      correlationId: request.id,
+      aggregateId: trustLayerEventId,
+      source: "render.api",
+      metadata: {
+        provider: "TRUSTLAYER",
+        event: parsed.data.event,
+        status: "PROCESSED",
+        updatedEscrows
       }
     });
 
