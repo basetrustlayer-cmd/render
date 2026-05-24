@@ -158,9 +158,14 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
       }
     });
 
+    const eventTime = syncedAt ? new Date(syncedAt) : new Date();
+
     if (isTrustLayerUserEvent(parsed.data.event) && (userId || trustlayerUserId)) {
       await prisma.user.updateMany({
-        where: userId ? { id: userId } : { trustlayerUserId },
+        where: {
+          ...(userId ? { id: userId } : { trustlayerUserId }),
+          OR: [{ trustLastSyncedAt: null }, { trustLastSyncedAt: { lte: eventTime } }]
+        },
         data: {
           ...(verificationLevel !== undefined ? { verificationLevel } : {}),
           ...(trustScore !== undefined ? { trustScore } : {}),
@@ -172,7 +177,7 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
           trustTier !== undefined ||
           verificationStatus !== undefined ||
           trustBadge !== undefined
-            ? { trustLastSyncedAt: syncedAt ? new Date(syncedAt) : new Date() }
+            ? { trustLastSyncedAt: eventTime }
             : {})
         }
       });
@@ -184,8 +189,6 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
       const mappedStatus = mapTrustLayerEscrowStatus(escrowStatus);
 
       if (mappedStatus) {
-        const eventTime = syncedAt ? new Date(syncedAt) : new Date();
-
         const syncResult = await prisma.$transaction(async (tx) => {
           const existing = await tx.safeDeal.findFirst({
             where: {
@@ -195,6 +198,10 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
 
           if (!existing) {
             return { updatedCount: 0, settlementId: null as string | null, organizationId: null as string | null };
+          }
+
+          if (existing.escrowLastSyncedAt && existing.escrowLastSyncedAt > eventTime) {
+            return { updatedCount: 0, settlementId: null as string | null, organizationId: existing.organizationId };
           }
 
           const wasAlreadyConfirmed = existing.status === "CONFIRMED";

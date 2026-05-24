@@ -70,4 +70,10 @@ describe("webhook route trust and idempotency contract", () => {
     expect(source).toContain("isTrustLayerEscrowEvent(parsed.data.event) && escrowId");
   });
 
+  it("prevents stale TrustLayer events from overwriting newer projections", () => {
+    expect(source).toContain("OR: [{ trustLastSyncedAt: null }, { trustLastSyncedAt: { lte: eventTime } }]");
+    expect(source).toContain("existing.escrowLastSyncedAt && existing.escrowLastSyncedAt > eventTime");
+    expect(source).toContain("updatedCount: 0");
+  });
+
 });
