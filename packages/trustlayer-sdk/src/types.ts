@@ -76,21 +76,6 @@ export type TrustLayerTrustScoreResponse = {
   lastUpdatedAt: string;
 };
 
-export type TrustLayerSettlementReleaseRequest = {
-  escrowId: string;
-  settlementId: string;
-  safeDealId: string;
-  amountGhs: number;
-};
-
-export type TrustLayerSettlementReleaseResponse = {
-  escrowId: string;
-  settlementId: string;
-  status: string;
-  providerReference?: string;
-};
-
-
 export type TrustLayerDisputeResolutionRequest = {
   escrowId: string;
   disputeId: string;

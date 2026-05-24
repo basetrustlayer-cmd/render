@@ -11,10 +11,7 @@ import type {
   TrustLayerSafeDealConfirmResponse,
   TrustLayerSafeDealIntentRequest,
   TrustLayerSafeDealIntentResponse,
-  TrustLayerTrustScoreResponse,
-  TrustLayerSettlementReleaseRequest,
-  TrustLayerSettlementReleaseResponse,
-  TrustLayerDisputeResolutionRequest,
+  TrustLayerTrustScoreResponse,  TrustLayerDisputeResolutionRequest,
   TrustLayerDisputeResolutionResponse
 } from "./types.js";
 
@@ -132,24 +129,6 @@ export class TrustLayerClient {
     );
   }
 
-  async releaseSettlement(
-    input: TrustLayerSettlementReleaseRequest,
-    options: TrustLayerRequestOptions = {}
-  ): Promise<TrustLayerSettlementReleaseResponse> {
-    return trustLayerRequest<TrustLayerSettlementReleaseResponse>(
-      this.config,
-      `/safedeals/${encodeURIComponent(input.escrowId)}/settlement-release`,
-      {
-        method: "POST",
-        body: JSON.stringify(input)
-      },
-      {
-        correlationId: options.correlationId ?? createCorrelationId("settlement_release"),
-        idempotencyKey: options.idempotencyKey ?? createIdempotencyKey("settlement_release"),
-        timeoutMs: options.timeoutMs
-      }
-    );
-  }
   async resolveDisputeBuyerRefund(
     input: TrustLayerDisputeResolutionRequest,
     options: TrustLayerRequestOptions = {}

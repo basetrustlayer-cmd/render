@@ -27,18 +27,6 @@ export function assertSettlementLedgerInvariant(input: {
   }
 }
 
-export function assertSettlementReleaseInvariant(input: {
-  safeDealId: string;
-  sellerPayableAmount: Prisma.Decimal;
-  settlementReleaseAmount: Prisma.Decimal;
-}): void {
-  if (!input.sellerPayableAmount.equals(input.settlementReleaseAmount)) {
-    throw new Error(
-      `Ledger invariant failed for SafeDeal ${input.safeDealId}: SETTLEMENT_RELEASE must equal SELLER_PAYABLE.`
-    );
-  }
-}
-
 export async function createSettlementLedgerForConfirmedDeal(input: {
   tx: TransactionClient;
   safeDeal: {
@@ -108,50 +96,4 @@ export async function createSettlementLedgerForConfirmedDeal(input: {
   });
 
   return settlement;
-}
-
-export async function finalizeSettlementReleaseFromTrustLayer(input: {
-  tx: TransactionClient;
-  safeDealId: string;
-  provider?: string;
-  providerReference?: string;
-  releasedAt: Date;
-}) {
-  const settlement = await input.tx.settlement.findUnique({
-    where: { safeDealId: input.safeDealId }
-  });
-
-  if (!settlement) {
-    return null;
-  }
-
-  assertSettlementReleaseInvariant({
-    safeDealId: input.safeDealId,
-    sellerPayableAmount: settlement.sellerReceivableAmount,
-    settlementReleaseAmount: settlement.sellerReceivableAmount
-  });
-
-  const paidSettlement = await input.tx.settlement.update({
-    where: { id: settlement.id },
-    data: {
-      status: "PAID",
-      provider: input.provider ?? "TRUSTLAYER",
-      providerReference: input.providerReference,
-      paidAt: input.releasedAt
-    }
-  });
-
-  await input.tx.escrowLedgerEntry.createMany({
-    data: [
-      {
-        safeDealId: input.safeDealId,
-        entryType: "SETTLEMENT_RELEASE",
-        amount: settlement.sellerReceivableAmount,
-        idempotencyKey: `${input.safeDealId}:settlement_release:${input.providerReference ?? "trustlayer"}`
-      }
-    ],
-    skipDuplicates: true
-  });
-
-  return paidSettlement;
 }

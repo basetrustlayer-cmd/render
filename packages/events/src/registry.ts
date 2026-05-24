@@ -88,7 +88,7 @@ export const RENDER_EVENT_REGISTRY: RenderEventRegistryEntry[] = [
     source: "render.api",
     aggregate: "settlement",
     producer: "apps/api/src/webhooks/routes.ts",
-    consumers: ["settlement worker", "finance reconciliation endpoint"],
+    consumers: ["settlement projection read model", "finance reconciliation endpoint"],
     replaySafe: true,
     description: "Settlement readiness projected after TrustLayer confirmation webhook."
   },
