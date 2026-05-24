@@ -111,9 +111,12 @@ model User {
   trustlayerUserId  String    @unique @map("trustlayer_user_id") @db.VarChar(64)
   email             String?   @unique @db.VarChar(255)
   phone             String?   @db.VarChar(20)
-  verificationLevel Int       @default(0) @map("verification_level") @db.SmallInt
-  trustScore        Int?      @map("trust_score") @db.SmallInt
-  trustTier         TrustTier? @map("trust_tier")
+  verificationLevel        Int       @default(0) @map("verification_level") @db.SmallInt
+  verificationStatusCached String?   @map("verification_status_cached") @db.VarChar(50)
+  trustScore               Int?      @map("trust_score") @db.SmallInt
+  trustTier                TrustTier? @map("trust_tier")
+  trustBadgeCached         String?   @map("trust_badge_cached") @db.VarChar(100)
+  trustLastSyncedAt        DateTime? @map("trust_last_synced_at")
   isBusiness        Boolean   @default(false) @map("is_business")
   isSuspended       Boolean   @default(false) @map("is_suspended")
   role              UserRole  @default(USER)
