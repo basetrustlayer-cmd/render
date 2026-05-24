@@ -220,7 +220,9 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
 
     const eventTime = syncedAt ? new Date(syncedAt) : new Date();
     const projectionType = classifyTrustLayerEvent(parsed.data.event);
+    let updatedEscrows = 0;
 
+    try {
     if (isTrustLayerUserEvent(parsed.data.event) && (userId || trustlayerUserId)) {
       const userSyncResult = await prisma.user.updateMany({
         where: {
@@ -299,8 +301,6 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
         }
       });
     }
-
-    let updatedEscrows = 0;
 
     if (isTrustLayerEscrowEvent(parsed.data.event) && escrowId) {
       const mappedStatus = mapTrustLayerEscrowStatus(escrowStatus);
@@ -414,6 +414,55 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
           });
         }
       }
+    }
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown webhook processing error.";
+
+      await prisma.webhookEvent.update({
+        where: {
+          provider_eventId: {
+            provider: "TRUSTLAYER",
+            eventId: trustLayerEventId
+          }
+        },
+        data: {
+          status: "FAILED",
+          processedAt: new Date(),
+          payload: JSON.parse(JSON.stringify({
+            ...parsed.data,
+            processingError: errorMessage
+          }))
+        }
+      });
+
+      void writeAuditLog({
+        request,
+        action: "WEBHOOK_TRUSTLAYER_PROCESSING_FAILED",
+        metadata: {
+          event: parsed.data.event,
+          eventId: trustLayerEventId,
+          projection: projectionType,
+          processingError: errorMessage
+        }
+      });
+
+      recordOperationalMetric({
+        name: "webhook.processing.duration_ms",
+        value: elapsedMs(webhookStartedAt),
+        unit: "ms",
+        correlationId: request.id,
+        aggregateId: trustLayerEventId,
+        source: "render.api",
+        metadata: {
+          provider: "TRUSTLAYER",
+          event: parsed.data.event,
+          status: "FAILED",
+          projection: projectionType
+        }
+      });
+
+      return reply.code(500).send({ error: "Webhook processing failed." });
     }
 
     await prisma.webhookEvent.update({

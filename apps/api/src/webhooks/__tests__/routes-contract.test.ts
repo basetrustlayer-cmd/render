@@ -93,7 +93,7 @@ describe("webhook route trust and idempotency contract", () => {
   it("audits and records metrics for unknown TrustLayer events without projection mutation", () => {
     expect(source).toContain("WEBHOOK_TRUSTLAYER_UNKNOWN_EVENT_IGNORED");
     expect(source).toContain('status: "UNKNOWN_IGNORED"');
-    expect(source.indexOf("WEBHOOK_TRUSTLAYER_UNKNOWN_EVENT_IGNORED")).toBeLessThan(source.indexOf("let updatedEscrows = 0"));
+    expect(source.indexOf("WEBHOOK_TRUSTLAYER_UNKNOWN_EVENT_IGNORED")).toBeLessThan(source.indexOf("if (isTrustLayerEscrowEvent(parsed.data.event) && escrowId)"));
   });
 
   it("classifies TrustLayer webhook projection types for observability", () => {
@@ -127,6 +127,14 @@ describe("webhook route trust and idempotency contract", () => {
     expect(source).toContain('reason: "INVALID_PAYLOAD"');
     expect(source).toContain("issues: JSON.parse(JSON.stringify(parsed.error.issues))");
     expect(source).toContain("failedEventId");
+  });
+
+  it("persists unexpected webhook processing failures for recovery", () => {
+    expect(source).toContain("WEBHOOK_TRUSTLAYER_PROCESSING_FAILED");
+    expect(source).toContain('status: "FAILED"');
+    expect(source).toContain("processingError");
+    expect(source).toContain('return reply.code(500).send({ error: "Webhook processing failed." });');
+    expect(source).toContain("projection: projectionType");
   });
 
 });
