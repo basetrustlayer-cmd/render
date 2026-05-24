@@ -4,7 +4,7 @@ import {
   RENDER_QUEUE_NAMES,
   type SettlementProjectionJobData
 } from "@render/queue";
-import { writeOperationalLog } from "@render/observability";
+import { writeBoundaryBreadcrumb } from "@render/observability";
 
 const connection = createQueueConnection();
 
@@ -14,9 +14,8 @@ export const settlementWorker =
     async (job) => {
       const correlationId = `settlement_projection_${job.data.settlementId}`;
 
-      writeOperationalLog({
-        severity: "WARN",
-        event: "settlement.projection.skipped_execution_boundary",
+      writeBoundaryBreadcrumb({
+        boundary: "TRUSTLAYER_OWNS_SETTLEMENT_EXECUTION",
         message: "Render does not execute settlement release. TrustLayer owns settlement execution; Render keeps projection-only state.",
         correlationId,
         aggregateId: job.data.settlementId,
@@ -25,8 +24,7 @@ export const settlementWorker =
           jobId: job.id,
           settlementId: job.data.settlementId,
           safeDealId: job.data.safeDealId,
-          triggeredBy: job.data.triggeredBy,
-          boundary: "TRUSTLAYER_OWNS_SETTLEMENT_EXECUTION"
+          triggeredBy: job.data.triggeredBy
         }
       });
 

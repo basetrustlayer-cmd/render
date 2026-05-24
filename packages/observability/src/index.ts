@@ -101,3 +101,27 @@ export function nowMs(): number {
 export function elapsedMs(startedAtMs: number): number {
   return Date.now() - startedAtMs;
 }
+
+export type BoundaryBreadcrumbInput = {
+  boundary: string;
+  message: string;
+  correlationId: string;
+  aggregateId?: string;
+  source: "render.api" | "render.worker" | "render.web" | "trustlayer";
+  metadata?: Record<string, unknown>;
+};
+
+export function writeBoundaryBreadcrumb(input: BoundaryBreadcrumbInput): RenderEventEnvelope<Record<string, unknown>> {
+  return writeOperationalLog({
+    severity: "WARN",
+    event: "boundary.breadcrumb",
+    message: input.message,
+    correlationId: input.correlationId,
+    aggregateId: input.aggregateId,
+    source: input.source,
+    metadata: {
+      ...input.metadata,
+      boundary: input.boundary
+    }
+  });
+}
