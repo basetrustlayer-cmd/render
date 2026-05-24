@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { createTrustLayerClient } from "@render/trustlayer-sdk";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../database/client.js";
@@ -44,6 +45,31 @@ const createListingImageSchema = z.object({
   isCover: z.boolean().optional(),
   sortOrder: z.number().int().min(0).max(20).optional()
 });
+
+
+function getTrustLayerClient() {
+  const apiKey = process.env.TRUSTLAYER_API_KEY;
+  const baseUrl = process.env.TRUSTLAYER_API_URL;
+
+  if (!apiKey || !baseUrl) {
+    throw new Error("TrustLayer listing risk credentials are required.");
+  }
+
+  return createTrustLayerClient({
+    apiKey,
+    baseUrl,
+    maxRetries: 3,
+    timeoutMs: 10_000
+  });
+}
+
+function mapListingRiskDecisionToStatus(
+  decision: "APPROVED" | "MANUAL_REVIEW" | "REJECTED"
+): "LIVE" | "MANUAL_REVIEW" | "REJECTED" {
+  if (decision === "APPROVED") return "LIVE";
+  if (decision === "MANUAL_REVIEW") return "MANUAL_REVIEW";
+  return "REJECTED";
+}
 
 const listingInclude = {
   images: {
@@ -367,6 +393,15 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       return reply.code(403).send({ error: "Invalid organization context." });
     }
 
+    const seller = await prisma.user.findUnique({
+      where: { id: authUser.userId },
+      select: { id: true, trustlayerUserId: true }
+    });
+
+    if (!seller) {
+      return reply.code(404).send({ error: "Seller not found." });
+    }
+
     const listing = await prisma.listing.create({
       data: {
         ...parsed.data,
@@ -377,9 +412,64 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       include: listingInclude
     });
 
-    void writeAuditLog({ request, actorUserId: authUser.userId, organizationId: organizationMembership?.organizationId, action: "LISTING_CREATED", entityType: "LISTING", entityId: listing.id });
+    const trustLayer = getTrustLayerClient();
+    const riskAssessment = await trustLayer.assessListingRisk(
+      {
+        listingId: listing.id,
+        sellerTlId: seller.trustlayerUserId,
+        title: parsed.data.title,
+        description: parsed.data.description,
+        priceGhs: parsed.data.price,
+        category: parsed.data.category,
+        condition: parsed.data.condition,
+        locationRegion: parsed.data.locationRegion,
+        metadata: {
+          renderListingId: listing.id,
+          renderSellerId: authUser.userId,
+          renderOrganizationId: organizationMembership?.organizationId ?? null
+        }
+      },
+      {
+        correlationId: request.id,
+        idempotencyKey: `listing_risk_${listing.id}`
+      }
+    );
 
-    return reply.code(201).send({ listing });
+    const moderatedStatus = mapListingRiskDecisionToStatus(riskAssessment.decision);
+
+    const moderatedListing = await prisma.listing.update({
+      where: { id: listing.id },
+      data: {
+        status: moderatedStatus,
+        fraudRiskScore: riskAssessment.riskScore
+      },
+      include: listingInclude
+    });
+
+    void writeAuditLog({
+      request,
+      actorUserId: authUser.userId,
+      organizationId: organizationMembership?.organizationId,
+      action: "LISTING_CREATED",
+      entityType: "LISTING",
+      entityId: listing.id,
+      metadata: {
+        initialStatus: "PENDING",
+        moderatedStatus,
+        riskDecision: riskAssessment.decision,
+        riskScore: riskAssessment.riskScore,
+        riskAssessmentId: riskAssessment.assessmentId
+      }
+    });
+
+    return reply.code(201).send({
+      listing: moderatedListing,
+      riskAssessment: {
+        decision: riskAssessment.decision,
+        riskScore: riskAssessment.riskScore,
+        reasons: riskAssessment.reasons ?? []
+      }
+    });
   });
 
   app.get("/listings/:id/images", async (request, reply) => {

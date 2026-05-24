@@ -26,6 +26,27 @@ export type TrustLayerIdentityVerificationResponse = {
   trustTier?: "NEW" | "BUILDING" | "VERIFIED" | "TRUSTED";
 };
 
+
+export type TrustLayerListingRiskAssessmentRequest = {
+  listingId: string;
+  sellerTlId: string;
+  title: string;
+  description?: string;
+  priceGhs: number;
+  category: string;
+  condition?: string;
+  locationRegion?: string;
+  metadata?: Record<string, unknown>;
+};
+
+export type TrustLayerListingRiskAssessmentResponse = {
+  assessmentId: string;
+  decision: "APPROVED" | "MANUAL_REVIEW" | "REJECTED";
+  riskScore: number;
+  reasons?: string[];
+  reviewedAt: string;
+};
+
 export type TrustLayerSafeDealIntentRequest = {
   buyerTlId: string;
   sellerTlId: string;

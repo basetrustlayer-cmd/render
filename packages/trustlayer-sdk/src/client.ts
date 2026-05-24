@@ -5,6 +5,8 @@ import type {
   TrustLayerClientConfig,
   TrustLayerIdentityVerificationRequest,
   TrustLayerIdentityVerificationResponse,
+  TrustLayerListingRiskAssessmentRequest,
+  TrustLayerListingRiskAssessmentResponse,
   TrustLayerRequestOptions,
   TrustLayerSafeDealConfirmResponse,
   TrustLayerSafeDealIntentRequest,
@@ -50,6 +52,26 @@ export class TrustLayerClient {
       },
       {
         correlationId: options.correlationId ?? createCorrelationId("trustscore"),
+        timeoutMs: options.timeoutMs
+      }
+    );
+  }
+
+
+  async assessListingRisk(
+    input: TrustLayerListingRiskAssessmentRequest,
+    options: TrustLayerRequestOptions = {}
+  ): Promise<TrustLayerListingRiskAssessmentResponse> {
+    return trustLayerRequest<TrustLayerListingRiskAssessmentResponse>(
+      this.config,
+      "/risk/listings/assess",
+      {
+        method: "POST",
+        body: JSON.stringify(input)
+      },
+      {
+        correlationId: options.correlationId ?? createCorrelationId("listing_risk"),
+        idempotencyKey: options.idempotencyKey ?? createIdempotencyKey("listing_risk"),
         timeoutMs: options.timeoutMs
       }
     );
