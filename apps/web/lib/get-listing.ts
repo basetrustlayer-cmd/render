@@ -21,6 +21,8 @@ export type SellerProfile = {
   verificationStatus: string;
   trustScore: number;
   trustTier: string;
+  trustBadge?: string | null;
+  trustLastSyncedAt?: string | null;
   reviewCount: number;
   completedDeals: number;
   activeListings: number;

@@ -38,6 +38,7 @@ export default async function SellerStorefrontPage({ params }: PageProps) {
             <div>
               <h1 className="text-4xl font-black text-gray-950">{seller.displayName}</h1>
               <p className="mt-2 text-gray-600">{seller.verificationStatus}</p>
+              <p className="mt-1 text-sm font-semibold text-emerald-700">{seller.trustBadge ?? "TrustLayer cache pending"}</p>
               <div className="mt-4">
                 <TrustScoreBadge score={seller.trustScore} tier={seller.trustTier} />
               </div>
