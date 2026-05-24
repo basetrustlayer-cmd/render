@@ -84,4 +84,10 @@ describe("webhook route trust and idempotency contract", () => {
     expect(source).toContain("currentSyncedAt: existing.escrowLastSyncedAt.toISOString()");
   });
 
+  it("audits and records metrics when stale user trust events are ignored", () => {
+    expect(source).toContain("WEBHOOK_TRUSTLAYER_STALE_USER_EVENT_IGNORED");
+    expect(source).toContain("userSyncResult.count === 0");
+    expect(source).toContain('projection: "USER"');
+  });
+
 });

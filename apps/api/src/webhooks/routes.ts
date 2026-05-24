@@ -161,7 +161,7 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
     const eventTime = syncedAt ? new Date(syncedAt) : new Date();
 
     if (isTrustLayerUserEvent(parsed.data.event) && (userId || trustlayerUserId)) {
-      await prisma.user.updateMany({
+      const userSyncResult = await prisma.user.updateMany({
         where: {
           ...(userId ? { id: userId } : { trustlayerUserId }),
           OR: [{ trustLastSyncedAt: null }, { trustLastSyncedAt: { lte: eventTime } }]
@@ -181,6 +181,36 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
             : {})
         }
       });
+
+      if (userSyncResult.count === 0) {
+        void writeAuditLog({
+          request,
+          actorUserId: userId,
+          action: "WEBHOOK_TRUSTLAYER_STALE_USER_EVENT_IGNORED",
+          entityType: "USER",
+          entityId: userId,
+          metadata: {
+            event: parsed.data.event,
+            trustlayerUserId,
+            incomingSyncedAt: eventTime.toISOString()
+          }
+        });
+
+        recordOperationalMetric({
+          name: "webhook.processing.duration_ms",
+          value: elapsedMs(webhookStartedAt),
+          unit: "ms",
+          correlationId: request.id,
+          aggregateId: trustLayerEventId,
+          source: "render.api",
+          metadata: {
+            provider: "TRUSTLAYER",
+            event: parsed.data.event,
+            status: "STALE_IGNORED",
+            projection: "USER"
+          }
+        });
+      }
     }
 
     let updatedEscrows = 0;
