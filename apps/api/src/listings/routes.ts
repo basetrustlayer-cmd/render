@@ -211,6 +211,78 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
     return { listings };
   });
 
+  app.get("/sellers/:id/reviews", async (request, reply) => {
+    const paramsSchema = z.object({ id: z.string().uuid() });
+    const parsed = paramsSchema.safeParse(request.params);
+
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid seller ID." });
+    }
+
+    const seller = await prisma.user.findUnique({
+      where: { id: parsed.data.id },
+      select: {
+        id: true,
+        isSuspended: true,
+        reviewsReceived: {
+          select: {
+            rating: true
+          }
+        }
+      }
+    });
+
+    if (!seller || seller.isSuspended) {
+      return reply.code(404).send({ error: "Seller not found." });
+    }
+
+    const reviews = await prisma.review.findMany({
+      where: {
+        revieweeId: parsed.data.id
+      },
+      select: {
+        id: true,
+        rating: true,
+        body: true,
+        createdAt: true,
+        reviewer: {
+          select: {
+            id: true,
+            isBusiness: true
+          }
+        }
+      },
+      orderBy: { createdAt: "desc" },
+      take: 10
+    });
+
+    const reviewCount = seller.reviewsReceived.length;
+    const averageRating =
+      reviewCount === 0
+        ? 0
+        : seller.reviewsReceived.reduce((total, review) => total + review.rating, 0) /
+          reviewCount;
+
+    return {
+      summary: {
+        averageRating,
+        reviewCount
+      },
+      reviews: reviews.map((review) => ({
+        id: review.id,
+        rating: review.rating,
+        body: review.body,
+        createdAt: review.createdAt,
+        reviewer: {
+          id: review.reviewer.id,
+          displayName: review.reviewer.isBusiness
+            ? "Verified Business Buyer"
+            : "Verified Render Buyer"
+        }
+      }))
+    };
+  });
+
   app.get("/listings/:id", async (request, reply) => {
     const paramsSchema = z.object({ id: z.string().uuid() });
     const parsed = paramsSchema.safeParse(request.params);

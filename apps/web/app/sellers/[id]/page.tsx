@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { ListingCard } from "../../../components/listing-card";
 import { TrustScoreBadge } from "../../../components/trust-score-badge";
+import { SellerReviewSummary } from "../../../components/seller-review-summary";
 import { getSeller, getSellerListings } from "../../../lib/get-seller";
+import { getSellerReviews } from "../../../lib/get-seller-reviews";
 
 export const dynamic = "force-dynamic";
 
@@ -17,9 +19,10 @@ function formatDate(value: string) {
 }
 
 export default async function SellerStorefrontPage({ params }: PageProps) {
-  const [{ seller }, { listings }] = await Promise.all([
+  const [{ seller }, { listings }, { summary, reviews }] = await Promise.all([
     getSeller(params.id),
-    getSellerListings(params.id)
+    getSellerListings(params.id),
+    getSellerReviews(params.id)
   ]);
 
   return (
@@ -40,14 +43,18 @@ export default async function SellerStorefrontPage({ params }: PageProps) {
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-4 lg:min-w-[520px]">
+            <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[620px]">
               <Metric label="TrustScore" value={`${seller.trustScore}/1000`} />
               <Metric label="Listings" value={String(seller.activeListings)} />
               <Metric label="Deals" value={String(seller.completedDeals)} />
+              <Metric label="Reviews" value={String(summary.reviewCount)} />
+              <Metric label="Rating" value={summary.reviewCount === 0 ? "New" : summary.averageRating.toFixed(1)} />
               <Metric label="Since" value={formatDate(seller.memberSince)} />
             </div>
           </div>
         </section>
+
+        <SellerReviewSummary summary={summary} reviews={reviews} />
 
         <section className="mt-8">
           <div className="mb-5 flex items-end justify-between gap-4">
