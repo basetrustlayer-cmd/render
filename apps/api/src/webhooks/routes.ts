@@ -84,9 +84,31 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
     const parsed = trustLayerWebhookSchema.safeParse(request.body);
 
     if (!parsed.success) {
+      const failedEventId = deriveTrustLayerEventId({ rawBody });
+
+      await prisma.webhookEvent.create({
+        data: {
+          provider: "TRUSTLAYER",
+          eventId: failedEventId,
+          eventType: "INVALID_PAYLOAD",
+          status: "FAILED",
+          processedAt: new Date(),
+          payload: {
+            reason: "INVALID_PAYLOAD",
+            issues: JSON.parse(JSON.stringify(parsed.error.issues)),
+            rawBody
+          }
+        }
+      }).catch((error) => {
+        if (!isUniqueConstraintError(error)) throw error;
+      });
+
       void writeAuditLog({
         request,
-        action: "WEBHOOK_TRUSTLAYER_INVALID_PAYLOAD"
+        action: "WEBHOOK_TRUSTLAYER_INVALID_PAYLOAD",
+        metadata: {
+          eventId: failedEventId
+        }
       });
 
       recordOperationalMetric({
@@ -94,7 +116,7 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
         value: elapsedMs(webhookStartedAt),
         unit: "ms",
         correlationId: request.id,
-        aggregateId: "trustlayer.invalid_payload",
+        aggregateId: failedEventId,
         source: "render.api",
         metadata: {
           provider: "TRUSTLAYER",

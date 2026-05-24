@@ -118,7 +118,15 @@ describe("webhook route trust and idempotency contract", () => {
   it("records observability metrics for invalid TrustLayer payloads", () => {
     expect(source).toContain("WEBHOOK_TRUSTLAYER_INVALID_PAYLOAD");
     expect(source).toContain('status: "INVALID_PAYLOAD"');
-    expect(source).toContain('aggregateId: "trustlayer.invalid_payload"');
+    expect(source).toContain("aggregateId: failedEventId");
+  });
+
+  it("persists invalid payload webhook failures for reconciliation", () => {
+    expect(source).toContain('eventType: "INVALID_PAYLOAD"');
+    expect(source).toContain('status: "FAILED"');
+    expect(source).toContain('reason: "INVALID_PAYLOAD"');
+    expect(source).toContain("issues: JSON.parse(JSON.stringify(parsed.error.issues))");
+    expect(source).toContain("failedEventId");
   });
 
 });
