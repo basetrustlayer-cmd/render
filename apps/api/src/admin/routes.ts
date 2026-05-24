@@ -67,6 +67,13 @@ const notificationReplayRateLimitMaxRequests = 3;
 const notificationReplayTtlMs = 7 * 24 * 60 * 60 * 1000;
 const notificationReplayRateLimitHits = new Map<string, { count: number; resetAt: number }>();
 
+const webhookEventListQuerySchema = z.object({
+  provider: z.string().trim().max(40).optional(),
+  status: z.enum(["RECEIVED", "PROCESSED", "DUPLICATE", "FAILED"]).optional(),
+  eventType: z.string().trim().max(120).optional(),
+  take: z.coerce.number().int().min(1).max(100).default(50)
+});
+
 const disputeListQuerySchema = z.object({
   status: z.enum([
     "OPEN",
@@ -80,6 +87,36 @@ const disputeListQuerySchema = z.object({
 });
 
 export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
+  app.get("/admin/webhooks/events", { preHandler: [authenticate, requireSuperAdmin] }, async (request, reply) => {
+    const query = webhookEventListQuerySchema.safeParse(request.query);
+
+    if (!query.success) {
+      return reply.code(400).send({ error: "Invalid webhook event query." });
+    }
+
+    const events = await prisma.webhookEvent.findMany({
+      where: {
+        ...(query.data.provider ? { provider: query.data.provider } : {}),
+        ...(query.data.status ? { status: query.data.status } : {}),
+        ...(query.data.eventType ? { eventType: query.data.eventType } : {})
+      },
+      select: {
+        id: true,
+        provider: true,
+        eventId: true,
+        eventType: true,
+        status: true,
+        processedAt: true,
+        createdAt: true,
+        updatedAt: true
+      },
+      orderBy: { createdAt: "desc" },
+      take: query.data.take
+    });
+
+    return { events };
+  });
+
 
   app.get("/admin/reviews", { preHandler: [authenticate, requireModerator] }, async () => {
     const [reviews, reports] = await Promise.all([

@@ -58,4 +58,12 @@ describe("admin route privilege contract", () => {
   it("uses organization scope helper across tenant-sensitive admin routes", () => {
     expect(source.match(/requireAdminOrganizationScope\(request, reply\)/g)?.length).toBe(10);
   });
+  it("keeps webhook event reconciliation read model restricted to super admins", () => {
+    expect(source).toContain('app.get("/admin/webhooks/events", { preHandler: [authenticate, requireSuperAdmin] }');
+    expect(source).toContain("webhookEventListQuerySchema");
+    expect(source).toContain("prisma.webhookEvent.findMany");
+    expect(source).toContain("eventId: true");
+    expect(source).toContain("processedAt: true");
+  });
+
 });
