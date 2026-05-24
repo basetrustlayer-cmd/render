@@ -27,7 +27,6 @@ const messageParamsSchema = z.object({
 
 const sendMessageSchema = z.object({
   conversationId: z.string().uuid(),
-  senderId: z.string().uuid(),
   body: z.string().min(1).max(2000)
 });
 
@@ -413,10 +412,6 @@ export async function registerMessagingRoutes(app: FastifyInstance): Promise<voi
 
     if (!parsed.success) {
       return reply.code(400).send({ error: "Invalid message payload." });
-    }
-
-    if (parsed.data.senderId !== authUser.userId) {
-      return reply.code(403).send({ error: "Message sender must match authenticated user." });
     }
 
     const conversation = await prisma.conversation.findUnique({
