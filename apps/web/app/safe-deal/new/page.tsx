@@ -15,9 +15,9 @@ type SafeDealResponse = {
     status: string;
   };
   checkout: {
-    provider: "PAYSTACK";
+    provider: "TRUSTLAYER";
     authorizationUrl: string;
-    reference: string;
+    escrowId: string;
   };
 };
 

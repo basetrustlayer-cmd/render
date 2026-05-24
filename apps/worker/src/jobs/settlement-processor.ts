@@ -1,210 +1,41 @@
-import { createTrustLayerClient } from "@render/trustlayer-sdk";
 import { Worker } from "bullmq";
 import {
   createQueueConnection,
   RENDER_QUEUE_NAMES,
   type SettlementProcessingJobData
 } from "@render/queue";
-import { prisma } from "../database.js";
-import { elapsedMs, nowMs, recordOperationalMetric, writeOperationalLog } from "@render/observability";
+import { writeOperationalLog } from "@render/observability";
 
 const connection = createQueueConnection();
-const MAX_SETTLEMENT_RETRIES = 5;
-
-function getTrustLayerClient() {
-  const apiKey = process.env.TRUSTLAYER_API_KEY;
-  const baseUrl = process.env.TRUSTLAYER_API_URL;
-
-  if (!apiKey || !baseUrl) {
-    throw new Error("TrustLayer settlement credentials are required.");
-  }
-
-  return createTrustLayerClient({
-    apiKey,
-    baseUrl,
-    maxRetries: 3,
-    timeoutMs: 10_000
-  });
-}
-
-function calculateNextRetryAt(retryCount: number): Date {
-  const delayMinutes = Math.min(60, 2 ** retryCount);
-  return new Date(Date.now() + delayMinutes * 60 * 1000);
-}
 
 export const settlementWorker =
   new Worker<SettlementProcessingJobData>(
     RENDER_QUEUE_NAMES.settlementProcessing,
     async (job) => {
-      const startedAt = nowMs();
-      const correlationId = `settlement_${job.data.settlementId}`;
+      const correlationId = `settlement_projection_${job.data.settlementId}`;
 
       writeOperationalLog({
-        severity: "INFO",
-        event: "settlement.processing.started",
-        message: "Settlement processing started.",
+        severity: "WARN",
+        event: "settlement.processing.skipped_projection_only",
+        message: "Render does not execute settlement release. TrustLayer owns settlement execution; Render keeps projection-only state.",
         correlationId,
         aggregateId: job.data.settlementId,
         source: "render.worker",
         metadata: {
           jobId: job.id,
+          settlementId: job.data.settlementId,
           safeDealId: job.data.safeDealId,
-          triggeredBy: job.data.triggeredBy
-        }
-      });
-      const settlement = await prisma.settlement.findUnique({
-        where: { id: job.data.settlementId },
-        include: { safeDeal: true }
-      });
-
-      if (!settlement) {
-        throw new Error(`Settlement ${job.data.settlementId} not found.`);
-      }
-
-      if (settlement.safeDealId !== job.data.safeDealId) {
-        throw new Error("Settlement does not belong to the provided Safe Deal.");
-      }
-
-      if (settlement.status === "PAID" || settlement.status === "CANCELLED") {
-        return {
-          skipped: true,
-          reason: `Settlement status is terminal: ${settlement.status}.`,
-          processedAt: new Date().toISOString()
-        };
-      }
-
-      if (settlement.status === "PROCESSING" && job.data.triggeredBy !== "retry_worker") {
-        return {
-          skipped: true,
-          reason: "Settlement is already processing.",
-          processedAt: new Date().toISOString()
-        };
-      }
-
-      if (settlement.status === "FAILED" && settlement.retryCount >= MAX_SETTLEMENT_RETRIES) {
-        return {
-          skipped: true,
-          reason: "Settlement retry limit reached.",
-          retryCount: settlement.retryCount,
-          processedAt: new Date().toISOString()
-        };
-      }
-
-      if (settlement.status === "FAILED" && settlement.nextRetryAt && settlement.nextRetryAt > new Date()) {
-        return {
-          skipped: true,
-          reason: "Settlement is not ready for retry.",
-          nextRetryAt: settlement.nextRetryAt.toISOString(),
-          processedAt: new Date().toISOString()
-        };
-      }
-
-      if (!["READY", "FAILED", "PROCESSING"].includes(settlement.status)) {
-        return {
-          skipped: true,
-          reason: `Settlement status is ${settlement.status}.`,
-          processedAt: new Date().toISOString()
-        };
-      }
-
-      if (!settlement.safeDeal.trustLayerEscrowId) {
-        throw new Error("Safe Deal is missing TrustLayer escrow reference.");
-      }
-
-      const attemptCount = settlement.retryCount + 1;
-
-      await prisma.settlement.update({
-        where: { id: settlement.id },
-        data: {
-          status: "PROCESSING",
-          provider: "TRUSTLAYER",
-          retryCount: attemptCount,
-          lastAttemptAt: new Date(),
-          nextRetryAt: null,
-          failureReason: null
+          triggeredBy: job.data.triggeredBy,
+          boundary: "TRUSTLAYER_OWNS_SETTLEMENT_EXECUTION"
         }
       });
 
-      try {
-        const trustLayer = getTrustLayerClient();
-
-        const command = await trustLayer.releaseSettlement(
-          {
-            escrowId: settlement.safeDeal.trustLayerEscrowId,
-            settlementId: settlement.id,
-            safeDealId: settlement.safeDealId,
-            amountGhs: Number(settlement.sellerReceivableAmount)
-          },
-          {
-            correlationId: `settlement_${settlement.id}`,
-            idempotencyKey: `settlement_release_${settlement.id}`
-          }
-        );
-
-        return {
-          ok: true,
-          settlementId: settlement.id,
-          trustLayer: command,
-          sync: "PENDING_WEBHOOK",
-          attemptCount,
-          processedAt: new Date().toISOString()
-        };
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown TrustLayer settlement release failure.";
-
-        await prisma.settlement.update({
-          where: { id: settlement.id },
-          data: {
-            status: "FAILED",
-            failureReason: message,
-            nextRetryAt: calculateNextRetryAt(attemptCount)
-          }
-        });
-
-        recordOperationalMetric({
-        name: "settlement.processing.duration_ms",
-        value: elapsedMs(startedAt),
-        unit: "ms",
-        correlationId,
-        aggregateId: settlement.id,
-        source: "render.worker",
-        metadata: {
-          safeDealId: settlement.safeDealId,
-          attemptCount,
-          status: "FAILED"
-        }
-      });
-
-      if (attemptCount >= MAX_SETTLEMENT_RETRIES) {
-        recordOperationalMetric({
-          name: "settlement.retry.exhausted",
-          value: 1,
-          unit: "count",
-          correlationId,
-          aggregateId: settlement.id,
-          source: "render.worker",
-          metadata: {
-            safeDealId: settlement.safeDealId,
-            attemptCount
-          }
-        });
-      }
-
-      writeOperationalLog({
-        severity: attemptCount >= MAX_SETTLEMENT_RETRIES ? "CRITICAL" : "ERROR",
-        event: "settlement.processing.failed",
-        message,
-        correlationId,
-        aggregateId: settlement.id,
-        source: "render.worker",
-        metadata: {
-          safeDealId: settlement.safeDealId,
-          attemptCount
-        }
-      });
-
-      throw new Error(message);
-      }
+      return {
+        skipped: true,
+        reason: "SETTLEMENT_EXECUTION_OWNED_BY_TRUSTLAYER",
+        sync: "PENDING_TRUSTLAYER_WEBHOOK",
+        processedAt: new Date().toISOString()
+      };
     },
     { connection }
   );
@@ -212,19 +43,9 @@ export const settlementWorker =
 settlementWorker.on("completed", (job) => {
   console.log(
     JSON.stringify({
-      event: "settlement_processing_completed",
+      event: "settlement_projection_only_completed",
       jobId: job.id,
       settlementId: job.data.settlementId
-    })
-  );
-});
-
-settlementWorker.on("failed", (job, error) => {
-  console.error(
-    JSON.stringify({
-      event: "settlement_processing_failed",
-      jobId: job?.id,
-      error: error.message
     })
   );
 });
