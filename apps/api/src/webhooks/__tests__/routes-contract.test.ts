@@ -61,4 +61,13 @@ describe("webhook route trust and idempotency contract", () => {
     expect(source).toContain('status: "DUPLICATE"');
     expect(source).toContain("elapsedMs(webhookStartedAt)");
   });
+  it("gates user and SafeDeal projection mutations by TrustLayer event type", () => {
+    expect(source).toContain("isTrustLayerUserEvent");
+    expect(source).toContain("isTrustLayerEscrowEvent");
+    expect(source).toContain('event.startsWith("identity.") || event.startsWith("trust.")');
+    expect(source).toContain('event.startsWith("escrow.") || event.startsWith("safedeal.")');
+    expect(source).toContain("isTrustLayerUserEvent(parsed.data.event) && (userId || trustlayerUserId)");
+    expect(source).toContain("isTrustLayerEscrowEvent(parsed.data.event) && escrowId");
+  });
+
 });
