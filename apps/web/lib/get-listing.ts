@@ -17,7 +17,6 @@ export type ListingDetail = Listing & {
 export type SellerProfile = {
   id: string;
   displayName: string;
-  whatsappNumber?: string | null;
   verificationLevel: number;
   verificationStatus: string;
   trustScore: number;
