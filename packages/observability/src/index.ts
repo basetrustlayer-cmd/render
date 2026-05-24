@@ -35,7 +35,7 @@ export type OperationalLogInput = {
   correlationId: string;
   aggregateId?: string;
   causationId?: string;
-  source: "render.api" | "render.worker" | "render.web" | "trustlayer" | "paystack.transitional";
+  source: "render.api" | "render.worker" | "render.web" | "trustlayer";
   metadata?: Record<string, unknown>;
 };
 
@@ -45,7 +45,7 @@ export type OperationalMetricInput = {
   unit: "count" | "ms" | "ratio";
   correlationId: string;
   aggregateId: string;
-  source: "render.api" | "render.worker" | "render.web" | "trustlayer" | "paystack.transitional";
+  source: "render.api" | "render.worker" | "render.web" | "trustlayer";
   metadata?: Record<string, unknown>;
 };
 

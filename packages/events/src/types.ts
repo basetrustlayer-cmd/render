@@ -3,7 +3,7 @@ export type RenderEventSource =
   | "render.worker"
   | "render.web"
   | "trustlayer"
-  | "paystack.transitional";
+ ;
 
 export type RenderEventEnvelope<TPayload = Record<string, unknown>> = {
   id: string;

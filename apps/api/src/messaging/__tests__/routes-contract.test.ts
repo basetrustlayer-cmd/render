@@ -45,8 +45,8 @@ describe("messaging route contract", () => {
   it("enforces participant and tenant access boundaries", () => {
     expect(source).toContain("isConversationParticipant");
     expect(source).toContain("Conversation participant access required.");
-    expect(source).toContain("Message sender must match authenticated user.");
-    expect(source).toContain("parsed.data.senderId !== authUser.userId");
+    expect(source).toContain("senderId: authUser.userId");
+    expect(source).not.toContain("parsed.data.senderId");
     expect(source).toContain("getRequestedOrganizationId");
     expect(source).toContain("requireActiveOrganizationMembership");
     expect(source).toContain("enforceConversationTenantAccess");
@@ -71,7 +71,7 @@ describe("messaging route contract", () => {
   it("validates outbound message payloads", () => {
     expect(source).toContain("sendMessageSchema.safeParse(request.body)");
     expect(source).toContain("conversationId: z.string().uuid()");
-    expect(source).toContain("senderId: z.string().uuid()");
+    expect(source).not.toContain("senderId: z.string().uuid()");
     expect(source).toContain("body: z.string().min(1).max(2000)");
     expect(source).toContain("Invalid message payload.");
   });

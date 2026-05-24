@@ -5,18 +5,10 @@ import { describe, expect, it } from "vitest";
 describe("webhook route trust and idempotency contract", () => {
   const source = readFileSync(resolve(process.cwd(), "src/webhooks/routes.ts"), "utf8");
 
-  it("keeps both webhook endpoints configured for raw body signature verification", () => {
-    expect(source).toContain('app.post("/webhooks/paystack", { config: { rawBody: true } }');
+  it("keeps TrustLayer webhook configured for raw body signature verification", () => {
     expect(source).toContain('app.post("/webhooks/trustlayer", { config: { rawBody: true } }');
-  });
-
-  it("requires Paystack signature validation and treats Paystack as transitional noop", () => {
-    expect(source).toContain("verifyPaystackSignature");
-    expect(source).toContain("PAYSTACK_SECRET_KEY");
-    expect(source).toContain("WEBHOOK_PAYSTACK_INVALID_SIGNATURE");
-    expect(source).toContain("WEBHOOK_PAYSTACK_RECEIVED_TRANSITIONAL_NOOP");
-    expect(source).toContain("PAYSTACK_EVENTS_OWNED_BY_TRUSTLAYER");
-    expect(source).toContain("updatedSafeDeals: 0");
+    expect(source).not.toContain("/webhooks/paystack");
+    expect(source).not.toContain("verifyPaystackSignature");
   });
 
   it("requires TrustLayer HMAC validation before processing", () => {

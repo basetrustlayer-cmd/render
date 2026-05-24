@@ -2,20 +2,10 @@ import crypto from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../database/client.js";
-import { verifyPaystackSignature } from "../payments/paystack.js";
 import { writeAuditLog } from "../audit/log.js";
 import { createSettlementLedgerForConfirmedDeal } from "../ledger/settlement.js";
 
 import { deriveTrustLayerEventId, isUniqueConstraintError, mapTrustLayerEscrowStatus, verifyHmac } from "./helpers.js";
-
-const paystackWebhookSchema = z.object({
-  event: z.string(),
-  data: z.object({
-    reference: z.string().optional(),
-    status: z.string().optional(),
-    paid_at: z.string().optional()
-  }).passthrough()
-});
 
 const trustLayerWebhookSchema = z.object({
   id: z.string().optional(),
@@ -43,40 +33,6 @@ function firstHeaderValue(value: string | string[] | undefined): string | undefi
 }
 
 export async function registerWebhookRoutes(app: FastifyInstance): Promise<void> {
-  app.post("/webhooks/paystack", { config: { rawBody: true } }, async (request, reply) => {
-    const rawBody = (request as RawBodyRequest).rawBody ?? JSON.stringify(request.body ?? {});
-    const signature = firstHeaderValue(request.headers["x-paystack-signature"]);
-
-    if (
-      !verifyPaystackSignature({
-        payload: rawBody,
-        signature,
-        secret: process.env.PAYSTACK_SECRET_KEY
-      })
-    ) {
-      void writeAuditLog({ request, action: "WEBHOOK_PAYSTACK_INVALID_SIGNATURE" });
-      return reply.code(401).send({ error: "Invalid Paystack signature." });
-    }
-
-    const parsed = paystackWebhookSchema.safeParse(request.body);
-
-    if (!parsed.success) {
-      return reply.code(400).send({ error: "Invalid Paystack webhook payload." });
-    }
-
-    void writeAuditLog({
-      request,
-      action: "WEBHOOK_PAYSTACK_RECEIVED_TRANSITIONAL_NOOP",
-      metadata: {
-        event: parsed.data.event,
-        reference: parsed.data.data.reference,
-        boundary: "PAYSTACK_EVENTS_OWNED_BY_TRUSTLAYER"
-      }
-    });
-
-    return { received: true, updatedSafeDeals: 0 };
-  });
-
   app.post("/webhooks/trustlayer", { config: { rawBody: true } }, async (request, reply) => {
     const rawBody = (request as RawBodyRequest).rawBody ?? JSON.stringify(request.body ?? {});
     const signature = firstHeaderValue(request.headers["x-trustlayer-signature"]);
