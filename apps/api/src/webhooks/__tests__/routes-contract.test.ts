@@ -76,4 +76,12 @@ describe("webhook route trust and idempotency contract", () => {
     expect(source).toContain("updatedCount: 0");
   });
 
+  it("audits and records metrics when stale escrow events are ignored", () => {
+    expect(source).toContain("WEBHOOK_TRUSTLAYER_STALE_ESCROW_EVENT_IGNORED");
+    expect(source).toContain('status: "STALE_IGNORED"');
+    expect(source).toContain('projection: "SAFE_DEAL"');
+    expect(source).toContain("incomingSyncedAt: eventTime.toISOString()");
+    expect(source).toContain("currentSyncedAt: existing.escrowLastSyncedAt.toISOString()");
+  });
+
 });

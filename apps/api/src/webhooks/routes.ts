@@ -201,6 +201,35 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
           }
 
           if (existing.escrowLastSyncedAt && existing.escrowLastSyncedAt > eventTime) {
+            void writeAuditLog({
+              request,
+              organizationId: existing.organizationId,
+              action: "WEBHOOK_TRUSTLAYER_STALE_ESCROW_EVENT_IGNORED",
+              entityType: "SAFE_DEAL",
+              entityId: existing.id,
+              metadata: {
+                escrowId,
+                event: parsed.data.event,
+                incomingSyncedAt: eventTime.toISOString(),
+                currentSyncedAt: existing.escrowLastSyncedAt.toISOString()
+              }
+            });
+
+            recordOperationalMetric({
+              name: "webhook.processing.duration_ms",
+              value: elapsedMs(webhookStartedAt),
+              unit: "ms",
+              correlationId: request.id,
+              aggregateId: trustLayerEventId,
+              source: "render.api",
+              metadata: {
+                provider: "TRUSTLAYER",
+                event: parsed.data.event,
+                status: "STALE_IGNORED",
+                projection: "SAFE_DEAL"
+              }
+            });
+
             return { updatedCount: 0, settlementId: null as string | null, organizationId: existing.organizationId };
           }
 
