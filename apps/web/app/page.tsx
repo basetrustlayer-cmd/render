@@ -4,7 +4,14 @@ import { getListings } from "../lib/get-listings";
 
 export const dynamic = "force-dynamic";
 
-const categories = ["Vehicles", "Property", "Electronics", "Home", "Jobs", "Services"];
+const categories = [
+  ["VEHICLES", "Vehicles"],
+  ["REAL_ESTATE", "Real Estate"],
+  ["ELECTRONICS", "Electronics"],
+  ["JOBS", "Jobs"],
+  ["SERVICES", "Services"],
+  ["FASHION", "Fashion"]
+];
 
 export default async function HomePage() {
   const { listings } = await getListings();
@@ -36,13 +43,13 @@ export default async function HomePage() {
           </form>
 
           <div className="mt-6 flex flex-wrap gap-2">
-            {categories.map((category) => (
+            {categories.map(([value, label]) => (
               <Link
-                key={category}
-                href={`/listings?category=${encodeURIComponent(category)}`}
+                key={value}
+                href={`/listings?category=${encodeURIComponent(value)}`}
                 className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20"
               >
-                {category}
+                {label}
               </Link>
             ))}
           </div>
