@@ -1053,9 +1053,8 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     const authUser = requireAuthUser(request);
 
     const [
-      failedSettlements,
-      retryableSettlements,
-      processingSettlements,
+      failedSettlementProjections,
+      pendingSettlementProjections,
       orphanReadySettlements,
       duplicateReleaseEntries
     ] = await Promise.all([
@@ -1067,20 +1066,12 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       }),
       prisma.settlement.findMany({
         where: {
-          status: "FAILED",
-          OR: [
-            { nextRetryAt: null },
-            { nextRetryAt: { lte: new Date() } }
-          ]
+          status: {
+            in: ["FAILED", "PROCESSING"]
+          }
         },
         include: { safeDeal: true },
-        orderBy: { updatedAt: "asc" },
-        take: 100
-      }),
-      prisma.settlement.findMany({
-        where: { status: "PROCESSING" },
-        include: { safeDeal: true },
-        orderBy: { updatedAt: "asc" },
+        orderBy: { updatedAt: "desc" },
         take: 100
       }),
       prisma.settlement.findMany({
@@ -1109,9 +1100,8 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     ]);
 
     const summary = {
-      failedSettlementCount: failedSettlements.length,
-      retryableSettlementCount: retryableSettlements.length,
-      processingSettlementCount: processingSettlements.length,
+      failedSettlementProjectionCount: failedSettlementProjections.length,
+      pendingSettlementProjectionCount: pendingSettlementProjections.length,
       orphanReadySettlementCount: orphanReadySettlements.length,
       duplicateReleaseEntryCount: duplicateReleaseEntries.length,
       generatedAt: new Date().toISOString()
@@ -1127,9 +1117,8 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
     return {
       summary,
-      failedSettlements,
-      retryableSettlements,
-      processingSettlements,
+      failedSettlementProjections,
+      pendingSettlementProjections,
       orphanReadySettlements,
       duplicateReleaseEntries
     };
