@@ -80,6 +80,139 @@ const disputeListQuerySchema = z.object({
 });
 
 export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
+
+  app.get("/admin/reviews", { preHandler: [authenticate, requireModerator] }, async () => {
+    const [reviews, reports] = await Promise.all([
+      prisma.review.findMany({
+        select: {
+          id: true,
+          rating: true,
+          body: true,
+          createdAt: true,
+          safeDealId: true,
+          reviewer: {
+            select: {
+              id: true,
+              phone: true,
+              email: true,
+              isBusiness: true
+            }
+          },
+          reviewee: {
+            select: {
+              id: true,
+              phone: true,
+              email: true,
+              isBusiness: true
+            }
+          }
+        },
+        orderBy: { createdAt: "desc" },
+        take: 100
+      }),
+      prisma.auditLog.findMany({
+        where: {
+          action: "REVIEW_REPORTED",
+          entityType: "REVIEW"
+        },
+        select: {
+          entityId: true,
+          createdAt: true,
+          metadata: true
+        },
+        orderBy: { createdAt: "desc" },
+        take: 500
+      })
+    ]);
+
+    const reportCounts = new Map<string, number>();
+    const latestReportReasons = new Map<string, string>();
+
+    for (const report of reports) {
+      if (!report.entityId) continue;
+
+      reportCounts.set(report.entityId, (reportCounts.get(report.entityId) ?? 0) + 1);
+
+      if (!latestReportReasons.has(report.entityId)) {
+        const metadata = report.metadata as { reason?: unknown } | null;
+        latestReportReasons.set(
+          report.entityId,
+          typeof metadata?.reason === "string" ? metadata.reason : "No reason provided."
+        );
+      }
+    }
+
+    return {
+      reviews: reviews.map((review) => ({
+        id: review.id,
+        rating: review.rating,
+        body: review.body,
+        createdAt: review.createdAt,
+        safeDealId: review.safeDealId,
+        reportCount: reportCounts.get(review.id) ?? 0,
+        latestReportReason: latestReportReasons.get(review.id) ?? null,
+        reviewer: {
+          id: review.reviewer.id,
+          label: review.reviewer.phone ?? review.reviewer.email ?? review.reviewer.id,
+          isBusiness: review.reviewer.isBusiness
+        },
+        reviewee: {
+          id: review.reviewee.id,
+          label: review.reviewee.phone ?? review.reviewee.email ?? review.reviewee.id,
+          isBusiness: review.reviewee.isBusiness
+        }
+      }))
+    };
+  });
+
+  app.delete("/admin/reviews/:id", { preHandler: [authenticate, requireModerator] }, async (request, reply) => {
+    const authUser = requireAuthUser(request);
+    const params = idParamsSchema.safeParse(request.params);
+    const body = z.object({ reason: z.string().trim().min(5).max(1000) }).safeParse(request.body);
+
+    if (!params.success || !body.success) {
+      return reply.code(400).send({ error: "Invalid review removal payload." });
+    }
+
+    const review = await prisma.review.findUnique({
+      where: { id: params.data.id },
+      select: {
+        id: true,
+        safeDealId: true,
+        reviewerId: true,
+        revieweeId: true,
+        rating: true,
+        body: true
+      }
+    });
+
+    if (!review) {
+      return reply.code(404).send({ error: "Review not found." });
+    }
+
+    await prisma.review.delete({
+      where: { id: review.id }
+    });
+
+    void writeAuditLog({
+      request,
+      actorUserId: authUser.userId,
+      action: "REVIEW_REMOVED",
+      entityType: "REVIEW",
+      entityId: review.id,
+      metadata: {
+        reason: body.data.reason,
+        safeDealId: review.safeDealId,
+        reviewerId: review.reviewerId,
+        revieweeId: review.revieweeId,
+        rating: review.rating,
+        hadBody: Boolean(review.body)
+      }
+    });
+
+    return reply.code(204).send();
+  });
+
   app.post("/admin/notifications/dead-letter/:id/replay-request", { preHandler: [authenticate, requireSuperAdmin] }, async (request, reply) => {
     const authUser = requireAuthUser(request);
     const params = idParamsSchema.safeParse(request.params);

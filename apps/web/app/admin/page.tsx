@@ -28,6 +28,11 @@ const cards = [
     description: "Approve or reject pending and manual-review listings."
   },
   {
+    href: "/admin/reviews",
+    title: "Review Moderation",
+    description: "Inspect reported reviews and remove abusive or fraudulent reputation content."
+  },
+  {
     href: "/admin/safe-deals",
     title: "Disputed Safe Deals",
     description: "Review escrow disputes that require operations attention."

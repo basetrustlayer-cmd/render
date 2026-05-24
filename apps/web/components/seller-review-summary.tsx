@@ -1,3 +1,4 @@
+import { ReviewReportButton } from "./review-report-button";
 import type { SellerReview, SellerReviewSummary } from "../lib/get-seller-reviews";
 
 function formatDate(value: string) {
@@ -65,6 +66,8 @@ export function SellerReviewSummary({
               ) : (
                 <p className="mt-3 text-gray-500">No written comment provided.</p>
               )}
+
+              <ReviewReportButton reviewId={review.id} />
             </article>
           ))}
         </div>

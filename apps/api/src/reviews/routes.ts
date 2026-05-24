@@ -86,6 +86,50 @@ export async function registerReviewRoutes(app: FastifyInstance): Promise<void> 
     return reply.code(201).send({ review });
   });
 
+
+  app.post("/reviews/:id/report", { preHandler: authenticate }, async (request, reply) => {
+    const authUser = requireAuthUser(request);
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    const body = z.object({ reason: z.string().trim().min(5).max(1000) }).safeParse(request.body);
+
+    if (!params.success || !body.success) {
+      return reply.code(400).send({ error: "Invalid review report payload." });
+    }
+
+    const review = await prisma.review.findUnique({
+      where: { id: params.data.id },
+      select: {
+        id: true,
+        safeDealId: true,
+        reviewerId: true,
+        revieweeId: true
+      }
+    });
+
+    if (!review) {
+      return reply.code(404).send({ error: "Review not found." });
+    }
+
+    void writeAuditLog({
+      request,
+      actorUserId: authUser.userId,
+      action: "REVIEW_REPORTED",
+      entityType: "REVIEW",
+      entityId: review.id,
+      metadata: {
+        safeDealId: review.safeDealId,
+        reviewerId: review.reviewerId,
+        revieweeId: review.revieweeId,
+        reason: body.data.reason
+      }
+    });
+
+    return reply.code(202).send({
+      reported: true,
+      reviewId: review.id
+    });
+  });
+
   app.get("/users/:id/reviews", async (request, reply) => {
     const params = z.object({
       id: z.string().uuid()
