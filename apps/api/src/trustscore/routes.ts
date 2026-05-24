@@ -1,17 +1,23 @@
+import { createTrustLayerClient } from "@render/trustlayer-sdk";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { authenticate, requireAuthUser } from "../auth/middleware.js";
 import { prisma } from "../database/client.js";
 
-function calculateTrustTier(score: number): "NEW" | "BUILDING" | "VERIFIED" | "TRUSTED" {
-  if (score >= 900) return "TRUSTED";
-  if (score >= 750) return "VERIFIED";
-  if (score >= 500) return "BUILDING";
-  return "NEW";
-}
+function getTrustLayerClient() {
+  const apiKey = process.env.TRUSTLAYER_API_KEY;
+  const baseUrl = process.env.TRUSTLAYER_API_URL;
 
-function clampScore(score: number): number {
-  return Math.max(0, Math.min(1000, Math.round(score)));
+  if (!apiKey || !baseUrl) {
+    throw new Error("TrustLayer TrustScore credentials are required.");
+  }
+
+  return createTrustLayerClient({
+    apiKey,
+    baseUrl,
+    maxRetries: 3,
+    timeoutMs: 10_000
+  });
 }
 
 export async function registerTrustScoreRoutes(app: FastifyInstance): Promise<void> {
@@ -33,18 +39,9 @@ export async function registerTrustScoreRoutes(app: FastifyInstance): Promise<vo
       where: { id: params.data.id },
       select: {
         id: true,
+        trustlayerUserId: true,
         verificationLevel: true,
-        trustScore: true,
-        trustTier: true,
-        createdAt: true,
-        _count: {
-          select: {
-            listings: true,
-            purchases: true,
-            sales: true,
-            reviewsReceived: true
-          }
-        }
+        createdAt: true
       }
     });
 
@@ -52,40 +49,19 @@ export async function registerTrustScoreRoutes(app: FastifyInstance): Promise<vo
       return reply.code(404).send({ error: "User not found." });
     }
 
-    const identityCompleteness = Math.min(250, user.verificationLevel * 125);
-    const transactionHistory = Math.min(250, (user._count.purchases + user._count.sales) * 50);
-    const peerReviews = Math.min(200, user._count.reviewsReceived * 40);
-    const disputeRecord = 200;
-    const platformTenure = Math.min(
-      100,
-      Math.floor((Date.now() - user.createdAt.getTime()) / (1000 * 60 * 60 * 24)) * 2
-    );
-
-    const computedScore = clampScore(
-      identityCompleteness +
-        transactionHistory +
-        peerReviews +
-        disputeRecord +
-        platformTenure
-    );
-
-    const score = user.trustScore ?? computedScore;
-    const tier = user.trustTier ?? calculateTrustTier(score);
+    const trustLayer = getTrustLayerClient();
+    const trustScore = await trustLayer.getTrustScore(user.trustlayerUserId, {
+      correlationId: request.id
+    });
 
     return {
       userId: user.id,
-      score,
-      tier,
+      score: trustScore.trustScore,
+      tier: trustScore.trustTier,
       verificationLevel: user.verificationLevel,
       memberSince: user.createdAt,
-      source: user.trustScore === null ? "PLATFORM_FALLBACK" : "USER_RECORD",
-      components: {
-        identityCompleteness,
-        transactionHistory,
-        peerReviews,
-        disputeRecord,
-        platformTenure
-      }
+      source: "TRUSTLAYER",
+      trustLayer: trustScore
     };
   });
 }
