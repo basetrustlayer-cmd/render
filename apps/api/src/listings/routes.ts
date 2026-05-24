@@ -131,6 +131,86 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
     return { listings };
   });
 
+
+  app.get("/sellers/:id", async (request, reply) => {
+    const paramsSchema = z.object({ id: z.string().uuid() });
+    const parsed = paramsSchema.safeParse(request.params);
+
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid seller ID." });
+    }
+
+    const seller = await prisma.user.findUnique({
+      where: { id: parsed.data.id },
+      select: {
+        id: true,
+        verificationLevel: true,
+        trustScore: true,
+        trustTier: true,
+        isBusiness: true,
+        isSuspended: true,
+        createdAt: true,
+        _count: {
+          select: {
+            listings: true,
+            reviewsReceived: true,
+            sales: true
+          }
+        }
+      }
+    });
+
+    if (!seller || seller.isSuspended) {
+      return reply.code(404).send({ error: "Seller not found." });
+    }
+
+    return {
+      seller: {
+        id: seller.id,
+        displayName: seller.isBusiness ? "Verified Business Seller" : "Verified Render Seller",
+        verificationLevel: seller.verificationLevel,
+        verificationStatus: seller.verificationLevel >= 1 ? "Identity Verified" : "Verification Pending",
+        trustScore: seller.trustScore ?? 500,
+        trustTier: seller.trustTier ?? "NEW",
+        reviewCount: seller._count.reviewsReceived,
+        completedDeals: seller._count.sales,
+        activeListings: seller._count.listings,
+        memberSince: seller.createdAt
+      }
+    };
+  });
+
+  app.get("/sellers/:id/listings", async (request, reply) => {
+    const paramsSchema = z.object({ id: z.string().uuid() });
+    const parsed = paramsSchema.safeParse(request.params);
+
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid seller ID." });
+    }
+
+    const listings = await prisma.listing.findMany({
+      where: {
+        sellerId: parsed.data.id,
+        status: "LIVE",
+        deletedAt: null,
+        seller: { isSuspended: false }
+      },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        price: true,
+        category: true,
+        condition: true,
+        locationRegion: true,
+        createdAt: true
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    return { listings };
+  });
+
   app.get("/listings/:id", async (request, reply) => {
     const paramsSchema = z.object({ id: z.string().uuid() });
     const parsed = paramsSchema.safeParse(request.params);
