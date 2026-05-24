@@ -90,4 +90,10 @@ describe("webhook route trust and idempotency contract", () => {
     expect(source).toContain('projection: "USER"');
   });
 
+  it("audits and records metrics for unknown TrustLayer events without projection mutation", () => {
+    expect(source).toContain("WEBHOOK_TRUSTLAYER_UNKNOWN_EVENT_IGNORED");
+    expect(source).toContain('status: "UNKNOWN_IGNORED"');
+    expect(source.indexOf("WEBHOOK_TRUSTLAYER_UNKNOWN_EVENT_IGNORED")).toBeLessThan(source.indexOf("let updatedEscrows = 0"));
+  });
+
 });

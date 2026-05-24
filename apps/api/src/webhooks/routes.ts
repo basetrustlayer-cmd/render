@@ -213,6 +213,32 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
       }
     }
 
+    if (!isTrustLayerUserEvent(parsed.data.event) && !isTrustLayerEscrowEvent(parsed.data.event)) {
+      void writeAuditLog({
+        request,
+        action: "WEBHOOK_TRUSTLAYER_UNKNOWN_EVENT_IGNORED",
+        metadata: {
+          event: parsed.data.event,
+          trustlayerUserId,
+          escrowId
+        }
+      });
+
+      recordOperationalMetric({
+        name: "webhook.processing.duration_ms",
+        value: elapsedMs(webhookStartedAt),
+        unit: "ms",
+        correlationId: request.id,
+        aggregateId: trustLayerEventId,
+        source: "render.api",
+        metadata: {
+          provider: "TRUSTLAYER",
+          event: parsed.data.event,
+          status: "UNKNOWN_IGNORED"
+        }
+      });
+    }
+
     let updatedEscrows = 0;
 
     if (isTrustLayerEscrowEvent(parsed.data.event) && escrowId) {
