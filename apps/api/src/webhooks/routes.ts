@@ -83,6 +83,19 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
           }
         });
 
+        await prisma.webhookEvent.update({
+          where: {
+            provider_eventId: {
+              provider: "TRUSTLAYER",
+              eventId: trustLayerEventId
+            }
+          },
+          data: {
+            status: "DUPLICATE",
+            processedAt: new Date()
+          }
+        });
+
         return {
           received: true,
           duplicate: true

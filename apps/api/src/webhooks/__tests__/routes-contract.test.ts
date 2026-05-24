@@ -26,10 +26,12 @@ describe("webhook route trust and idempotency contract", () => {
     expect(source.indexOf("prisma.webhookEvent.create")).toBeLessThan(source.indexOf("prisma.user.updateMany"));
   });
 
-  it("ignores duplicate TrustLayer webhook events idempotently", () => {
+  it("marks duplicate TrustLayer webhook events without replaying projections", () => {
     expect(source).toContain("isUniqueConstraintError");
     expect(source).toContain("WEBHOOK_TRUSTLAYER_DUPLICATE_IGNORED");
+    expect(source).toContain('status: "DUPLICATE"');
     expect(source).toContain("duplicate: true");
+    expect(source.indexOf('status: "DUPLICATE"')).toBeLessThan(source.indexOf("duplicate: true"));
   });
 
   it("keeps TrustLayer webhook as the SafeDeal projection update path", () => {
