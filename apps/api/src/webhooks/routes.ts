@@ -17,6 +17,8 @@ const trustLayerWebhookSchema = z.object({
     verificationLevel: z.number().int().min(0).max(5).optional(),
     trustScore: z.number().int().min(0).max(1000).optional(),
     trustTier: z.enum(["NEW", "BUILDING", "VERIFIED", "TRUSTED"]).optional(),
+    verificationStatus: z.string().min(1).max(50).optional(),
+    trustBadge: z.string().min(1).max(100).optional(),
     escrowId: z.string().optional(),
     escrowStatus: z.string().optional(),
     paymentUrl: z.string().optional(),
@@ -96,6 +98,8 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
       verificationLevel,
       trustScore,
       trustTier,
+      verificationStatus,
+      trustBadge,
       escrowId,
       escrowStatus,
       paymentUrl,
@@ -122,7 +126,16 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
         data: {
           ...(verificationLevel !== undefined ? { verificationLevel } : {}),
           ...(trustScore !== undefined ? { trustScore } : {}),
-          ...(trustTier !== undefined ? { trustTier } : {})
+          ...(trustTier !== undefined ? { trustTier } : {}),
+          ...(verificationStatus !== undefined ? { verificationStatusCached: verificationStatus } : {}),
+          ...(trustBadge !== undefined ? { trustBadgeCached: trustBadge } : {}),
+          ...(verificationLevel !== undefined ||
+          trustScore !== undefined ||
+          trustTier !== undefined ||
+          verificationStatus !== undefined ||
+          trustBadge !== undefined
+            ? { trustLastSyncedAt: syncedAt ? new Date(syncedAt) : new Date() }
+            : {})
         }
       });
     }
