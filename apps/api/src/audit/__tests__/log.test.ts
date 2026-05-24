@@ -20,6 +20,7 @@ describe("audit log", () => {
 
   it("persists audit fields with request context", async () => {
     const request = {
+      id: "req-test-1",
       ip: "127.0.0.1",
       headers: {
         "user-agent": "vitest-agent"
@@ -33,6 +34,8 @@ describe("audit log", () => {
       action: "TEST_ACTION",
       entityType: "USER",
       entityId: "00000000-0000-0000-0000-000000000003",
+      correlationId: "corr-test-1",
+      source: "render.api",
       metadata: {
         boundary: "REGRESSION_TEST"
       }
@@ -45,6 +48,9 @@ describe("audit log", () => {
         action: "TEST_ACTION",
         entityType: "USER",
         entityId: "00000000-0000-0000-0000-000000000003",
+        requestId: "req-test-1",
+        correlationId: "corr-test-1",
+        source: "render.api",
         ipAddress: "127.0.0.1",
         userAgent: "vitest-agent",
         metadata: {
@@ -66,6 +72,9 @@ describe("audit log", () => {
         action: "TEST_MINIMAL",
         entityType: null,
         entityId: null,
+        requestId: null,
+        correlationId: null,
+        source: "render.api",
         ipAddress: undefined,
         userAgent: undefined,
         metadata: Prisma.JsonNull

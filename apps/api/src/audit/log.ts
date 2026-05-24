@@ -9,6 +9,9 @@ export async function writeAuditLog(input: {
   action: string;
   entityType?: string | null;
   entityId?: string | null;
+  requestId?: string | null;
+  correlationId?: string | null;
+  source?: string | null;
   metadata?: Prisma.InputJsonValue;
 }): Promise<void> {
   try {
@@ -19,6 +22,9 @@ export async function writeAuditLog(input: {
         action: input.action,
         entityType: input.entityType ?? null,
         entityId: input.entityId ?? null,
+        requestId: input.requestId ?? input.request?.id ?? null,
+        correlationId: input.correlationId ?? input.request?.id ?? null,
+        source: input.source ?? "render.api",
         ipAddress: input.request?.ip,
         userAgent: input.request?.headers["user-agent"],
         metadata: input.metadata ?? Prisma.JsonNull

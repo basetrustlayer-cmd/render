@@ -410,6 +410,9 @@ model AuditLog {
   action      String   @db.VarChar(120)
   entityType  String?  @map("entity_type") @db.VarChar(80)
   entityId    String?  @map("entity_id") @db.VarChar(120)
+  requestId   String?  @map("request_id") @db.VarChar(120)
+  correlationId String? @map("correlation_id") @db.VarChar(120)
+  source      String?  @db.VarChar(80)
   ipAddress   String?  @map("ip_address") @db.VarChar(64)
   userAgent   String?  @map("user_agent")
   metadata    Json?
@@ -422,6 +425,9 @@ model AuditLog {
   @@index([organizationId])
   @@index([action])
   @@index([entityType, entityId])
+  @@index([requestId])
+  @@index([correlationId])
+  @@index([source])
   @@index([createdAt])
   @@map("audit_logs")
 }
