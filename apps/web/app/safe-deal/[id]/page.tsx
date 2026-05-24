@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { SafeDealReviewForm } from "../../../components/safe-deal-review-form";
 import { apiFetch } from "../../../lib/api";
 import { useAuthStore } from "../../../store/auth";
 
@@ -13,6 +14,12 @@ type SafeDeal = {
   buyerId: string;
   sellerId: string;
   listing: { id: string; title: string };
+  review: {
+    id: string;
+    rating: number;
+    body: string | null;
+    createdAt: string;
+  } | null;
 };
 
 export default function SafeDealDetailPage({ params }: { params: { id: string } }) {
@@ -62,6 +69,24 @@ export default function SafeDealDetailPage({ params }: { params: { id: string } 
             <p><strong>Amount:</strong> GHS {safeDeal.amount}</p>
             <p><strong>Fee:</strong> GHS {safeDeal.feeAmount}</p>
             <p><strong>Status:</strong> {safeDeal.status}</p>
+
+            {safeDeal.review && (
+              <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                <p className="font-semibold text-emerald-900">Review submitted</p>
+                <p className="mt-1 text-sm text-emerald-800">
+                  Rating: {safeDeal.review.rating}/5
+                </p>
+                {safeDeal.review.body && (
+                  <p className="mt-2 text-sm text-emerald-800">{safeDeal.review.body}</p>
+                )}
+              </div>
+            )}
+
+            {safeDeal.buyerId === user?.id &&
+              !safeDeal.review &&
+              ["CONFIRMED", "COMPLETE"].includes(safeDeal.status) && (
+                <SafeDealReviewForm safeDealId={safeDeal.id} onSubmitted={load} />
+              )}
 
             <div className="mt-4 flex gap-3">
               {safeDeal.buyerId === user?.id && ["FUNDED", "DELIVERED"].includes(safeDeal.status) && (

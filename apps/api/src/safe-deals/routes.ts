@@ -497,7 +497,15 @@ export async function registerSafeDealRoutes(
         ]
       },
       include: {
-        listing: true
+        listing: true,
+        review: {
+          select: {
+            id: true,
+            rating: true,
+            body: true,
+            createdAt: true
+          }
+        }
       }
     });
 
