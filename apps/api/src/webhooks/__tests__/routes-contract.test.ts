@@ -109,4 +109,16 @@ describe("webhook route trust and idempotency contract", () => {
     expect(source).toContain("event: parsed.data.event");
   });
 
+  it("records observability metrics for invalid TrustLayer signatures", () => {
+    expect(source).toContain("WEBHOOK_TRUSTLAYER_INVALID_SIGNATURE");
+    expect(source).toContain('status: "INVALID_SIGNATURE"');
+    expect(source).toContain('aggregateId: "trustlayer.invalid_signature"');
+  });
+
+  it("records observability metrics for invalid TrustLayer payloads", () => {
+    expect(source).toContain("WEBHOOK_TRUSTLAYER_INVALID_PAYLOAD");
+    expect(source).toContain('status: "INVALID_PAYLOAD"');
+    expect(source).toContain('aggregateId: "trustlayer.invalid_payload"');
+  });
+
 });

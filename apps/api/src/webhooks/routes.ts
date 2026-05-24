@@ -64,12 +64,44 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
       })
     ) {
       void writeAuditLog({ request, action: "WEBHOOK_TRUSTLAYER_INVALID_SIGNATURE" });
+
+      recordOperationalMetric({
+        name: "webhook.processing.duration_ms",
+        value: elapsedMs(webhookStartedAt),
+        unit: "ms",
+        correlationId: request.id,
+        aggregateId: "trustlayer.invalid_signature",
+        source: "render.api",
+        metadata: {
+          provider: "TRUSTLAYER",
+          status: "INVALID_SIGNATURE"
+        }
+      });
+
       return reply.code(401).send({ error: "Invalid TrustLayer signature." });
     }
 
     const parsed = trustLayerWebhookSchema.safeParse(request.body);
 
     if (!parsed.success) {
+      void writeAuditLog({
+        request,
+        action: "WEBHOOK_TRUSTLAYER_INVALID_PAYLOAD"
+      });
+
+      recordOperationalMetric({
+        name: "webhook.processing.duration_ms",
+        value: elapsedMs(webhookStartedAt),
+        unit: "ms",
+        correlationId: request.id,
+        aggregateId: "trustlayer.invalid_payload",
+        source: "render.api",
+        metadata: {
+          provider: "TRUSTLAYER",
+          status: "INVALID_PAYLOAD"
+        }
+      });
+
       return reply.code(400).send({ error: "Invalid TrustLayer webhook payload." });
     }
 
