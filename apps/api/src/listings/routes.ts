@@ -78,8 +78,11 @@ const listingInclude = {
   seller: {
     select: {
       verificationLevel: true,
+      verificationStatusCached: true,
       trustScore: true,
-      trustTier: true
+      trustTier: true,
+      trustBadgeCached: true,
+      trustLastSyncedAt: true
     }
   }
 };
@@ -122,7 +125,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
             }
           : {}),
         ...(query.data.verifiedOnly
-          ? { seller: { verificationLevel: { gte: 1 } } }
+          ? { seller: { verificationStatusCached: "VERIFIED" } }
           : {})
       },
       select: {
@@ -171,8 +174,11 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       select: {
         id: true,
         verificationLevel: true,
+        verificationStatusCached: true,
         trustScore: true,
         trustTier: true,
+        trustBadgeCached: true,
+        trustLastSyncedAt: true,
         isBusiness: true,
         isSuspended: true,
         createdAt: true,
@@ -195,9 +201,11 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
         id: seller.id,
         displayName: seller.isBusiness ? "Verified Business Seller" : "Verified Render Seller",
         verificationLevel: seller.verificationLevel,
-        verificationStatus: seller.verificationLevel >= 1 ? "Identity Verified" : "Verification Pending",
+        verificationStatus: seller.verificationStatusCached ?? "Verification Pending",
         trustScore: seller.trustScore ?? 500,
         trustTier: seller.trustTier ?? "NEW",
+        trustBadge: seller.trustBadgeCached,
+        trustLastSyncedAt: seller.trustLastSyncedAt,
         reviewCount: seller._count.reviewsReceived,
         completedDeals: seller._count.sales,
         activeListings: seller._count.listings,
@@ -331,8 +339,11 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
           select: {
             id: true,
             verificationLevel: true,
+            verificationStatusCached: true,
             trustScore: true,
             trustTier: true,
+            trustBadgeCached: true,
+            trustLastSyncedAt: true,
             isBusiness: true,
             whatsappNumber: true,
             createdAt: true,
@@ -359,12 +370,11 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
         : "Verified Render Seller",
       whatsappNumber: listing.seller.whatsappNumber,
       verificationLevel: listing.seller.verificationLevel,
-      verificationStatus:
-        listing.seller.verificationLevel >= 1
-          ? "Identity Verified"
-          : "Verification Pending",
+      verificationStatus: listing.seller.verificationStatusCached ?? "Verification Pending",
       trustScore: listing.seller.trustScore ?? 500,
       trustTier: listing.seller.trustTier ?? "NEW",
+      trustBadge: listing.seller.trustBadgeCached,
+      trustLastSyncedAt: listing.seller.trustLastSyncedAt,
       reviewCount: listing.seller._count.reviewsReceived,
       completedDeals: listing.seller._count.sales,
       activeListings: listing.seller._count.listings,
