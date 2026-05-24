@@ -3,7 +3,7 @@ import { Redis } from "ioredis";
 
 export const RENDER_QUEUE_NAMES = {
   smoke: "render.smoke",
-  settlementProcessing: "render.settlement.processing",
+  settlementProjection: "render.settlement.projection",
   messagingNotificationFanout: "render.messaging.notification_fanout",
   pushNotificationDelivery: "render.notification.push_delivery",
   notificationDeadLetter: "render.notification.dead_letter",
@@ -19,7 +19,7 @@ export type SmokeJobData = {
   correlationId: string;
 };
 
-export type SettlementProcessingJobData = {
+export type SettlementProjectionJobData = {
   safeDealId: string;
   settlementId: string;
   triggeredBy:
@@ -79,7 +79,7 @@ export type NotificationReplayRequestJobData = {
 
 export type RenderJobDataByQueue = {
   [RENDER_QUEUE_NAMES.smoke]: SmokeJobData;
-  [RENDER_QUEUE_NAMES.settlementProcessing]: SettlementProcessingJobData;
+  [RENDER_QUEUE_NAMES.settlementProjection]: SettlementProjectionJobData;
   [RENDER_QUEUE_NAMES.messagingNotificationFanout]: MessagingNotificationFanoutJobData;
   [RENDER_QUEUE_NAMES.pushNotificationDelivery]: PushNotificationDeliveryJobData;
   [RENDER_QUEUE_NAMES.notificationDeadLetter]: NotificationDeadLetterJobData;

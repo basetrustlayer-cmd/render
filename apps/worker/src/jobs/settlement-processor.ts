@@ -2,21 +2,21 @@ import { Worker } from "bullmq";
 import {
   createQueueConnection,
   RENDER_QUEUE_NAMES,
-  type SettlementProcessingJobData
+  type SettlementProjectionJobData
 } from "@render/queue";
 import { writeOperationalLog } from "@render/observability";
 
 const connection = createQueueConnection();
 
 export const settlementWorker =
-  new Worker<SettlementProcessingJobData>(
-    RENDER_QUEUE_NAMES.settlementProcessing,
+  new Worker<SettlementProjectionJobData>(
+    RENDER_QUEUE_NAMES.settlementProjection,
     async (job) => {
       const correlationId = `settlement_projection_${job.data.settlementId}`;
 
       writeOperationalLog({
         severity: "WARN",
-        event: "settlement.processing.skipped_projection_only",
+        event: "settlement.projection.skipped_execution_boundary",
         message: "Render does not execute settlement release. TrustLayer owns settlement execution; Render keeps projection-only state.",
         correlationId,
         aggregateId: job.data.settlementId,

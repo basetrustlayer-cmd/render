@@ -3,7 +3,7 @@ export const RENDER_SLOS = {
     targetPercent: 99.9,
     windowDays: 30
   },
-  settlementProcessingLatency: {
+  settlementProjectionLatency: {
     p95Ms: 15000
   },
   webhookProcessingLatency: {

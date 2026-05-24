@@ -6,7 +6,7 @@ export type OperationalMetricName =
   | "api.request.completed"
   | "auth.failure.recorded"
   | "webhook.processing.duration_ms"
-  | "settlement.processing.duration_ms"
+  | "settlement.projection.duration_ms"
   | "settlement.retry.exhausted"
   | "dispute.resolution.duration_ms"
   | "trustlayer.request.duration_ms"

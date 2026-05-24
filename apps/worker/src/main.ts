@@ -39,7 +39,7 @@ smokeWorker.on("ready", () => {
       event: "worker_ready",
       queues: [
         RENDER_QUEUE_NAMES.smoke,
-        RENDER_QUEUE_NAMES.settlementProcessing,
+        RENDER_QUEUE_NAMES.settlementProjection,
         RENDER_QUEUE_NAMES.messagingNotificationFanout,
         RENDER_QUEUE_NAMES.pushNotificationDelivery,
         RENDER_QUEUE_NAMES.notificationDeadLetter,
