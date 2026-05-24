@@ -96,4 +96,17 @@ describe("webhook route trust and idempotency contract", () => {
     expect(source.indexOf("WEBHOOK_TRUSTLAYER_UNKNOWN_EVENT_IGNORED")).toBeLessThan(source.indexOf("let updatedEscrows = 0"));
   });
 
+  it("classifies TrustLayer webhook projection types for observability", () => {
+    expect(source).toContain("function classifyTrustLayerEvent");
+    expect(source).toContain('return "USER"');
+    expect(source).toContain('return "SAFE_DEAL"');
+    expect(source).toContain('return "UNKNOWN"');
+    expect(source).toContain("const projectionType = classifyTrustLayerEvent(parsed.data.event)");
+  });
+
+  it("records processed webhook metrics with event classification metadata", () => {
+    expect(source).toContain("projection: projectionType");
+    expect(source).toContain("event: parsed.data.event");
+  });
+
 });

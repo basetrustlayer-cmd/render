@@ -43,6 +43,12 @@ function isTrustLayerEscrowEvent(event: string): boolean {
   return event.startsWith("escrow.") || event.startsWith("safedeal.");
 }
 
+function classifyTrustLayerEvent(event: string): "USER" | "SAFE_DEAL" | "UNKNOWN" {
+  if (isTrustLayerUserEvent(event)) return "USER";
+  if (isTrustLayerEscrowEvent(event)) return "SAFE_DEAL";
+  return "UNKNOWN";
+}
+
 
 export async function registerWebhookRoutes(app: FastifyInstance): Promise<void> {
   app.post("/webhooks/trustlayer", { config: { rawBody: true } }, async (request, reply) => {
@@ -159,6 +165,7 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
     });
 
     const eventTime = syncedAt ? new Date(syncedAt) : new Date();
+    const projectionType = classifyTrustLayerEvent(parsed.data.event);
 
     if (isTrustLayerUserEvent(parsed.data.event) && (userId || trustlayerUserId)) {
       const userSyncResult = await prisma.user.updateMany({
@@ -379,6 +386,7 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
         provider: "TRUSTLAYER",
         event: parsed.data.event,
         status: "PROCESSED",
+        projection: projectionType,
         updatedEscrows
       }
     });
