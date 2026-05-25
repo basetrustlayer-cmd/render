@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "../database/client.js";
 import { authenticate, requireAuthUser } from "../auth/middleware.js";
 import { writeAuditLog } from "../audit/log.js";
+import { recordOperationalMetric } from "@render/observability";
 import { getRequestedOrganizationId, requireActiveOrganizationMembership } from "../organizations/context.js";
 import { createRiskSignal } from "@render/risk";
 import { getSafeDealProjectionFreshness } from "./projection-freshness.js";
@@ -275,6 +276,20 @@ export async function registerSafeDealRoutes(
     
     const escrowFreshness = requireFreshEscrowProjection(safeDeal.escrowLastSyncedAt);
     if (!escrowFreshness.ok) {
+    recordOperationalMetric({
+      name: "safedeal.command.blocked",
+      value: 1,
+      unit: "count",
+      correlationId: request.id,
+      aggregateId: safeDeal.id,
+      source: "render.api",
+      metadata: {
+        reason: "STALE_ESCROW_PROJECTION",
+        projection: "ESCROW",
+        freshness: escrowFreshness.state
+      }
+    });
+
     void writeAuditLog({
       request,
       actorUserId: authUser.userId,
@@ -394,6 +409,20 @@ export async function registerSafeDealRoutes(
     
     const escrowFreshness = requireFreshEscrowProjection(safeDeal.escrowLastSyncedAt);
     if (!escrowFreshness.ok) {
+    recordOperationalMetric({
+      name: "safedeal.command.blocked",
+      value: 1,
+      unit: "count",
+      correlationId: request.id,
+      aggregateId: safeDeal.id,
+      source: "render.api",
+      metadata: {
+        reason: "STALE_ESCROW_PROJECTION",
+        projection: "ESCROW",
+        freshness: escrowFreshness.state
+      }
+    });
+
     void writeAuditLog({
       request,
       actorUserId: authUser.userId,
