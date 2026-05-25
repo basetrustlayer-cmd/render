@@ -49,7 +49,8 @@ describe("TrustLayer verification route contract", () => {
     expect(source).toContain("prisma.user.update");
     expect(source).toContain("verificationLevel: verification.verificationLevel ?? 2");
     expect(source).toContain("trustScore: verification.trustScore ?? 750");
-    expect(source).toContain('trustTier: verification.trustTier ?? "VERIFIED"');
+    expect(source).toContain("verificationStatusCached: normalizeVerificationStatus(verification.status)");
+    expect(source).toContain("trustLastSyncedAt: new Date()");
     expect(source).toContain("GHANA_CARD_VERIFIED");
   });
 });

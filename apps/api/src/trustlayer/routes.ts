@@ -1,4 +1,4 @@
-import { createTrustLayerClient } from "@render/trustlayer-sdk";
+import { createTrustLayerClient, normalizeVerificationStatus } from "@render/trustlayer-sdk";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { authenticate, requireAuthUser } from "../auth/middleware.js";
@@ -114,8 +114,10 @@ export async function registerTrustLayerRoutes(app: FastifyInstance): Promise<vo
       where: { id: authUser.userId },
       data: {
         verificationLevel: verification.verificationLevel ?? 2,
+        verificationStatusCached: normalizeVerificationStatus(verification.status),
         trustScore: verification.trustScore ?? 750,
-        trustTier: verification.trustTier ?? "VERIFIED"
+        trustTier: verification.trustTier ?? "VERIFIED",
+        trustLastSyncedAt: new Date()
       },
       select: {
         id: true,
@@ -139,7 +141,7 @@ export async function registerTrustLayerRoutes(app: FastifyInstance): Promise<vo
     return {
       verification: {
         provider: "TrustLayer",
-        status: "VERIFIED",
+        status: normalizeVerificationStatus(verification.status),
         reference: verification.verificationId,
         user
       }

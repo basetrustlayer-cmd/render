@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { createTrustLayerClient } from "@render/trustlayer-sdk";
+import { createTrustLayerClient, getVerifiedVerificationStatuses } from "@render/trustlayer-sdk";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../database/client.js";
@@ -125,7 +125,13 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
             }
           : {}),
         ...(query.data.verifiedOnly
-          ? { seller: { verificationStatusCached: "VERIFIED" } }
+          ? {
+              seller: {
+                verificationStatusCached: {
+                  in: getVerifiedVerificationStatuses()
+                }
+              }
+            }
           : {})
       },
       select: {

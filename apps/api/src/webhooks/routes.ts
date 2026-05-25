@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { normalizeVerificationStatus } from "@render/trustlayer-sdk";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../database/client.js";
@@ -233,7 +234,9 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
           ...(verificationLevel !== undefined ? { verificationLevel } : {}),
           ...(trustScore !== undefined ? { trustScore } : {}),
           ...(trustTier !== undefined ? { trustTier } : {}),
-          ...(verificationStatus !== undefined ? { verificationStatusCached: verificationStatus } : {}),
+          ...(verificationStatus !== undefined
+            ? { verificationStatusCached: normalizeVerificationStatus(verificationStatus) }
+            : {}),
           ...(trustBadge !== undefined ? { trustBadgeCached: trustBadge } : {}),
           ...(verificationLevel !== undefined ||
           trustScore !== undefined ||
