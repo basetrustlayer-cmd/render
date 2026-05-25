@@ -66,4 +66,11 @@ describe("admin route privilege contract", () => {
     expect(source).toContain("processedAt: true");
   });
 
+  it("exposes webhook failure recovery fields in the reconciliation read model", () => {
+    expect(source).toContain("failedOnly: z.coerce.boolean().optional()");
+    expect(source).toContain('query.data.failedOnly ? { status: "FAILED" }');
+    expect(source).toContain("payload: true");
+    expect(source).toContain("eventType: true");
+  });
+
 });

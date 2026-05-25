@@ -71,6 +71,7 @@ const webhookEventListQuerySchema = z.object({
   provider: z.string().trim().max(40).optional(),
   status: z.enum(["RECEIVED", "PROCESSED", "DUPLICATE", "FAILED"]).optional(),
   eventType: z.string().trim().max(120).optional(),
+  failedOnly: z.coerce.boolean().optional(),
   take: z.coerce.number().int().min(1).max(100).default(50)
 });
 
@@ -97,7 +98,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     const events = await prisma.webhookEvent.findMany({
       where: {
         ...(query.data.provider ? { provider: query.data.provider } : {}),
-        ...(query.data.status ? { status: query.data.status } : {}),
+        ...(query.data.failedOnly ? { status: "FAILED" } : query.data.status ? { status: query.data.status } : {}),
         ...(query.data.eventType ? { eventType: query.data.eventType } : {})
       },
       select: {
@@ -107,6 +108,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         eventType: true,
         status: true,
         processedAt: true,
+        payload: true,
         createdAt: true,
         updatedAt: true
       },
