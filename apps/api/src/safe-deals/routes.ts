@@ -6,6 +6,7 @@ import { authenticate, requireAuthUser } from "../auth/middleware.js";
 import { writeAuditLog } from "../audit/log.js";
 import { getRequestedOrganizationId, requireActiveOrganizationMembership } from "../organizations/context.js";
 import { createRiskSignal } from "@render/risk";
+import { getSafeDealProjectionFreshness } from "./projection-freshness.js";
 
 const createSafeDealSchema = z.object({
   listingId: z.string().uuid()
@@ -205,10 +206,20 @@ export async function registerSafeDealRoutes(
     return {
       safeDeals: safeDeals.map((safeDeal) => ({
         ...safeDeal,
+        escrowProjection: {
+          escrowStatusCached: safeDeal.escrowStatusCached,
+          escrowLastSyncedAt: safeDeal.escrowLastSyncedAt,
+          freshness: getSafeDealProjectionFreshness({
+            lastSyncedAt: safeDeal.escrowLastSyncedAt
+          })
+        },
         disputeProjection: {
           disputeStatusCached: safeDeal.disputeStatusCached,
           disputeReasonCached: safeDeal.disputeReasonCached,
-          disputeLastSyncedAt: safeDeal.disputeLastSyncedAt
+          disputeLastSyncedAt: safeDeal.disputeLastSyncedAt,
+          freshness: getSafeDealProjectionFreshness({
+            lastSyncedAt: safeDeal.disputeLastSyncedAt
+          })
         }
       }))
     };
@@ -481,10 +492,20 @@ export async function registerSafeDealRoutes(
     return {
       safeDeal: {
         ...safeDeal,
+        escrowProjection: {
+          escrowStatusCached: safeDeal.escrowStatusCached,
+          escrowLastSyncedAt: safeDeal.escrowLastSyncedAt,
+          freshness: getSafeDealProjectionFreshness({
+            lastSyncedAt: safeDeal.escrowLastSyncedAt
+          })
+        },
         disputeProjection: {
           disputeStatusCached: safeDeal.disputeStatusCached,
           disputeReasonCached: safeDeal.disputeReasonCached,
-          disputeLastSyncedAt: safeDeal.disputeLastSyncedAt
+          disputeLastSyncedAt: safeDeal.disputeLastSyncedAt,
+          freshness: getSafeDealProjectionFreshness({
+            lastSyncedAt: safeDeal.disputeLastSyncedAt
+          })
         }
       }
     };
