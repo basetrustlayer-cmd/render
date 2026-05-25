@@ -180,7 +180,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
     return reply.code(202).send({
       replayRequested: true,
-      replayQueued: false,
+      replayQueued: true,
       manualApproval,
       automaticReplay,
       replayMode,
@@ -684,31 +684,8 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       }
     });
 
-    const replayQueue = createRenderQueue(RENDER_QUEUE_NAMES.webhookReplayRequest);
-    await replayQueue.add(
-      `webhook_replay_review_${event.id}`,
-      {
-        webhookEventId: event.id,
-        provider: event.provider as WebhookReplayRequestJobData["provider"],
-        eventId: event.eventId,
-        eventType: event.eventType,
-        requestedByUserId: authUser.userId,
-        reason: body.data.reason,
-        requestedAt: new Date().toISOString(),
-        manualApproval,
-        automaticReplay,
-        replayMode,
-        idempotencyKey: `webhook_replay_review_${event.id}`,
-        correlationId: request.id
-      },
-      {
-        jobId: `webhook_replay_review_${event.id}`
-      }
-    );
-    await replayQueue.close();
-
     recordOperationalMetric({
-      name: "webhook.replay.requested",
+      name: "notification.replay.requested",
       value: 1,
       unit: "count",
       correlationId: data.correlationId,
