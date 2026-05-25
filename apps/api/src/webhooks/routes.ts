@@ -376,6 +376,9 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
           }
 
           const wasAlreadyConfirmed = existing.escrowStatusCached === "CONFIRMED";
+          const shouldMarkListingSold =
+            !wasAlreadyConfirmed &&
+            ["CONFIRMED", "COMPLETE"].includes(mappedStatus);
 
           const updated = await tx.safeDeal.update({
             where: { id: existing.id },
@@ -412,6 +415,18 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
                 : {})
             }
           });
+
+          if (shouldMarkListingSold) {
+            await tx.listing.updateMany({
+              where: {
+                id: updated.listingId,
+                status: "LIVE"
+              },
+              data: {
+                status: "SOLD"
+              }
+            });
+          }
 
           return { updatedCount: 1, settlementId: null as string | null, organizationId: updated.organizationId };
         });
