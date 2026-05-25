@@ -13,13 +13,14 @@
   },
   "dependencies": {
     "@prisma/client": "6.19.0",
-    "@render/queue": "workspace:*",
-    "@render/trustlayer-sdk": "workspace:^",
-    "bullmq": "^5.64.1",
-    "ioredis": "^5.8.2",
-    "@render/observability": "workspace:*",
     "@render/events": "workspace:*",
-    "@render/reliability": "workspace:*"
+    "@render/observability": "workspace:*",
+    "@render/queue": "workspace:*",
+    "@render/reliability": "workspace:*",
+    "@render/trustlayer-sdk": "workspace:^",
+    "@sentry/node": "^10.53.1",
+    "bullmq": "^5.64.1",
+    "ioredis": "^5.8.2"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",

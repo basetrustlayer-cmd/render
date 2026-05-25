@@ -1,9 +1,17 @@
+import { initApiSentry, captureApiException } from "./sentry.js";
 import { buildApp } from "./app.js";
 import { apiEnv } from "./env.js";
 
-const app = await buildApp();
+initApiSentry();
 
-await app.listen({
+try {
+  const app = await buildApp();
+
+  await app.listen({
   port: apiEnv.port,
-  host: "0.0.0.0"
-});
+    host: "0.0.0.0"
+  });
+} catch (error) {
+  captureApiException(error, { runtime: "api", phase: "startup" });
+  throw error;
+}

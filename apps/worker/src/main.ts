@@ -1,3 +1,4 @@
+import { initWorkerSentry, captureWorkerException } from "./sentry.js";
 import { Worker } from "bullmq";
 import { settlementWorker } from "./jobs/settlement-processor.js";
 import { messagingNotificationFanoutWorker } from "./jobs/messaging-notification-fanout.js";
@@ -10,6 +11,8 @@ import {
   RENDER_QUEUE_NAMES,
   type SmokeJobData
 } from "@render/queue";
+
+initWorkerSentry();
 
 const connection = createQueueConnection();
 
@@ -62,6 +65,12 @@ smokeWorker.on("completed", (job) => {
 });
 
 smokeWorker.on("failed", (job, error) => {
+  captureWorkerException(error, {
+    runtime: "worker",
+    queue: job?.queueName,
+    jobId: job?.id
+  });
+
   console.error(
     JSON.stringify({
       event: "job_failed",
