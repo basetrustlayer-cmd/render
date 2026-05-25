@@ -1104,7 +1104,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     if (!scope) return;
 
     const safeDeals = await prisma.safeDeal.findMany({
-      where: { status: "DISPUTED", ...(scope.organizationId ? { organizationId: scope.organizationId } : {}) },
+      where: { escrowStatusCached: "DISPUTED", ...(scope.organizationId ? { organizationId: scope.organizationId } : {}) },
       include: {
         listing: true,
         buyer: {

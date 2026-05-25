@@ -135,9 +135,8 @@ export async function registerSafeDealRoutes(
         buyerId: authUser.userId,
         sellerId: listing.sellerId,
         organizationId: listing.organizationId,
-        amount,
-        feeAmount: 0,
-        status: "INITIATED",
+        escrowAmountCached: amount,
+        escrowFeeCached: 0,
         trustLayerEscrowId: intent.escrowId,
         checkoutUrl: intent.paymentUrl,
         escrowStatusCached: intent.status,
@@ -228,7 +227,7 @@ export async function registerSafeDealRoutes(
       return reply.code(409).send({ error: "Safe Deal is missing TrustLayer escrow reference." });
     }
 
-    if (!["FUNDED", "DELIVERED"].includes(safeDeal.status)) {
+    if (!["FUNDED", "DELIVERED"].includes(safeDeal.escrowStatusCached ?? "")) {
       return reply.code(400).send({ error: "Only funded or delivered Safe Deals can be confirmed." });
     }
 
@@ -316,7 +315,7 @@ export async function registerSafeDealRoutes(
       });
     }
 
-    if (!["FUNDED", "DELIVERED"].includes(safeDeal.status)) {
+    if (!["FUNDED", "DELIVERED"].includes(safeDeal.escrowStatusCached ?? "")) {
       return reply.code(400).send({
         error: "Only funded or delivered Safe Deals can be disputed."
       });
@@ -344,7 +343,6 @@ export async function registerSafeDealRoutes(
         data: {
           escrowStatusCached: command.status,
           escrowLastSyncedAt: new Date(),
-          status: "DISPUTED"
         }
       });
 

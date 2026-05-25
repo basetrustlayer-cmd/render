@@ -37,7 +37,7 @@ describe("webhook route trust and idempotency contract", () => {
   it("keeps TrustLayer webhook as the SafeDeal projection update path", () => {
     expect(source).toContain("mapTrustLayerEscrowStatus");
     expect(source).toContain("trustLayerEscrowId: escrowId");
-    expect(source).toContain("escrowStatusCached: escrowStatus");
+    expect(source).toContain("escrowStatusCached: mappedStatus");
     expect(source).toContain("escrowLastSyncedAt: eventTime");
   });
 

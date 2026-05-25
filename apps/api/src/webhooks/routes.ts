@@ -357,32 +357,30 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
             return { updatedCount: 0, settlementId: null as string | null, organizationId: existing.organizationId };
           }
 
-          const wasAlreadyConfirmed = existing.status === "CONFIRMED";
+          const wasAlreadyConfirmed = existing.escrowStatusCached === "CONFIRMED";
 
           const updated = await tx.safeDeal.update({
             where: { id: existing.id },
             data: {
-              status: mappedStatus,
-              escrowStatusCached: escrowStatus,
+              escrowStatusCached: mappedStatus,
               checkoutUrl: paymentUrl ?? undefined,
               escrowLastSyncedAt: eventTime,
 
               ...(mappedStatus === "FUNDED"
                 ? {
-                    fundedAt: eventTime,
-                    inspectionDeadline: new Date(eventTime.getTime() + 48 * 60 * 60 * 1000)
+                    escrowLastSyncedAt: eventTime
                   }
                 : {}),
 
               ...(mappedStatus === "CONFIRMED"
                 ? {
-                    confirmedAt: eventTime
+                    escrowLastSyncedAt: eventTime
                   }
                 : {}),
 
               ...(mappedStatus === "DELIVERED"
                 ? {
-                    deliveredAt: eventTime
+                    escrowLastSyncedAt: eventTime
                   }
                 : {})
             }

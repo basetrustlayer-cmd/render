@@ -51,7 +51,7 @@ export async function registerReviewRoutes(app: FastifyInstance): Promise<void> 
       return reply.code(403).send({ error: "Only the buyer can review this Safe Deal." });
     }
 
-    if (!["CONFIRMED", "COMPLETE"].includes(safeDeal.status)) {
+    if (!["CONFIRMED", "COMPLETE"].includes(safeDeal.escrowStatusCached ?? "")) {
       return reply.code(400).send({ error: "Only confirmed or completed Safe Deals can be reviewed." });
     }
 
