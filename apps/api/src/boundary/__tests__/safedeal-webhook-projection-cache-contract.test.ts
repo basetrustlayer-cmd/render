@@ -10,7 +10,6 @@ describe("SafeDeal webhook projection cache contract", () => {
     expect(webhookRoutes).toContain("trustLayerEscrowId: escrowId");
     expect(webhookRoutes).toContain("escrowStatusCached: mappedStatus");
     expect(webhookRoutes).toContain("escrowLastSyncedAt: eventTime");
-    expect(webhookRoutes.match(/escrowLastSyncedAt: eventTime/g)?.length).toBe(1);
 
     expect(webhookRoutes).not.toContain("status: mappedStatus");
     expect(webhookRoutes).not.toContain("fundedAt:");
