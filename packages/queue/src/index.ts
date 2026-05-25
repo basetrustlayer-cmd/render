@@ -7,7 +7,8 @@ export const RENDER_QUEUE_NAMES = {
   messagingNotificationFanout: "render.messaging.notification_fanout",
   pushNotificationDelivery: "render.notification.push_delivery",
   notificationDeadLetter: "render.notification.dead_letter",
-  notificationReplayRequest: "render.notification.replay_request"
+  notificationReplayRequest: "render.notification.replay_request",
+  webhookReplayRequest: "render.webhook.replay_request"
 } as const;
 
 export type RenderQueueName =
@@ -77,6 +78,21 @@ export type NotificationReplayRequestJobData = {
   correlationId: string;
 };
 
+export type WebhookReplayRequestJobData = {
+  webhookEventId: string;
+  provider: "TRUSTLAYER";
+  eventId: string;
+  eventType: string;
+  requestedByUserId: string;
+  reason: string;
+  requestedAt: string;
+  manualApproval: true;
+  automaticReplay: false;
+  replayMode: "MANUAL_OPERATOR_REVIEW_REQUIRED";
+  idempotencyKey: string;
+  correlationId: string;
+};
+
 export type RenderJobDataByQueue = {
   [RENDER_QUEUE_NAMES.smoke]: SmokeJobData;
   [RENDER_QUEUE_NAMES.settlementProjection]: SettlementProjectionJobData;
@@ -84,6 +100,7 @@ export type RenderJobDataByQueue = {
   [RENDER_QUEUE_NAMES.pushNotificationDelivery]: PushNotificationDeliveryJobData;
   [RENDER_QUEUE_NAMES.notificationDeadLetter]: NotificationDeadLetterJobData;
   [RENDER_QUEUE_NAMES.notificationReplayRequest]: NotificationReplayRequestJobData;
+  [RENDER_QUEUE_NAMES.webhookReplayRequest]: WebhookReplayRequestJobData;
 };
 
 export function getRedisUrl(): string {
