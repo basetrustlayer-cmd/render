@@ -685,7 +685,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     });
 
     recordOperationalMetric({
-      name: "notification.replay.requested",
+      name: "webhook.replay.requested",
       value: 1,
       unit: "count",
       correlationId: data.correlationId,
