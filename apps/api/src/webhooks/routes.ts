@@ -383,15 +383,6 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
               escrowStatusCached: mappedStatus,
               checkoutUrl: paymentUrl ?? undefined,
               escrowLastSyncedAt: eventTime,
-              ...(disputeStatus !== undefined
-                ? { disputeStatusCached: disputeStatus.trim().toUpperCase() }
-                : {}),
-              ...(disputeReason !== undefined
-                ? { disputeReasonCached: disputeReason }
-                : {}),
-              ...(disputeStatus !== undefined || disputeReason !== undefined
-                ? { disputeLastSyncedAt: eventTime }
-                : {}),
               ...(normalizeTrustLayerDisputeStatus(disputeStatus) !== undefined
                 ? { disputeStatusCached: normalizeTrustLayerDisputeStatus(disputeStatus) }
                 : {}),
