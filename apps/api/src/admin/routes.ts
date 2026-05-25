@@ -24,10 +24,6 @@ const rejectListingSchema = z.object({
 
 
 
-const disputeResolutionSchema = z.object({
-  resolutionNote: z.string().min(10).max(2000)
-});
-
 function getTrustLayerClient() {
   const apiKey = process.env.TRUSTLAYER_API_KEY;
   const baseUrl = process.env.TRUSTLAYER_API_URL;
@@ -1482,7 +1478,6 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
                 trustTier: true
               }
             },
-            settlement: true,
             ledgerEntries: {
               orderBy: { createdAt: "asc" }
             }
