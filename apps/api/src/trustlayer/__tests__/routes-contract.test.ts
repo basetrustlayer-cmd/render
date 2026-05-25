@@ -53,4 +53,10 @@ describe("TrustLayer verification route contract", () => {
     expect(source).toContain("trustLastSyncedAt: new Date()");
     expect(source).toContain("GHANA_CARD_VERIFIED");
   });
+  it("returns canonical normalized verification status after direct Ghana Card verification", () => {
+    expect(source).toContain('import { createTrustLayerClient, normalizeVerificationStatus } from "@render/trustlayer-sdk";');
+    expect(source).toContain("status: normalizeVerificationStatus(verification.status)");
+    expect(source).not.toContain('status: "VERIFIED"');
+  });
+
 });

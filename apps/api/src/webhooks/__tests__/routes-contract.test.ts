@@ -137,4 +137,16 @@ describe("webhook route trust and idempotency contract", () => {
     expect(source).toContain("projection: projectionType");
   });
 
+  it("normalizes TrustLayer verification status before writing cached user projection", () => {
+    expect(source).toContain('import { normalizeVerificationStatus } from "@render/trustlayer-sdk";');
+    expect(source).toContain("verificationStatusCached: normalizeVerificationStatus(verificationStatus)");
+    expect(source).not.toContain("verificationStatusCached: verificationStatus");
+  });
+
+  it("uses canonical user trust projection timestamp ordering", () => {
+    expect(source).toContain("const eventTime = syncedAt ? new Date(syncedAt) : new Date()");
+    expect(source).toContain("OR: [{ trustLastSyncedAt: null }, { trustLastSyncedAt: { lte: eventTime } }]");
+    expect(source).toContain("trustLastSyncedAt: eventTime");
+  });
+
 });

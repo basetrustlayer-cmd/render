@@ -52,4 +52,18 @@ describe("listing route tenant and ownership contract", () => {
     expect(source).toContain('crypto.createHash("sha1")');
     expect(source).toContain("uploadUrl");
   });
+  it("uses canonical TrustLayer verification statuses for verifiedOnly filtering", () => {
+    expect(source).toContain('getVerifiedVerificationStatuses');
+    expect(source).toContain('verificationStatusCached: {');
+    expect(source).toContain('in: getVerifiedVerificationStatuses()');
+    expect(source).not.toContain('verificationStatusCached: "VERIFIED"');
+  });
+
+  it("projects seller verification cache fields into listing and storefront reads", () => {
+    expect(source.match(/verificationStatusCached: true/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+    expect(source.match(/trustLastSyncedAt: true/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+    expect(source).toContain('verificationStatus: seller.verificationStatusCached ?? "Verification Pending"');
+    expect(source).toContain('verificationStatus: listing.seller.verificationStatusCached ?? "Verification Pending"');
+  });
+
 });
