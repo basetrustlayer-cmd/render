@@ -18,3 +18,5 @@ export type {
   TrustLayerSafeDealIntentResponse,
   TrustLayerTrustScoreResponse,
 } from "./types.js";
+
+export * from "./verification-status.js";
