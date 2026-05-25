@@ -76,10 +76,13 @@ describe("admin route privilege contract", () => {
     expect(source).toContain('app.post("/admin/webhooks/events/:id/replay-request", { preHandler: [authenticate, requireSuperAdmin] }');
     expect(source).toContain('event.status !== "FAILED"');
     expect(source).toContain("WEBHOOK_EVENT_REPLAY_REVIEW_REQUESTED");
-    expect(source).toContain('name: "notification.replay.requested"');
+    expect(source).toContain("createRenderQueue(RENDER_QUEUE_NAMES.webhookReplayRequest)");
+    expect(source).toContain("WebhookReplayRequestJobData");
+    expect(source).toContain("webhook_replay_review_${event.id}");
+    expect(source).toContain('name: "webhook.replay.requested"');
     expect(source).toContain("manualApproval");
     expect(source).toContain("automaticReplay");
-    expect(source).toContain("replayQueued: false");
+    expect(source).toContain("replayQueued: true");
     expect(source).toContain('replayMode = "MANUAL_OPERATOR_REVIEW_REQUIRED"');
   });
 

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { authenticate, requireAdmin, requireAuthUser, requireModerator, requireSuperAdmin } from "../auth/middleware.js";
 import { writeAuditLog } from "../audit/log.js";
 import { prisma } from "../database/client.js";
-import { createRenderQueue, RENDER_QUEUE_NAMES, type NotificationReplayRequestJobData } from "@render/queue";
+import { createRenderQueue, RENDER_QUEUE_NAMES, type NotificationReplayRequestJobData, type WebhookReplayRequestJobData } from "@render/queue";
 import { createRenderEvent, RENDER_EVENT_TYPES } from "@render/events";
 import { recordOperationalMetric } from "@render/observability";
 import { requireAdminOrganizationScope } from "./scope.js";
@@ -138,8 +138,31 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       }
     });
 
+    const replayQueue = createRenderQueue(RENDER_QUEUE_NAMES.webhookReplayRequest);
+    await replayQueue.add(
+      `webhook_replay_review_${event.id}`,
+      {
+        webhookEventId: event.id,
+        provider: event.provider as WebhookReplayRequestJobData["provider"],
+        eventId: event.eventId,
+        eventType: event.eventType,
+        requestedByUserId: authUser.userId,
+        reason: body.data.reason,
+        requestedAt: new Date().toISOString(),
+        manualApproval,
+        automaticReplay,
+        replayMode,
+        idempotencyKey: `webhook_replay_review_${event.id}`,
+        correlationId: request.id
+      },
+      {
+        jobId: `webhook_replay_review_${event.id}`
+      }
+    );
+    await replayQueue.close();
+
     recordOperationalMetric({
-      name: "notification.replay.requested",
+      name: "webhook.replay.requested",
       value: 1,
       unit: "count",
       correlationId: request.id,
@@ -661,8 +684,31 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       }
     });
 
+    const replayQueue = createRenderQueue(RENDER_QUEUE_NAMES.webhookReplayRequest);
+    await replayQueue.add(
+      `webhook_replay_review_${event.id}`,
+      {
+        webhookEventId: event.id,
+        provider: event.provider as WebhookReplayRequestJobData["provider"],
+        eventId: event.eventId,
+        eventType: event.eventType,
+        requestedByUserId: authUser.userId,
+        reason: body.data.reason,
+        requestedAt: new Date().toISOString(),
+        manualApproval,
+        automaticReplay,
+        replayMode,
+        idempotencyKey: `webhook_replay_review_${event.id}`,
+        correlationId: request.id
+      },
+      {
+        jobId: `webhook_replay_review_${event.id}`
+      }
+    );
+    await replayQueue.close();
+
     recordOperationalMetric({
-      name: "notification.replay.requested",
+      name: "webhook.replay.requested",
       value: 1,
       unit: "count",
       correlationId: data.correlationId,
