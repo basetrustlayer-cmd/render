@@ -72,5 +72,15 @@ describe("admin route privilege contract", () => {
     expect(source).toContain("payload: true");
     expect(source).toContain("eventType: true");
   });
+  it("keeps webhook replay execution controls manual and super-admin restricted", () => {
+    expect(source).toContain('app.post("/admin/webhooks/events/:id/replay-request", { preHandler: [authenticate, requireSuperAdmin] }');
+    expect(source).toContain('event.status !== "FAILED"');
+    expect(source).toContain("WEBHOOK_EVENT_REPLAY_REVIEW_REQUESTED");
+    expect(source).toContain('name: "notification.replay.requested"');
+    expect(source).toContain("manualApproval");
+    expect(source).toContain("automaticReplay");
+    expect(source).toContain("replayQueued: false");
+    expect(source).toContain('replayMode = "MANUAL_OPERATOR_REVIEW_REQUIRED"');
+  });
 
 });

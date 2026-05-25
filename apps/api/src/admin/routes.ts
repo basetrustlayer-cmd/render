@@ -88,6 +88,89 @@ const disputeListQuerySchema = z.object({
 });
 
 export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
+  app.post("/admin/webhooks/events/:id/replay-request", { preHandler: [authenticate, requireSuperAdmin] }, async (request, reply) => {
+    const authUser = requireAuthUser(request);
+    const params = idParamsSchema.safeParse(request.params);
+    const body = z.object({ reason: z.string().min(10).max(1000) }).safeParse(request.body);
+
+    if (!params.success || !body.success) {
+      return reply.code(400).send({ error: "Invalid webhook replay request payload." });
+    }
+
+    const event = await prisma.webhookEvent.findUnique({
+      where: { id: params.data.id },
+      select: {
+        id: true,
+        provider: true,
+        eventId: true,
+        eventType: true,
+        status: true,
+        payload: true
+      }
+    });
+
+    if (!event) {
+      return reply.code(404).send({ error: "Webhook event not found." });
+    }
+
+    if (event.status !== "FAILED") {
+      return reply.code(409).send({ error: "Only failed webhook events can be submitted for replay review." });
+    }
+
+    const manualApproval = true;
+    const automaticReplay = false;
+    const replayMode = "MANUAL_OPERATOR_REVIEW_REQUIRED";
+
+    void writeAuditLog({
+      request,
+      actorUserId: authUser.userId,
+      action: "WEBHOOK_EVENT_REPLAY_REVIEW_REQUESTED",
+      entityType: "WEBHOOK_EVENT",
+      entityId: event.id,
+      metadata: {
+        provider: event.provider,
+        eventId: event.eventId,
+        eventType: event.eventType,
+        reason: body.data.reason,
+        manualApproval,
+        automaticReplay,
+        replayMode
+      }
+    });
+
+    recordOperationalMetric({
+      name: "notification.replay.requested",
+      value: 1,
+      unit: "count",
+      correlationId: request.id,
+      aggregateId: event.eventId,
+      source: "render.api",
+      metadata: {
+        provider: event.provider,
+        eventType: event.eventType,
+        status: event.status,
+        manualApproval,
+        automaticReplay,
+        replayMode
+      }
+    });
+
+    return reply.code(202).send({
+      replayRequested: true,
+      replayQueued: false,
+      manualApproval,
+      automaticReplay,
+      replayMode,
+      event: {
+        id: event.id,
+        provider: event.provider,
+        eventId: event.eventId,
+        eventType: event.eventType,
+        status: event.status
+      }
+    });
+  });
+
   app.get("/admin/webhooks/events", { preHandler: [authenticate, requireSuperAdmin] }, async (request, reply) => {
     const query = webhookEventListQuerySchema.safeParse(request.query);
 
