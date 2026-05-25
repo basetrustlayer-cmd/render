@@ -11,11 +11,17 @@ type AdminUser = {
   verificationLevel: number;
   trustScore: number | null;
   trustTier: string | null;
+  updatedAt?: string | null;
   isBusiness: boolean;
   isSuspended: boolean;
   suspendedReason: string | null;
   createdAt: string;
 };
+
+
+function formatTrustFreshness(value?: string | null) {
+  return value ? `Trust data updated ${new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : "Trust data sync pending";
+}
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -84,6 +90,7 @@ export default function AdminUsersPage() {
                   <td className="p-3">{user.role}</td>
                   <td className="p-3">
                     L{user.verificationLevel} · {user.trustTier ?? "NEW"} · {user.trustScore ?? 0}
+                    <span className="block text-xs text-gray-500">{formatTrustFreshness(user.updatedAt)}</span>
                   </td>
                   <td className="p-3">{user.isSuspended ? "Suspended" : "Active"}</td>
                   <td className="p-3">{new Date(user.createdAt).toLocaleDateString()}</td>
