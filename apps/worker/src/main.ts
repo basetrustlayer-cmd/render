@@ -4,6 +4,7 @@ import { messagingNotificationFanoutWorker } from "./jobs/messaging-notification
 import { pushNotificationDeliveryWorker } from "./jobs/push-notification-delivery.js";
 import { notificationDeadLetterWorker } from "./jobs/notification-dead-letter.js";
 import { notificationReplayRequestWorker } from "./jobs/notification-replay-request.js";
+import { webhookReplayRequestWorker } from "./jobs/webhook-replay-request.js";
 import {
   createQueueConnection,
   RENDER_QUEUE_NAMES,
@@ -43,7 +44,8 @@ smokeWorker.on("ready", () => {
         RENDER_QUEUE_NAMES.messagingNotificationFanout,
         RENDER_QUEUE_NAMES.pushNotificationDelivery,
         RENDER_QUEUE_NAMES.notificationDeadLetter,
-        RENDER_QUEUE_NAMES.notificationReplayRequest
+        RENDER_QUEUE_NAMES.notificationReplayRequest,
+        RENDER_QUEUE_NAMES.webhookReplayRequest
       ]
     })
   );
@@ -79,6 +81,7 @@ async function shutdown(signal: string): Promise<void> {
   await pushNotificationDeliveryWorker.close();
   await notificationDeadLetterWorker.close();
   await notificationReplayRequestWorker.close();
+  await webhookReplayRequestWorker.close();
   await connection.quit();
 
   console.log(JSON.stringify({ event: "worker_shutdown_complete", signal }));
