@@ -37,6 +37,10 @@ function generateOtp(): string {
   return String(crypto.randomInt(100000, 1000000));
 }
 
+function isForbiddenProductionOtp(code: string): boolean {
+  return process.env.NODE_ENV === "production" && code === "000000";
+}
+
 function hashRefreshToken(token: string): string {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
@@ -244,6 +248,11 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const { phone, code } = parsed.data;
+
+    if (isForbiddenProductionOtp(code)) {
+      void writeAuditLog({ request, action: "AUTH_OTP_VERIFY_FORBIDDEN_CODE", metadata: { phone } });
+      return reply.code(400).send({ error: "Invalid OTP verification request." });
+    }
 
     const challenge = await prisma.otpChallenge.findFirst({
       where: {
