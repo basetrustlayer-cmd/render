@@ -14,7 +14,9 @@ describe("sold projection idempotency contract", () => {
   it("keeps SOLD projection webhook-driven and monotonic", () => {
     expect(webhookRoutes).not.toContain("markSoldManually");
     expect(webhookRoutes).not.toContain("reopenListing");
-    expect(webhookRoutes).not.toContain('status: "LIVE"');
+    expect(webhookRoutes).toContain("shouldMarkListingSold");
+    expect(webhookRoutes).toContain('status: "LIVE"');
+    expect(webhookRoutes).toContain('status: "SOLD"');
   });
 
   it("keeps TrustLayer completion sync projection-based only", () => {
