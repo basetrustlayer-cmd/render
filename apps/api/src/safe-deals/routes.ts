@@ -11,6 +11,12 @@ const createSafeDealSchema = z.object({
   listingId: z.string().uuid()
 });
 
+const safeDealProjectionCacheFields = {
+  disputeStatusCached: true,
+  disputeReasonCached: true,
+  disputeLastSyncedAt: true
+} as const;
+
 
 function getTrustLayerClient() {
   const apiKey = process.env.TRUSTLAYER_API_KEY;
@@ -463,6 +469,15 @@ export async function registerSafeDealRoutes(
       });
     }
 
-    return { safeDeal };
+    return {
+      safeDeal: {
+        ...safeDeal,
+        disputeProjection: {
+          disputeStatusCached: safeDeal.disputeStatusCached,
+          disputeReasonCached: safeDeal.disputeReasonCached,
+          disputeLastSyncedAt: safeDeal.disputeLastSyncedAt
+        }
+      }
+    };
   });
 }

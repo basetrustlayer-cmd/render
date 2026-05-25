@@ -23,6 +23,8 @@ const trustLayerWebhookSchema = z.object({
     escrowId: z.string().optional(),
     escrowStatus: z.string().optional(),
     paymentUrl: z.string().optional(),
+    disputeStatus: z.string().min(1).max(50).optional(),
+    disputeReason: z.string().min(1).max(500).optional(),
     syncedAt: z.string().optional()
   }).passthrough()
 });
@@ -40,13 +42,25 @@ function isTrustLayerUserEvent(event: string): boolean {
 }
 
 function isTrustLayerEscrowEvent(event: string): boolean {
-  return event.startsWith("escrow.") || event.startsWith("safedeal.");
+  return event.startsWith("escrow.") || event.startsWith("safedeal.") || event.startsWith("dispute.");
 }
 
 function classifyTrustLayerEvent(event: string): "USER" | "SAFE_DEAL" | "UNKNOWN" {
   if (isTrustLayerUserEvent(event)) return "USER";
   if (isTrustLayerEscrowEvent(event)) return "SAFE_DEAL";
   return "UNKNOWN";
+}
+
+function normalizeTrustLayerDisputeStatus(status: string | undefined): string | undefined {
+  if (!status) return undefined;
+
+  const normalized = status.trim().toUpperCase();
+
+  if (["OPEN", "UNDER_REVIEW", "RESOLVED", "CLOSED", "REJECTED"].includes(normalized)) {
+    return normalized;
+  }
+
+  return "OPEN";
 }
 
 
@@ -201,6 +215,8 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
       escrowId,
       escrowStatus,
       paymentUrl,
+      disputeStatus,
+      disputeReason,
       syncedAt
     } = parsed.data.data;
 
@@ -214,7 +230,9 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
         event: parsed.data.event,
         trustlayerUserId,
         escrowId,
-        escrowStatus
+        escrowStatus,
+        disputeStatus,
+        disputeReason
       }
     });
 
@@ -365,6 +383,24 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
               escrowStatusCached: mappedStatus,
               checkoutUrl: paymentUrl ?? undefined,
               escrowLastSyncedAt: eventTime,
+              ...(disputeStatus !== undefined
+                ? { disputeStatusCached: disputeStatus.trim().toUpperCase() }
+                : {}),
+              ...(disputeReason !== undefined
+                ? { disputeReasonCached: disputeReason }
+                : {}),
+              ...(disputeStatus !== undefined || disputeReason !== undefined
+                ? { disputeLastSyncedAt: eventTime }
+                : {}),
+              ...(normalizeTrustLayerDisputeStatus(disputeStatus) !== undefined
+                ? { disputeStatusCached: normalizeTrustLayerDisputeStatus(disputeStatus) }
+                : {}),
+              ...(disputeReason !== undefined
+                ? { disputeReasonCached: disputeReason }
+                : {}),
+              ...(disputeStatus !== undefined || disputeReason !== undefined
+                ? { disputeLastSyncedAt: eventTime }
+                : {}),
 
               ...(mappedStatus === "FUNDED"
                 ? {

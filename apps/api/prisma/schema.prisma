@@ -190,8 +190,11 @@ model SafeDeal {
   checkoutUrl         String?       @map("checkout_url")
   escrowAmountCached  Decimal?      @map("escrow_amount_cached") @db.Decimal(12, 2)
   escrowFeeCached     Decimal?      @map("escrow_fee_cached") @db.Decimal(12, 2)
-  escrowStatusCached  String?       @map("escrow_status_cached") @db.VarChar(40)
-  escrowLastSyncedAt  DateTime?     @map("escrow_last_synced_at") @db.Timestamptz(6)
+  escrowStatusCached   String?       @map("escrow_status_cached") @db.VarChar(40)
+  escrowLastSyncedAt   DateTime?     @map("escrow_last_synced_at") @db.Timestamptz(6)
+  disputeStatusCached  String?       @map("dispute_status_cached") @db.VarChar(40)
+  disputeReasonCached  String?       @map("dispute_reason_cached") @db.VarChar(500)
+  disputeLastSyncedAt  DateTime?     @map("dispute_last_synced_at") @db.Timestamptz(6)
   createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 
