@@ -28,6 +28,8 @@ describe("Dispute projection cache alignment contract", () => {
   it("exposes only projection cache dispute fields through SafeDeal APIs", () => {
     expect(safeDealRoutes).toContain("disputeStatusCached");
     expect(safeDealRoutes).toContain("disputeReasonCached");
+    expect(safeDealRoutes).toContain("disputeProjection");
+    expect(safeDealRoutes).toContain("safeDeals.map");
 
     expect(safeDealRoutes).not.toContain("assignedMediator");
     expect(safeDealRoutes).not.toContain("resolutionWorkflow");

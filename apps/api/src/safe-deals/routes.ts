@@ -202,7 +202,16 @@ export async function registerSafeDealRoutes(
       take: 50
     });
 
-    return { safeDeals };
+    return {
+      safeDeals: safeDeals.map((safeDeal) => ({
+        ...safeDeal,
+        disputeProjection: {
+          disputeStatusCached: safeDeal.disputeStatusCached,
+          disputeReasonCached: safeDeal.disputeReasonCached,
+          disputeLastSyncedAt: safeDeal.disputeLastSyncedAt
+        }
+      }))
+    };
   });
 
 
