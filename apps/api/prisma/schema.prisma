@@ -115,6 +115,8 @@ model User {
   verificationStatusCached String?   @map("verification_status_cached") @db.VarChar(50)
   trustScore               Int?      @map("trust_score") @db.SmallInt
   trustTier                TrustTier? @map("trust_tier")
+  verificationLastSyncedAt DateTime? @map("verification_last_synced_at")
+  verificationProjectionExpiresAt DateTime? @map("verification_projection_expires_at")
   trustBadgeCached         String?   @map("trust_badge_cached") @db.VarChar(100)
   trustLastSyncedAt        DateTime? @map("trust_last_synced_at")
   isBusiness        Boolean   @default(false) @map("is_business")

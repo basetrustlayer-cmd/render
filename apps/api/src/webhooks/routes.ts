@@ -237,6 +237,11 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
           ...(verificationStatus !== undefined
             ? { verificationStatusCached: normalizeVerificationStatus(verificationStatus) }
             : {}),
+
+          verificationLastSyncedAt: new Date(),
+          verificationProjectionExpiresAt: new Date(
+            Date.now() + 30 * 24 * 60 * 60 * 1000
+          ),
           ...(trustBadge !== undefined ? { trustBadgeCached: trustBadge } : {}),
           ...(verificationLevel !== undefined ||
           trustScore !== undefined ||
