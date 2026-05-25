@@ -8,6 +8,21 @@ import { getRequestedOrganizationId, requireActiveOrganizationMembership } from 
 import { createRiskSignal } from "@render/risk";
 import { getSafeDealProjectionFreshness } from "./projection-freshness.js";
 
+
+function requireFreshEscrowProjection(lastSyncedAt: Date | string | null | undefined): { ok: true } | { ok: false; error: string; state: string } {
+  const freshness = getSafeDealProjectionFreshness({ lastSyncedAt });
+
+  if (freshness.state !== "FRESH") {
+    return {
+      ok: false,
+      state: freshness.state,
+      error: `Safe Deal escrow projection is ${freshness.state}. Wait for TrustLayer webhook sync before sending this command.`
+    };
+  }
+
+  return { ok: true };
+}
+
 const createSafeDealSchema = z.object({
   listingId: z.string().uuid()
 });
@@ -257,6 +272,16 @@ export async function registerSafeDealRoutes(
       return reply.code(400).send({ error: "Only funded or delivered Safe Deals can be confirmed." });
     }
 
+    
+    const escrowFreshness = requireFreshEscrowProjection(safeDeal.escrowLastSyncedAt);
+    if (!escrowFreshness.ok) {
+      return reply.code(409).send({
+        error: escrowFreshness.error,
+        projection: "ESCROW",
+        freshness: escrowFreshness.state
+      });
+    }
+
     const trustLayer = getTrustLayerClient();
 
     const command = await trustLayer.confirmSafeDeal(
@@ -350,6 +375,16 @@ export async function registerSafeDealRoutes(
     if (safeDeal.dispute) {
       return reply.code(409).send({
         error: "A dispute already exists for this Safe Deal."
+      });
+    }
+
+    
+    const escrowFreshness = requireFreshEscrowProjection(safeDeal.escrowLastSyncedAt);
+    if (!escrowFreshness.ok) {
+      return reply.code(409).send({
+        error: escrowFreshness.error,
+        projection: "ESCROW",
+        freshness: escrowFreshness.state
       });
     }
 
