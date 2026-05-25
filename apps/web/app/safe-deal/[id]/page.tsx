@@ -6,11 +6,38 @@ import { SafeDealReviewForm } from "../../../components/safe-deal-review-form";
 import { apiFetch } from "../../../lib/api";
 import { useAuthStore } from "../../../store/auth";
 
+function projectionBadge(label: string, freshness?: string) {
+  const value = freshness ?? "UNKNOWN";
+  return `${label}: ${value}`;
+}
+
+function dealStatus(deal: SafeDeal): string {
+  return deal.escrowStatusCached ?? dealStatus(deal) ?? "PENDING";
+}
+
+function dealAmount(deal: SafeDeal): string {
+  return deal.escrowAmountCached ?? dealAmount(deal) ?? "0.00";
+}
+
+function dealFee(deal: SafeDeal): string {
+  return deal.escrowFeeCached ?? dealFee(deal) ?? "0.00";
+}
+
 type SafeDeal = {
   id: string;
-  amount: string;
-  feeAmount: string;
-  status: string;
+  amount?: string;
+  feeAmount?: string;
+  status?: string;
+  escrowAmountCached?: string;
+  escrowFeeCached?: string;
+  escrowStatusCached?: string | null;
+  escrowProjection?: { freshness: string };
+  disputeProjection?: {
+    disputeStatusCached?: string | null;
+    disputeReasonCached?: string | null;
+    disputeLastSyncedAt?: string | null;
+    freshness?: string;
+  };
   buyerId: string;
   sellerId: string;
   listing: { id: string; title: string };
@@ -84,18 +111,18 @@ export default function SafeDealDetailPage({ params }: { params: { id: string } 
 
             {safeDeal.buyerId === user?.id &&
               !safeDeal.review &&
-              ["CONFIRMED", "COMPLETE"].includes(safeDeal.status) && (
+              ["CONFIRMED", "COMPLETE"].includes(dealStatus(safeDeal)) && (
                 <SafeDealReviewForm safeDealId={safeDeal.id} onSubmitted={load} />
               )}
 
             <div className="mt-4 flex gap-3">
-              {safeDeal.buyerId === user?.id && ["FUNDED", "DELIVERED"].includes(safeDeal.status) && (
+              {safeDeal.buyerId === user?.id && ["FUNDED", "DELIVERED"].includes(dealStatus(safeDeal)) && (
                 <button onClick={() => action("confirm")} className="rounded bg-emerald-700 px-4 py-2 text-white">
                   Confirm Delivery
                 </button>
               )}
 
-              {["FUNDED", "DELIVERED"].includes(safeDeal.status) && (
+              {["FUNDED", "DELIVERED"].includes(dealStatus(safeDeal)) && (
                 <button onClick={() => action("dispute")} className="rounded border border-red-300 px-4 py-2 text-red-700">
                   Open Dispute
                 </button>

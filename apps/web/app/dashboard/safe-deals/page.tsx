@@ -5,11 +5,38 @@ import { DashboardShell } from "../../../components/dashboard/dashboard-shell";
 import { apiFetch } from "../../../lib/api";
 import { useAuthStore } from "../../../store/auth";
 
+function projectionBadge(label: string, freshness?: string) {
+  const value = freshness ?? "UNKNOWN";
+  return `${label}: ${value}`;
+}
+
+function dealStatus(deal: SafeDeal): string {
+  return deal.escrowStatusCached ?? dealStatus(deal) ?? "PENDING";
+}
+
+function dealAmount(deal: SafeDeal): string {
+  return deal.escrowAmountCached ?? dealAmount(deal) ?? "0.00";
+}
+
+function dealFee(deal: SafeDeal): string {
+  return deal.escrowFeeCached ?? dealFee(deal) ?? "0.00";
+}
+
 type SafeDeal = {
   id: string;
-  amount: string;
-  feeAmount: string;
-  status: string;
+  amount?: string;
+  feeAmount?: string;
+  status?: string;
+  escrowAmountCached?: string;
+  escrowFeeCached?: string;
+  escrowStatusCached?: string | null;
+  escrowProjection?: { freshness: string };
+  disputeProjection?: {
+    disputeStatusCached?: string | null;
+    disputeReasonCached?: string | null;
+    disputeLastSyncedAt?: string | null;
+    freshness?: string;
+  };
   buyerId: string;
   sellerId: string;
   createdAt: string;
@@ -83,12 +110,19 @@ export default function SafeDealsPage() {
                 <tr key={deal.id} className="border-b last:border-0">
                   <td className="py-4 font-medium text-gray-900">{deal.listing.title}</td>
                   <td className="py-4 text-gray-600">{deal.buyerId === user?.id ? "Buyer" : "Seller"}</td>
-                  <td className="py-4 text-gray-600">GHS {deal.amount}</td>
-                  <td className="py-4 text-gray-600">GHS {deal.feeAmount}</td>
-                  <td className="py-4 text-gray-600">{deal.status}</td>
+                  <td className="py-4 text-gray-600">GHS {dealAmount(deal)}</td>
+                  <td className="py-4 text-gray-600">GHS {dealFee(deal)}</td>
+                  <td className="py-4 text-gray-600">{dealStatus(deal)}</td>
+                    <td className="py-4 text-xs text-gray-500">
+                      <p>{projectionBadge("Escrow", deal.escrowProjection?.freshness)}</p>
+                      <p>{projectionBadge("Dispute", deal.disputeProjection?.freshness)}</p>
+                      {deal.disputeProjection?.disputeStatusCached && (
+                        <p className="text-red-700">Dispute: {deal.disputeProjection.disputeStatusCached}</p>
+                      )}
+                    </td>
                   <td className="py-4">
                     <div className="flex flex-wrap gap-2">
-                      {deal.buyerId === user?.id && ["FUNDED", "DELIVERED"].includes(deal.status) && (
+                      {deal.buyerId === user?.id && ["FUNDED", "DELIVERED"].includes(dealStatus(deal)) && (
                         <button
                           onClick={() => updateDealStatus(deal.id, "confirm")}
                           className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white"
@@ -97,7 +131,7 @@ export default function SafeDealsPage() {
                         </button>
                       )}
 
-                      {["FUNDED", "DELIVERED"].includes(deal.status) && (
+                      {["FUNDED", "DELIVERED"].includes(dealStatus(deal)) && (
                         <button
                           onClick={() => updateDealStatus(deal.id, "dispute")}
                           className="rounded-lg border border-red-300 px-3 py-2 text-xs font-semibold text-red-700"
@@ -111,7 +145,7 @@ export default function SafeDealsPage() {
               ))}
               {safeDeals.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-gray-500">
+                  <td colSpan={7} className="py-8 text-center text-gray-500">
                     No Safe Deals found for this user.
                   </td>
                 </tr>
