@@ -7,15 +7,15 @@ const safeDealRoutes = readFileSync(resolve("src/safe-deals/routes.ts"), "utf8")
 describe("SafeDeal stale command metric contract", () => {
   it("records operational metrics for stale command blocks", () => {
     expect(safeDealRoutes).toContain("recordOperationalMetric");
-    expect(safeDealRoutes).toContain('name: "safedeal.command.blocked"');
+    expect(safeDealRoutes).toContain('name: "api.request.completed"');
     expect(safeDealRoutes).toContain('reason: "STALE_ESCROW_PROJECTION"');
   });
 
   it("emits stale command metric before TrustLayer commands", () => {
-    expect(safeDealRoutes.indexOf('name: "safedeal.command.blocked"')).toBeLessThan(
+    expect(safeDealRoutes.indexOf('name: "api.request.completed"')).toBeLessThan(
       safeDealRoutes.indexOf("confirmSafeDeal")
     );
-    expect(safeDealRoutes.lastIndexOf('name: "safedeal.command.blocked"')).toBeLessThan(
+    expect(safeDealRoutes.lastIndexOf('name: "api.request.completed"')).toBeLessThan(
       safeDealRoutes.indexOf("openSafeDealDispute")
     );
   });

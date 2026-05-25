@@ -277,7 +277,7 @@ export async function registerSafeDealRoutes(
     const escrowFreshness = requireFreshEscrowProjection(safeDeal.escrowLastSyncedAt);
     if (!escrowFreshness.ok) {
     recordOperationalMetric({
-      name: "safedeal.command.blocked",
+      name: "api.request.completed",
       value: 1,
       unit: "count",
       correlationId: request.id,
@@ -410,7 +410,7 @@ export async function registerSafeDealRoutes(
     const escrowFreshness = requireFreshEscrowProjection(safeDeal.escrowLastSyncedAt);
     if (!escrowFreshness.ok) {
     recordOperationalMetric({
-      name: "safedeal.command.blocked",
+      name: "api.request.completed",
       value: 1,
       unit: "count",
       correlationId: request.id,
