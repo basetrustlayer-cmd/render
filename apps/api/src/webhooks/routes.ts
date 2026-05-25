@@ -339,7 +339,7 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
           });
 
           if (!existing) {
-            return { updatedCount: 0, settlementId: null as string | null, organizationId: null as string | null };
+            return { updatedCount: 0, organizationId: null as string | null };
           }
 
           if (existing.escrowLastSyncedAt && existing.escrowLastSyncedAt > eventTime) {
@@ -372,7 +372,7 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
               }
             });
 
-            return { updatedCount: 0, settlementId: null as string | null, organizationId: existing.organizationId };
+            return { updatedCount: 0, organizationId: existing.organizationId };
           }
 
           const wasAlreadyConfirmed = existing.escrowStatusCached === "CONFIRMED";
@@ -428,7 +428,7 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
             });
           }
 
-          return { updatedCount: 1, settlementId: null as string | null, organizationId: updated.organizationId };
+          return { updatedCount: 1, organizationId: updated.organizationId };
         });
 
         updatedEscrows = syncResult.updatedCount;
