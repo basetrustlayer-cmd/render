@@ -275,6 +275,19 @@ export async function registerSafeDealRoutes(
     
     const escrowFreshness = requireFreshEscrowProjection(safeDeal.escrowLastSyncedAt);
     if (!escrowFreshness.ok) {
+    void writeAuditLog({
+      request,
+      actorUserId: authUser.userId,
+      action: "SAFE_DEAL_COMMAND_BLOCKED_STALE_ESCROW_PROJECTION",
+      entityType: "SAFE_DEAL",
+      entityId: safeDeal.id,
+      metadata: {
+        projection: "ESCROW",
+        freshness: escrowFreshness.state,
+        trustLayerEscrowId: safeDeal.trustLayerEscrowId
+      }
+    });
+
       return reply.code(409).send({
         error: escrowFreshness.error,
         projection: "ESCROW",
@@ -381,6 +394,19 @@ export async function registerSafeDealRoutes(
     
     const escrowFreshness = requireFreshEscrowProjection(safeDeal.escrowLastSyncedAt);
     if (!escrowFreshness.ok) {
+    void writeAuditLog({
+      request,
+      actorUserId: authUser.userId,
+      action: "SAFE_DEAL_COMMAND_BLOCKED_STALE_ESCROW_PROJECTION",
+      entityType: "SAFE_DEAL",
+      entityId: safeDeal.id,
+      metadata: {
+        projection: "ESCROW",
+        freshness: escrowFreshness.state,
+        trustLayerEscrowId: safeDeal.trustLayerEscrowId
+      }
+    });
+
       return reply.code(409).send({
         error: escrowFreshness.error,
         projection: "ESCROW",
