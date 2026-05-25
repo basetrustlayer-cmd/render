@@ -1,4 +1,3 @@
-import { createTrustLayerClient } from "@render/trustlayer-sdk";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { authenticate, requireAdmin, requireAuthUser, requireModerator, requireSuperAdmin } from "../auth/middleware.js";
@@ -24,21 +23,6 @@ const rejectListingSchema = z.object({
 
 
 
-function getTrustLayerClient() {
-  const apiKey = process.env.TRUSTLAYER_API_KEY;
-  const baseUrl = process.env.TRUSTLAYER_API_URL;
-
-  if (!apiKey || !baseUrl) {
-    throw new Error("TrustLayer dispute resolution credentials are required.");
-  }
-
-  return createTrustLayerClient({
-    apiKey,
-    baseUrl,
-    maxRetries: 3,
-    timeoutMs: 10_000
-  });
-}
 
 const disputeNoteSchema = z.object({
   note: z.string().min(3).max(2000)
@@ -1193,180 +1177,6 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
-  app.get("/admin/finance/reconciliation", { preHandler: [authenticate, requireSuperAdmin] }, async (request) => {
-    const authUser = requireAuthUser(request);
-
-    const [
-      failedSettlementProjections,
-      pendingSettlementProjections,
-      orphanReadySettlements,
-      duplicateReleaseEntries
-    ] = await Promise.all([
-      prisma.settlement.findMany({
-        where: { status: "FAILED" },
-        include: { safeDeal: true },
-        orderBy: { updatedAt: "desc" },
-        take: 100
-      }),
-      prisma.settlement.findMany({
-        where: {
-          status: {
-            in: ["FAILED", "PROCESSING"]
-          }
-        },
-        include: { safeDeal: true },
-        orderBy: { updatedAt: "desc" },
-        take: 100
-      }),
-      prisma.settlement.findMany({
-        where: {
-          status: "READY",
-          safeDeal: {
-            status: { not: "CONFIRMED" }
-          }
-        },
-        include: { safeDeal: true },
-        orderBy: { updatedAt: "desc" },
-        take: 100
-      }),
-      prisma.escrowLedgerEntry.groupBy({
-        by: ["safeDealId", "entryType"],
-        where: { entryType: "SETTLEMENT_RELEASE" },
-        _count: { id: true },
-        having: {
-          id: {
-            _count: {
-              gt: 1
-            }
-          }
-        }
-      })
-    ]);
-
-    const summary = {
-      failedSettlementProjectionCount: failedSettlementProjections.length,
-      pendingSettlementProjectionCount: pendingSettlementProjections.length,
-      orphanReadySettlementCount: orphanReadySettlements.length,
-      duplicateReleaseEntryCount: duplicateReleaseEntries.length,
-      generatedAt: new Date().toISOString()
-    };
-
-    void writeAuditLog({
-      request,
-      actorUserId: authUser.userId,
-      action: "ADMIN_FINANCE_RECONCILIATION_VIEWED",
-      entityType: "SETTLEMENT",
-      metadata: summary
-    });
-
-    return {
-      summary,
-      failedSettlementProjections,
-      pendingSettlementProjections,
-      orphanReadySettlements,
-      duplicateReleaseEntries
-    };
-  });
-
-
-  app.post("/admin/disputes/:id/resolve/buyer-refund", { preHandler: [authenticate, requireModerator] }, async (request, reply) => {
-    const authUser = requireAuthUser(request);
-    const params = idParamsSchema.safeParse(request.params);
-    const body = disputeResolutionSchema.safeParse(request.body);
-
-    if (!params.success || !body.success) {
-      return reply.code(400).send({ error: "Invalid dispute resolution payload." });
-    }
-
-    const scope = await requireAdminOrganizationScope(request, reply);
-    if (!scope) return;
-
-    const dispute = await prisma.dispute.findFirst({
-      where: {
-        id: params.data.id,
-        ...(scope.organizationId ? { safeDeal: { organizationId: scope.organizationId } } : {})
-      },
-      include: { safeDeal: true }
-    });
-
-    if (!dispute) return reply.code(404).send({ error: "Dispute not found." });
-    if (!dispute.safeDeal.trustLayerEscrowId) return reply.code(409).send({ error: "Safe Deal is missing TrustLayer escrow reference." });
-
-    const trustLayer = getTrustLayerClient();
-    const command = await trustLayer.resolveDisputeBuyerRefund({
-      escrowId: dispute.safeDeal.trustLayerEscrowId,
-      disputeId: dispute.id,
-      safeDealId: dispute.safeDealId,
-      resolutionNote: body.data.resolutionNote
-    }, {
-      correlationId: request.id,
-      idempotencyKey: `dispute_refund_${dispute.id}_${authUser.userId}`
-    });
-
-    await prisma.disputeEvent.create({
-      data: {
-        disputeId: dispute.id,
-        actorUserId: authUser.userId,
-        eventType: "RESOLVED",
-        note: body.data.resolutionNote,
-        metadata: { command, sync: "PENDING_WEBHOOK" }
-      }
-    });
-
-    void writeAuditLog({ request, actorUserId: authUser.userId, action: "DISPUTE_BUYER_REFUND_COMMAND_SENT", entityType: "DISPUTE", entityId: dispute.id, metadata: { safeDealId: dispute.safeDealId } });
-
-    return { disputeId: dispute.id, trustLayer: command, sync: "PENDING_WEBHOOK" };
-  });
-
-  app.post("/admin/disputes/:id/resolve/seller-release", { preHandler: [authenticate, requireModerator] }, async (request, reply) => {
-    const authUser = requireAuthUser(request);
-    const params = idParamsSchema.safeParse(request.params);
-    const body = disputeResolutionSchema.safeParse(request.body);
-
-    if (!params.success || !body.success) {
-      return reply.code(400).send({ error: "Invalid dispute resolution payload." });
-    }
-
-    const scope = await requireAdminOrganizationScope(request, reply);
-    if (!scope) return;
-
-    const dispute = await prisma.dispute.findFirst({
-      where: {
-        id: params.data.id,
-        ...(scope.organizationId ? { safeDeal: { organizationId: scope.organizationId } } : {})
-      },
-      include: { safeDeal: true }
-    });
-
-    if (!dispute) return reply.code(404).send({ error: "Dispute not found." });
-    if (!dispute.safeDeal.trustLayerEscrowId) return reply.code(409).send({ error: "Safe Deal is missing TrustLayer escrow reference." });
-
-    const trustLayer = getTrustLayerClient();
-    const command = await trustLayer.resolveDisputeSellerRelease({
-      escrowId: dispute.safeDeal.trustLayerEscrowId,
-      disputeId: dispute.id,
-      safeDealId: dispute.safeDealId,
-      resolutionNote: body.data.resolutionNote
-    }, {
-      correlationId: request.id,
-      idempotencyKey: `dispute_release_${dispute.id}_${authUser.userId}`
-    });
-
-    await prisma.disputeEvent.create({
-      data: {
-        disputeId: dispute.id,
-        actorUserId: authUser.userId,
-        eventType: "RESOLVED",
-        note: body.data.resolutionNote,
-        metadata: { command, sync: "PENDING_WEBHOOK" }
-      }
-    });
-
-    void writeAuditLog({ request, actorUserId: authUser.userId, action: "DISPUTE_SELLER_RELEASE_COMMAND_SENT", entityType: "DISPUTE", entityId: dispute.id, metadata: { safeDealId: dispute.safeDealId } });
-
-    return { disputeId: dispute.id, trustLayer: command, sync: "PENDING_WEBHOOK" };
-  });
-
   app.get("/admin/audit-logs", { preHandler: [authenticate, requireSuperAdmin] }, async () => {
     const auditLogs = await prisma.auditLog.findMany({
       orderBy: { createdAt: "desc" },
@@ -1478,9 +1288,6 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
                 trustTier: true
               }
             },
-            ledgerEntries: {
-              orderBy: { createdAt: "asc" }
-            }
           }
         },
         openedBy: {

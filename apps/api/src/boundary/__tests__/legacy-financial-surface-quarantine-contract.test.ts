@@ -1,39 +1,29 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
-describe("legacy financial surface quarantine contract", () => {
-  const quarantineDoc = readFileSync(
-    resolve(process.cwd(), "../../docs/architecture/render-legacy-financial-surface-quarantine.md"),
-    "utf8"
-  );
-
-  const safeDealsRoutes = readFileSync(resolve(process.cwd(), "src/safe-deals/routes.ts"), "utf8");
-  const settlementSource = readFileSync(resolve(process.cwd(), "src/ledger/settlement.ts"), "utf8");
-
-  it("documents legacy financial surfaces as quarantined, not authoritative", () => {
-    expect(quarantineDoc).toContain("legacy transitional surfaces");
-    expect(quarantineDoc).toContain("projection-only read models");
-    expect(quarantineDoc).toContain("Render must not operate as a financial authority");
+describe("legacy financial surface removal contract", () => {
+  it("removes embedded settlement implementation from Render", () => {
+    expect(
+      existsSync(resolve(process.cwd(), "src/ledger/settlement.ts"))
+    ).toBe(false);
   });
 
-  it("blocks new financial authority verbs from marketplace routes", () => {
-    const forbidden = [
-      "executePayout(",
-      "releaseFunds(",
-      "approvePayout(",
-      "adjudicateDispute(",
-      "reconcileFinancialLedger("
-    ];
-
-    for (const pattern of forbidden) {
-      expect(safeDealsRoutes).not.toContain(pattern);
-      expect(settlementSource).not.toContain(pattern);
-    }
+  it("removes embedded settlement tests from Render", () => {
+    expect(
+      existsSync(resolve(process.cwd(), "src/ledger/__tests__/settlement.test.ts"))
+    ).toBe(false);
   });
 
-  it("requires future extraction or projection-only reclassification", () => {
-    expect(quarantineDoc).toContain("remove these models/routes");
-    expect(quarantineDoc).toContain("rename/reclassify them as TrustLayer projection read models");
+  it("keeps Render free from embedded settlement authority", () => {
+    const adminRoutes = readFileSync(
+      resolve(process.cwd(), "src/admin/routes.ts"),
+      "utf8"
+    );
+
+    expect(adminRoutes).not.toContain("prisma.settlement");
+    expect(adminRoutes).not.toContain("escrowLedgerEntry");
+    expect(adminRoutes).not.toContain("resolve/buyer-refund");
+    expect(adminRoutes).not.toContain("resolve/seller-release");
   });
 });
