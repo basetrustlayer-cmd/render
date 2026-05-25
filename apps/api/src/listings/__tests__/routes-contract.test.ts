@@ -25,9 +25,12 @@ describe("listing route tenant and ownership contract", () => {
     expect(source).toContain('return reply.code(403).send({ error: "Invalid organization context." })');
   });
 
-  it("keeps public reads constrained to live non-deleted listings", () => {
-    expect(source.match(/status: "LIVE"/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
-    expect(source.match(/deletedAt: null/g)?.length ?? 0).toBeGreaterThanOrEqual(4);
+  it("keeps public reads constrained to active live non-deleted listings", () => {
+    expect(source).toContain("function activeLiveListingWhere()");
+    expect(source).toContain('status: "LIVE" as const');
+    expect(source).toContain("deletedAt: null");
+    expect(source).toContain("OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }]");
+    expect(source.match(/\.\.\.activeLiveListingWhere\(\)/g)?.length ?? 0).toBeGreaterThanOrEqual(4);
   });
 
   it("requires listing ownership before image mutation operations", () => {
@@ -64,6 +67,18 @@ describe("listing route tenant and ownership contract", () => {
     expect(source.match(/trustLastSyncedAt: true/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
     expect(source).toContain('verificationStatus: seller.verificationStatusCached ?? "Verification Pending"');
     expect(source).toContain('verificationStatus: listing.seller.verificationStatusCached ?? "Verification Pending"');
+  });
+
+  it("excludes expired LIVE listings from all public listing surfaces", () => {
+    expect(source).toContain("function activeLiveListingWhere()");
+    expect(source).toContain("OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }]");
+    expect(source.match(/\.\.\.activeLiveListingWhere\(\)/g)?.length ?? 0).toBeGreaterThanOrEqual(4);
+  });
+
+  it("assigns a default expiry when creating listings", () => {
+    expect(source).toContain("function defaultListingExpiresAt(): Date");
+    expect(source).toContain("30 * 24 * 60 * 60 * 1000");
+    expect(source).toContain("expiresAt: defaultListingExpiresAt()");
   });
 
 });

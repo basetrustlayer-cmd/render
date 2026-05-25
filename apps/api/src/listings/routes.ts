@@ -71,6 +71,18 @@ function mapListingRiskDecisionToStatus(
   return "REJECTED";
 }
 
+function activeLiveListingWhere() {
+  return {
+    status: "LIVE" as const,
+    deletedAt: null,
+    OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }]
+  };
+}
+
+function defaultListingExpiresAt(): Date {
+  return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+}
+
 const listingInclude = {
   images: {
     orderBy: [{ isCover: "desc" as const }, { sortOrder: "asc" as const }, { createdAt: "asc" as const }]
@@ -104,8 +116,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
 
     const listings = await prisma.listing.findMany({
       where: {
-        status: "LIVE",
-        deletedAt: null,
+        ...activeLiveListingWhere(),
         ...(query.data.q
           ? {
               OR: [
@@ -231,8 +242,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
     const listings = await prisma.listing.findMany({
       where: {
         sellerId: parsed.data.id,
-        status: "LIVE",
-        deletedAt: null,
+        ...activeLiveListingWhere(),
         seller: { isSuspended: false }
       },
       select: {
@@ -334,8 +344,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
     const listing = await prisma.listing.findFirst({
       where: {
         id: parsed.data.id,
-        deletedAt: null,
-        status: "LIVE"
+        ...activeLiveListingWhere()
       },
       include: {
         images: {
@@ -423,7 +432,8 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
         ...parsed.data,
         sellerId: authUser.userId,
         organizationId: organizationMembership?.organizationId,
-        status: "PENDING"
+        status: "PENDING",
+        expiresAt: defaultListingExpiresAt()
       },
       include: listingInclude
     });
@@ -498,8 +508,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
     const listing = await prisma.listing.findFirst({
       where: {
         id: params.data.id,
-        deletedAt: null,
-        status: "LIVE"
+        ...activeLiveListingWhere()
       },
       select: { id: true }
     });

@@ -83,4 +83,10 @@ describe("admin route privilege contract", () => {
     expect(source).toContain('replayMode = "MANUAL_OPERATOR_REVIEW_REQUIRED"');
   });
 
+  it("sets an expiry timestamp when approving listings", () => {
+    expect(source).toContain('data: {');
+    expect(source).toContain('status: "LIVE"');
+    expect(source).toContain("expiresAt: existingListing.expiresAt ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)");
+  });
+
 });

@@ -1039,7 +1039,10 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
     const listing = await prisma.listing.update({
       where: { id: existingListing.id },
-      data: { status: "LIVE" }
+      data: {
+        status: "LIVE",
+        expiresAt: existingListing.expiresAt ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      }
     });
 
     void writeAuditLog({

@@ -6,6 +6,7 @@ import { pushNotificationDeliveryWorker } from "./jobs/push-notification-deliver
 import { notificationDeadLetterWorker } from "./jobs/notification-dead-letter.js";
 import { notificationReplayRequestWorker } from "./jobs/notification-replay-request.js";
 import { webhookReplayRequestWorker } from "./jobs/webhook-replay-request.js";
+import { listingExpiryWorker } from "./jobs/listing-expiry.js";
 import {
   createQueueConnection,
   RENDER_QUEUE_NAMES,
@@ -91,6 +92,7 @@ async function shutdown(signal: string): Promise<void> {
   await notificationDeadLetterWorker.close();
   await notificationReplayRequestWorker.close();
   await webhookReplayRequestWorker.close();
+  await listingExpiryWorker.close();
   await connection.quit();
 
   console.log(JSON.stringify({ event: "worker_shutdown_complete", signal }));
