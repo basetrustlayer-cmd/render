@@ -15,6 +15,11 @@ function formatDate(value: string) {
   });
 }
 
+
+function formatTrustSyncedAt(value?: string | null) {
+  return value ? `Trust data last synced ${formatDate(value)}` : "Trust data sync pending";
+}
+
 export default async function ListingDetailPage({ params }: PageProps) {
   const { listing, seller } = await getListing(params.id);
   const coverImage = listing.images.find((image) => image.isCover) ?? listing.images[0];
@@ -78,6 +83,7 @@ export default async function ListingDetailPage({ params }: PageProps) {
               <p className="mt-2 text-sm text-emerald-800">{seller.trustBadge ?? seller.verificationStatus}</p>
               <div className="mt-3">
                 <TrustScoreBadge score={seller.trustScore} tier={seller.trustTier} />
+                <p className="mt-2 text-xs text-gray-500">{formatTrustSyncedAt(seller.trustLastSyncedAt)}</p>
               </div>
             </div>
 

@@ -18,6 +18,11 @@ function formatDate(value: string) {
   });
 }
 
+
+function formatTrustSyncedAt(value?: string | null) {
+  return value ? `Trust data last synced ${formatDate(value)}` : "Trust data sync pending";
+}
+
 export default async function SellerStorefrontPage({ params }: PageProps) {
   const [{ seller }, { listings }, { summary, reviews }] = await Promise.all([
     getSeller(params.id),
@@ -41,6 +46,7 @@ export default async function SellerStorefrontPage({ params }: PageProps) {
               <p className="mt-1 text-sm font-semibold text-emerald-700">{seller.trustBadge ?? "TrustLayer cache pending"}</p>
               <div className="mt-4">
                 <TrustScoreBadge score={seller.trustScore} tier={seller.trustTier} />
+                <p className="mt-2 text-xs text-gray-500">{formatTrustSyncedAt(seller.trustLastSyncedAt)}</p>
               </div>
             </div>
 
