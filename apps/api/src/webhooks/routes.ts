@@ -5,7 +5,6 @@ import { z } from "zod";
 import { prisma } from "../database/client.js";
 import { elapsedMs, nowMs, recordOperationalMetric } from "@render/observability";
 import { writeAuditLog } from "../audit/log.js";
-import { createSettlementLedgerForConfirmedDeal } from "../ledger/settlement.js";
 
 import { deriveTrustLayerEventId, isUniqueConstraintError, mapTrustLayerEscrowStatus, verifyHmac } from "./helpers.js";
 
@@ -389,38 +388,11 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
             }
           });
 
-          if (mappedStatus !== "CONFIRMED" || wasAlreadyConfirmed) {
-            return { updatedCount: 1, settlementId: null as string | null, organizationId: updated.organizationId };
-          }
-
-          const settlement = await createSettlementLedgerForConfirmedDeal({
-            tx,
-            safeDeal: {
-              id: updated.id,
-              sellerId: updated.sellerId,
-              organizationId: updated.organizationId,
-              amount: updated.amount,
-              feeAmount: updated.feeAmount
-            }
-          });
-
-          return { updatedCount: 1, settlementId: settlement.id, organizationId: updated.organizationId };
+          return { updatedCount: 1, settlementId: null as string | null, organizationId: updated.organizationId };
         });
 
         updatedEscrows = syncResult.updatedCount;
 
-        if (syncResult.settlementId) {
-          void writeAuditLog({
-            request,
-            organizationId: syncResult.organizationId,
-            action: "SETTLEMENT_READY_FROM_TRUSTLAYER_WEBHOOK",
-            entityType: "SAFE_DEAL",
-            metadata: {
-              escrowId,
-              settlementId: syncResult.settlementId
-            }
-          });
-        }
       }
     }
 

@@ -410,56 +410,6 @@ export async function registerSafeDealRoutes(
     };
   });
 
-  app.get("/safe-deals/:id/ledger", { preHandler: authenticate }, async (request, reply) => {
-    const authUser = requireAuthUser(request);
-    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
-
-    if (!params.success) {
-      return reply.code(400).send({ error: "Invalid Safe Deal ID." });
-    }
-
-    const requestedOrganizationId = getRequestedOrganizationId(request);
-
-    if (requestedOrganizationId) {
-      const membership = await requireActiveOrganizationMembership({
-        userId: authUser.userId,
-        organizationId: requestedOrganizationId
-      });
-
-      if (!membership) {
-        return reply.code(403).send({ error: "Invalid organization context." });
-      }
-    }
-
-    const safeDeal = await prisma.safeDeal.findFirst({
-      where: {
-        id: params.data.id,
-        organizationId: requestedOrganizationId ?? null,
-        OR: [
-          { buyerId: authUser.userId },
-          { sellerId: authUser.userId }
-        ]
-      },
-      include: {
-        ledgerEntries: {
-          orderBy: { createdAt: "asc" }
-        },
-        settlement: true
-      }
-    });
-
-    if (!safeDeal) {
-      return reply.code(404).send({ error: "Safe Deal not found." });
-    }
-
-    return {
-      safeDealId: safeDeal.id,
-      status: safeDeal.status,
-      settlement: safeDeal.settlement,
-      ledgerEntries: safeDeal.ledgerEntries
-    };
-  });
-
   app.get("/safe-deals/:id", { preHandler: authenticate }, async (request, reply) => {
     const authUser = requireAuthUser(request);
     const paramsSchema = z.object({

@@ -41,11 +41,11 @@ describe("webhook route trust and idempotency contract", () => {
     expect(source).toContain("escrowLastSyncedAt: eventTime");
   });
 
-  it("creates settlement ledger only on first confirmed webhook transition", () => {
-    expect(source).toContain('const wasAlreadyConfirmed = existing.status === "CONFIRMED"');
-    expect(source).toContain('mappedStatus !== "CONFIRMED" || wasAlreadyConfirmed');
-    expect(source).toContain("createSettlementLedgerForConfirmedDeal");
-    expect(source).toContain("SETTLEMENT_READY_FROM_TRUSTLAYER_WEBHOOK");
+  it("does not create Render-owned settlement ledger entries from TrustLayer webhooks", () => {
+    expect(source).not.toContain("createSettlementLedgerForConfirmedDeal");
+    expect(source).not.toContain("SETTLEMENT_READY_FROM_TRUSTLAYER_WEBHOOK");
+    expect(source).toContain("escrowLastSyncedAt: eventTime");
+    expect(source).toContain("updatedEscrows");
   });
 
   it("marks processed webhook events after successful projection", () => {

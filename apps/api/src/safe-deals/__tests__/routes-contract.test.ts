@@ -9,8 +9,8 @@ describe("safe deal route tenant and trust boundary contract", () => {
     const routeCount = source.match(/app\.(get|post)\("/g)?.length ?? 0;
     const authenticatedRouteCount = source.match(/preHandler: authenticate/g)?.length ?? 0;
 
-    expect(routeCount).toBe(6);
-    expect(authenticatedRouteCount).toBe(6);
+    expect(routeCount).toBe(5);
+    expect(authenticatedRouteCount).toBe(5);
   });
 
   it("creates SafeDeals only from live listings in the requested organization context", () => {
