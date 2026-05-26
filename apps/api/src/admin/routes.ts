@@ -1181,7 +1181,8 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     const auditLogQuerySchema = z.object({
       action: z.string().optional(),
       entityType: z.string().optional(),
-      entityId: z.string().optional()
+      entityId: z.string().optional(),
+      take: z.coerce.number().int().min(1).max(100).default(100)
     });
 
     const parsedQuery = auditLogQuerySchema.safeParse(request.query);
@@ -1197,7 +1198,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         ...(parsedQuery.data.entityId ? { entityId: parsedQuery.data.entityId } : {})
       },
       orderBy: { createdAt: "desc" },
-      take: 100
+      take: parsedQuery.data.take
     });
 
     return { auditLogs };
