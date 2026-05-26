@@ -185,13 +185,30 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
         return reply.code(400).send({ error: "Invalid phone number." });
       }
 
-      const recentChallenge = await prisma.otpChallenge.findFirst({
-        where: {
-          phone: parsed.data.phone,
-          createdAt: { gt: new Date(Date.now() - 60 * 1000) }
-        },
-        orderBy: { createdAt: "desc" }
-      });
+      let recentChallenge;
+
+      try {
+        recentChallenge = await prisma.otpChallenge.findFirst({
+          where: {
+            phone: parsed.data.phone,
+            createdAt: { gt: new Date(Date.now() - 60 * 1000) }
+          },
+          orderBy: { createdAt: "desc" }
+        });
+      } catch (error) {
+        void writeAuditLog({
+          request,
+          action: "AUTH_OTP_DB_FAILED",
+          metadata: {
+            operation: "otpChallenge.findFirst",
+            reason: error instanceof Error ? error.message : "OTP_DB_UNAVAILABLE"
+          }
+        });
+
+        return reply.code(503).send({
+          error: "Unable to prepare OTP request right now."
+        });
+      }
 
       if (recentChallenge) {
         void writeAuditLog({ request, action: "AUTH_OTP_SEND_THROTTLED", metadata: { phone: parsed.data.phone } });
