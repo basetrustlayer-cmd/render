@@ -1214,7 +1214,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         { createdAt: "desc" },
         { id: "desc" }
       ],
-      take: parsedQuery.data.take,
+      take: parsedQuery.data.take + 1,
       ...(parsedQuery.data.cursor
         ? {
             cursor: { id: parsedQuery.data.cursor },
@@ -1222,6 +1222,23 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
           }
         : {})
     });
+
+    const hasMore = auditLogs.length > parsedQuery.data.take;
+    const results = hasMore
+      ? auditLogs.slice(0, parsedQuery.data.take)
+      : auditLogs;
+
+    const nextCursor = hasMore
+      ? results[results.length - 1]?.id ?? null
+      : null;
+
+    return {
+      auditLogs: results,
+      pageInfo: {
+        hasMore,
+        nextCursor
+      }
+    };
 
     return { auditLogs };
   });
