@@ -233,8 +233,6 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
         trustlayerUserId,
         escrowId,
         escrowStatus,
-        disputeId,
-        trustLayerDisputeId,
         disputeStatus,
         disputeReason
       }
