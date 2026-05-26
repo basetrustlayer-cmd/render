@@ -52,7 +52,10 @@ export default function AdminDisputesPage() {
   useEffect(() => {
     async function loadDisputes() {
       try {
-        const result = await apiFetch<{ disputes: Dispute[] }>("/admin/disputes");
+        const projectionFreshness = "STALE";
+        const result = await apiFetch<{ disputes: Dispute[] }>(
+          `/admin/disputes?disputeProjectionFreshness=${projectionFreshness}`
+        );
         setDisputes(result.disputes);
       } catch (err) {
         setError(err instanceof ApiError ? err.body : "Unable to load disputes.");
@@ -88,6 +91,8 @@ export default function AdminDisputesPage() {
                 </div>
                 <div className="rounded-xl bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-700">
                   TrustLayer: {dispute.safeDeal.disputeStatusCached ?? "PENDING_PROJECTION"}
+                  {" · Sync: "}
+                  {dispute.safeDeal.disputeLastSyncedAt ?? "MISSING"}
                 </div>
               </div>
 
