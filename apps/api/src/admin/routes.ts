@@ -61,7 +61,15 @@ const disputeListQuerySchema = z.object({
     "UNDER_REVIEW",
     "NEEDS_BUYER_RESPONSE",
     "NEEDS_SELLER_RESPONSE",
-  ]).optional()
+  ]).optional(),
+  disputeProjectionStatus: z.enum([
+    "OPEN",
+    "UNDER_REVIEW",
+    "RESOLVED",
+    "CLOSED",
+    "REJECTED"
+  ]).optional(),
+  disputeProjectionFreshness: z.enum(["MISSING", "FRESH", "STALE"]).optional()
 });
 
 export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
@@ -1246,6 +1254,18 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     const disputes = await prisma.dispute.findMany({
       where: {
         ...(query.data.status ? { status: query.data.status } : {}),
+        ...(query.data.disputeProjectionStatus
+          ? { disputeStatusCached: query.data.disputeProjectionStatus }
+          : {}),
+        ...(query.data.disputeProjectionFreshness === "MISSING"
+          ? { disputeLastSyncedAt: null }
+          : {}),
+        ...(query.data.disputeProjectionFreshness === "FRESH"
+          ? { disputeLastSyncedAt: { gte: new Date(Date.now() - 30 * 60 * 1000) } }
+          : {}),
+        ...(query.data.disputeProjectionFreshness === "STALE"
+          ? { disputeLastSyncedAt: { lt: new Date(Date.now() - 30 * 60 * 1000) } }
+          : {}),
         ...(scope.organizationId ? { safeDeal: { organizationId: scope.organizationId } } : {})
       },
       include: {
