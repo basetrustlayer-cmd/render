@@ -1177,8 +1177,21 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
-  app.get("/admin/audit-logs", { preHandler: [authenticate, requireSuperAdmin] }, async () => {
+  app.get("/admin/audit-logs", { preHandler: [authenticate, requireSuperAdmin] }, async (request, reply) => {
+    const auditLogQuerySchema = z.object({
+      action: z.string().optional()
+    });
+
+    const parsedQuery = auditLogQuerySchema.safeParse(request.query);
+
+    if (!parsedQuery.success) {
+      return reply.code(400).send({ error: "Invalid audit log query." });
+    }
+
     const auditLogs = await prisma.auditLog.findMany({
+      where: parsedQuery.data.action
+        ? { action: parsedQuery.data.action }
+        : undefined,
       orderBy: { createdAt: "desc" },
       take: 100
     });
