@@ -37,9 +37,9 @@ const cards = [
     description: "Inspect reported reviews and remove abusive or fraudulent reputation content."
   },
   {
-    href: "/admin/safe-deals",
-    title: "Disputed Safe Deals",
-    description: "Review escrow disputes that require operations attention."
+    href: "/admin/disputes",
+    title: "Dispute Administration",
+    description: "Review projected disputes, moderator notes, and Render-only dispute workflow status."
   },
   {
     href: "/admin/audit-logs",
