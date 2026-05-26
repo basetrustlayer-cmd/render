@@ -1182,6 +1182,8 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       action: z.string().optional(),
       entityType: z.string().optional(),
       entityId: z.string().optional(),
+      from: z.coerce.date().optional(),
+      to: z.coerce.date().optional(),
       take: z.coerce.number().int().min(1).max(100).default(100)
     });
 
@@ -1195,7 +1197,15 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       where: {
         ...(parsedQuery.data.action ? { action: parsedQuery.data.action } : {}),
         ...(parsedQuery.data.entityType ? { entityType: parsedQuery.data.entityType } : {}),
-        ...(parsedQuery.data.entityId ? { entityId: parsedQuery.data.entityId } : {})
+        ...(parsedQuery.data.entityId ? { entityId: parsedQuery.data.entityId } : {}),
+        ...(parsedQuery.data.from || parsedQuery.data.to
+          ? {
+              createdAt: {
+                ...(parsedQuery.data.from ? { gte: parsedQuery.data.from } : {}),
+                ...(parsedQuery.data.to ? { lte: parsedQuery.data.to } : {})
+              }
+            }
+          : {})
       },
       orderBy: { createdAt: "desc" },
       take: parsedQuery.data.take
