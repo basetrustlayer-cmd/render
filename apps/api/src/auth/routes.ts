@@ -177,77 +177,91 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       }
     }
   }, async (request, reply) => {
-    const parsed = phoneSchema.safeParse(request.body);
-
-    if (!parsed.success) {
-      void writeAuditLog({ request, action: "AUTH_OTP_SEND_INVALID" });
-      return reply.code(400).send({ error: "Invalid phone number." });
-    }
-
-    const recentChallenge = await prisma.otpChallenge.findFirst({
-      where: {
-        phone: parsed.data.phone,
-        createdAt: { gt: new Date(Date.now() - 60 * 1000) }
-      },
-      orderBy: { createdAt: "desc" }
-    });
-
-    if (recentChallenge) {
-      void writeAuditLog({ request, action: "AUTH_OTP_SEND_THROTTLED", metadata: { phone: parsed.data.phone } });
-      return reply.code(429).send({
-        error: "Please wait 60 seconds before requesting another OTP code."
-      });
-    }
-
-    await prisma.otpChallenge.updateMany({
-      where: {
-        phone: parsed.data.phone,
-        consumedAt: null
-      },
-      data: {
-        consumedAt: new Date()
-      }
-    });
-
-    const code = generateOtp();
-
-    let delivery: Awaited<ReturnType<typeof sendOtpSms>>;
-
     try {
-      delivery = await sendOtpSms({
-        phone: parsed.data.phone,
-        code
+      const parsed = phoneSchema.safeParse(request.body);
+
+      if (!parsed.success) {
+        void writeAuditLog({ request, action: "AUTH_OTP_SEND_INVALID" });
+        return reply.code(400).send({ error: "Invalid phone number." });
+      }
+
+      const recentChallenge = await prisma.otpChallenge.findFirst({
+        where: {
+          phone: parsed.data.phone,
+          createdAt: { gt: new Date(Date.now() - 60 * 1000) }
+        },
+        orderBy: { createdAt: "desc" }
       });
+
+      if (recentChallenge) {
+        void writeAuditLog({ request, action: "AUTH_OTP_SEND_THROTTLED", metadata: { phone: parsed.data.phone } });
+        return reply.code(429).send({
+          error: "Please wait 60 seconds before requesting another OTP code."
+        });
+      }
+
+      await prisma.otpChallenge.updateMany({
+        where: {
+          phone: parsed.data.phone,
+          consumedAt: null
+        },
+        data: {
+          consumedAt: new Date()
+        }
+      });
+
+      const code = generateOtp();
+
+      let delivery: Awaited<ReturnType<typeof sendOtpSms>>;
+
+      try {
+        delivery = await sendOtpSms({
+          phone: parsed.data.phone,
+          code
+        });
+      } catch (error) {
+        void writeAuditLog({
+          request,
+          action: "AUTH_OTP_SEND_FAILED",
+          metadata: {
+            phone: parsed.data.phone,
+            reason: error instanceof Error ? error.message : "UNKNOWN_OTP_DELIVERY_FAILURE"
+          }
+        });
+
+        return reply.code(503).send({
+          error: "Unable to send OTP right now."
+        });
+      }
+
+      await prisma.otpChallenge.create({
+        data: {
+          phone: parsed.data.phone,
+          codeHash: hashOtp(code),
+          expiresAt: new Date(Date.now() + 10 * 60 * 1000)
+        }
+      });
+
+      void writeAuditLog({ request, action: "AUTH_OTP_SENT", metadata: { phone: parsed.data.phone, delivery: delivery.provider } });
+
+      return {
+        ok: true,
+        delivery: delivery.provider === "HUBTEL" ? "sms_sent" : "dev_otp",
+        devCode: process.env.NODE_ENV === "production" ? undefined : code
+      };
     } catch (error) {
       void writeAuditLog({
         request,
-        action: "AUTH_OTP_SEND_FAILED",
+        action: "AUTH_OTP_SEND_ROUTE_FAILED",
         metadata: {
-          phone: parsed.data.phone,
-          reason: error instanceof Error ? error.message : "UNKNOWN_OTP_DELIVERY_FAILURE"
+          reason: error instanceof Error ? error.message : "OTP_SEND_UNCLASSIFIED_FAILURE"
         }
       });
 
       return reply.code(503).send({
-        error: "Unable to send OTP right now."
+        error: "Unable to start OTP request right now."
       });
     }
-
-    await prisma.otpChallenge.create({
-      data: {
-        phone: parsed.data.phone,
-        codeHash: hashOtp(code),
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000)
-      }
-    });
-
-    void writeAuditLog({ request, action: "AUTH_OTP_SENT", metadata: { phone: parsed.data.phone, delivery: delivery.provider } });
-
-    return {
-      ok: true,
-      delivery: delivery.provider === "HUBTEL" ? "sms_sent" : "dev_otp",
-      devCode: process.env.NODE_ENV === "production" ? undefined : code
-    };
   });
 
   app.post("/auth/otp/verify", {
