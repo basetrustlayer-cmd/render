@@ -215,6 +215,8 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
       escrowId,
       escrowStatus,
       paymentUrl,
+      disputeId,
+      trustLayerDisputeId,
       disputeStatus,
       disputeReason,
       syncedAt
@@ -231,6 +233,8 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
         trustlayerUserId,
         escrowId,
         escrowStatus,
+        disputeId,
+        trustLayerDisputeId,
         disputeStatus,
         disputeReason
       }
@@ -379,6 +383,8 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
           const shouldMarkListingSold =
             !wasAlreadyConfirmed &&
             ["CONFIRMED", "COMPLETE"].includes(mappedStatus);
+          const normalizedDisputeStatus = normalizeTrustLayerDisputeStatus(disputeStatus);
+          const effectiveTrustLayerDisputeId = trustLayerDisputeId ?? disputeId;
 
           const updated = await tx.safeDeal.update({
             where: { id: existing.id },
@@ -386,13 +392,13 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
               escrowStatusCached: mappedStatus,
               checkoutUrl: paymentUrl ?? undefined,
               escrowLastSyncedAt: eventTime,
-              ...(normalizeTrustLayerDisputeStatus(disputeStatus) !== undefined
-                ? { disputeStatusCached: normalizeTrustLayerDisputeStatus(disputeStatus) }
+              ...(normalizedDisputeStatus !== undefined
+                ? { disputeStatusCached: normalizedDisputeStatus }
                 : {}),
               ...(disputeReason !== undefined
                 ? { disputeReasonCached: disputeReason }
                 : {}),
-              ...(disputeStatus !== undefined || disputeReason !== undefined
+              ...(normalizedDisputeStatus !== undefined || disputeReason !== undefined
                 ? { disputeLastSyncedAt: eventTime }
                 : {}),
 
@@ -415,6 +421,30 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
                 : {})
             }
           });
+
+          if (normalizedDisputeStatus !== undefined || disputeReason !== undefined || effectiveTrustLayerDisputeId !== undefined) {
+            await tx.dispute.updateMany({
+              where: {
+                safeDealId: existing.id,
+                OR: [
+                  { disputeLastSyncedAt: null },
+                  { disputeLastSyncedAt: { lte: eventTime } }
+                ]
+              },
+              data: {
+                ...(effectiveTrustLayerDisputeId !== undefined
+                  ? { trustLayerDisputeId: effectiveTrustLayerDisputeId }
+                  : {}),
+                ...(normalizedDisputeStatus !== undefined
+                  ? { disputeStatusCached: normalizedDisputeStatus }
+                  : {}),
+                ...(disputeReason !== undefined
+                  ? { disputeReasonCached: disputeReason }
+                  : {}),
+                disputeLastSyncedAt: eventTime
+              }
+            });
+          }
 
           if (shouldMarkListingSold) {
             await tx.listing.updateMany({
