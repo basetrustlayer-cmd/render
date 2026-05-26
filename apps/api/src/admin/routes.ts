@@ -1179,7 +1179,9 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
   app.get("/admin/audit-logs", { preHandler: [authenticate, requireSuperAdmin] }, async (request, reply) => {
     const auditLogQuerySchema = z.object({
-      action: z.string().optional()
+      action: z.string().optional(),
+      entityType: z.string().optional(),
+      entityId: z.string().optional()
     });
 
     const parsedQuery = auditLogQuerySchema.safeParse(request.query);
@@ -1189,9 +1191,11 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const auditLogs = await prisma.auditLog.findMany({
-      where: parsedQuery.data.action
-        ? { action: parsedQuery.data.action }
-        : undefined,
+      where: {
+        ...(parsedQuery.data.action ? { action: parsedQuery.data.action } : {}),
+        ...(parsedQuery.data.entityType ? { entityType: parsedQuery.data.entityType } : {}),
+        ...(parsedQuery.data.entityId ? { entityId: parsedQuery.data.entityId } : {})
+      },
       orderBy: { createdAt: "desc" },
       take: 100
     });
