@@ -14,6 +14,10 @@ type AuditLog = {
 
 type AuditLogsResponse = {
   auditLogs: AuditLog[];
+  pageInfo: {
+    hasMore: boolean;
+    nextCursor: string | null;
+  };
 };
 
 const cards = [
