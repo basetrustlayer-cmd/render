@@ -33,6 +33,15 @@ type Dispute = {
 
 const workflowStatuses = ["UNDER_REVIEW", "NEEDS_BUYER_RESPONSE", "NEEDS_SELLER_RESPONSE"];
 
+function getProjectionFreshness(lastSyncedAt: string | null): "MISSING" | "FRESH" | "STALE" {
+  if (!lastSyncedAt) return "MISSING";
+
+  const syncedAtMs = new Date(lastSyncedAt).getTime();
+  if (Number.isNaN(syncedAtMs)) return "STALE";
+
+  return Date.now() - syncedAtMs <= 30 * 60 * 1000 ? "FRESH" : "STALE";
+}
+
 export default function AdminDisputeDetailPage({ params }: { params: { id: string } }) {
   const [dispute, setDispute] = useState<Dispute | null>(null);
   const [note, setNote] = useState("");
@@ -101,7 +110,10 @@ export default function AdminDisputeDetailPage({ params }: { params: { id: strin
                 <p>Buyer: {dispute.safeDeal.buyer.phone ?? dispute.safeDeal.buyer.email ?? "Unknown"}</p>
                 <p>Seller: {dispute.safeDeal.seller.phone ?? dispute.safeDeal.seller.email ?? "Unknown"}</p>
                 <p>Escrow: {dispute.safeDeal.escrowStatusCached ?? "UNKNOWN"}</p>
-                <p>TrustLayer dispute: {dispute.safeDeal.disputeStatusCached ?? "PENDING_PROJECTION"}</p>
+                <p>TrustLayer dispute status: {dispute.safeDeal.disputeStatusCached ?? "PENDING_PROJECTION"}</p>
+                <p>TrustLayer dispute reason: {dispute.safeDeal.disputeReasonCached ?? "NO_REASON_PROJECTED"}</p>
+                <p>TrustLayer dispute last synced: {dispute.safeDeal.disputeLastSyncedAt ?? "MISSING"}</p>
+                <p>Projection freshness: {getProjectionFreshness(dispute.safeDeal.disputeLastSyncedAt)}</p>
               </div>
             </article>
 

@@ -1,28 +1,28 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { describe, expect, it } from "vitest";
 
 const disputeListPage = readFileSync(resolve(process.cwd(), "app/admin/disputes/page.tsx"), "utf8");
 const disputeDetailPage = readFileSync(resolve(process.cwd(), "app/admin/disputes/[id]/page.tsx"), "utf8");
 
-describe("admin dispute projection freshness UX contract", () => {
-  it("exposes TrustLayer projection freshness filters on the dispute list", () => {
-    expect(disputeListPage).toContain("disputeProjectionFreshness");
-    expect(disputeListPage).toContain("PENDING_PROJECTION");
-    expect(disputeListPage).toContain("FRESH");
-    expect(disputeListPage).toContain("STALE");
-    expect(disputeListPage).toContain("MISSING");
-  });
+function assertContains(source: string, token: string) {
+  if (!source.includes(token)) throw new Error(`Expected source to contain: ${token}`);
+}
 
-  it("shows projection sync timestamps without financial execution language", () => {
-    expect(disputeListPage).toContain("disputeLastSyncedAt");
-    expect(disputeDetailPage).toContain("disputeLastSyncedAt");
+function assertNotContains(source: string, token: string) {
+  if (source.includes(token)) throw new Error(`Expected source not to contain: ${token}`);
+}
 
-    expect(disputeListPage).not.toContain("refund");
-    expect(disputeListPage).not.toContain("release");
-    expect(disputeListPage).not.toContain("payout");
-    expect(disputeDetailPage).not.toContain("refund");
-    expect(disputeDetailPage).not.toContain("release");
-    expect(disputeDetailPage).not.toContain("payout");
-  });
-});
+assertContains(disputeListPage, "disputeProjectionFreshness");
+assertContains(disputeListPage, "PENDING_PROJECTION");
+assertContains(disputeListPage, "FRESH");
+assertContains(disputeListPage, "STALE");
+assertContains(disputeListPage, "MISSING");
+assertContains(disputeListPage, "disputeLastSyncedAt");
+assertContains(disputeDetailPage, "disputeLastSyncedAt");
+
+assertNotContains(disputeListPage, "refund");
+assertNotContains(disputeListPage, "release");
+assertNotContains(disputeListPage, "payout");
+assertNotContains(disputeDetailPage, "refund");
+assertNotContains(disputeDetailPage, "release");
+assertNotContains(disputeDetailPage, "payout");
