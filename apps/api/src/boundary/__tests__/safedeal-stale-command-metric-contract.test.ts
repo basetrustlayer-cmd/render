@@ -22,7 +22,7 @@ describe("SafeDeal stale command metric contract", () => {
 
   it("keeps stale command metric non-financial and projection-scoped", () => {
     expect(safeDealRoutes).toContain('projection: "ESCROW"');
-    expect(safeDealRoutes).toContain("freshness: escrowFreshness.state");
+    expect(safeDealRoutes).toContain("freshness: input.freshness.state");
     expect(safeDealRoutes).not.toContain("ledger");
     expect(safeDealRoutes).not.toContain("settlement");
   });

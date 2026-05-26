@@ -8,7 +8,7 @@ describe("SafeDeal stale command audit contract", () => {
   it("audits stale confirm and dispute command blocks", () => {
     expect(safeDealRoutes).toContain("SAFE_DEAL_COMMAND_BLOCKED_STALE_ESCROW_PROJECTION");
     expect(safeDealRoutes).toContain("projection: \"ESCROW\"");
-    expect(safeDealRoutes).toContain("freshness: escrowFreshness.state");
+    expect(safeDealRoutes).toContain("freshness: input.freshness.state");
   });
 
   it("keeps blocked stale commands from reaching TrustLayer", () => {

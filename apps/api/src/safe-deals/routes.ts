@@ -24,6 +24,48 @@ function requireFreshEscrowProjection(lastSyncedAt: Date | string | null | undef
   return { ok: true };
 }
 
+
+function blockStaleEscrowCommand(input: {
+  request: any;
+  reply: any;
+  authUser: { userId: string };
+  safeDeal: { id: string; trustLayerEscrowId: string | null };
+  freshness: { state: string };
+}) {
+  recordOperationalMetric({
+    name: "api.request.completed",
+    value: 1,
+    unit: "count",
+    correlationId: input.request.id,
+    aggregateId: input.safeDeal.id,
+    source: "render.api",
+    metadata: {
+      reason: "STALE_ESCROW_PROJECTION",
+      projection: "ESCROW",
+      freshness: input.freshness.state
+    }
+  });
+
+  void writeAuditLog({
+    request: input.request,
+    actorUserId: input.authUser.userId,
+    action: "SAFE_DEAL_COMMAND_BLOCKED_STALE_ESCROW_PROJECTION",
+    entityType: "SAFE_DEAL",
+    entityId: input.safeDeal.id,
+    metadata: {
+      projection: "ESCROW",
+      freshness: input.freshness.state,
+      trustLayerEscrowId: input.safeDeal.trustLayerEscrowId
+    }
+  });
+
+  return input.reply.code(409).send({
+    error: `Safe Deal escrow projection is ${input.freshness.state}. Wait for TrustLayer webhook sync before sending this command.`,
+    projection: "ESCROW",
+    freshness: input.freshness.state
+  });
+}
+
 const createSafeDealSchema = z.object({
   listingId: z.string().uuid()
 });
@@ -276,37 +318,12 @@ export async function registerSafeDealRoutes(
     
     const escrowFreshness = requireFreshEscrowProjection(safeDeal.escrowLastSyncedAt);
     if (!escrowFreshness.ok) {
-    recordOperationalMetric({
-      name: "api.request.completed",
-      value: 1,
-      unit: "count",
-      correlationId: request.id,
-      aggregateId: safeDeal.id,
-      source: "render.api",
-      metadata: {
-        reason: "STALE_ESCROW_PROJECTION",
-        projection: "ESCROW",
-        freshness: escrowFreshness.state
-      }
-    });
-
-    void writeAuditLog({
-      request,
-      actorUserId: authUser.userId,
-      action: "SAFE_DEAL_COMMAND_BLOCKED_STALE_ESCROW_PROJECTION",
-      entityType: "SAFE_DEAL",
-      entityId: safeDeal.id,
-      metadata: {
-        projection: "ESCROW",
-        freshness: escrowFreshness.state,
-        trustLayerEscrowId: safeDeal.trustLayerEscrowId
-      }
-    });
-
-      return reply.code(409).send({
-        error: escrowFreshness.error,
-        projection: "ESCROW",
-        freshness: escrowFreshness.state
+      return blockStaleEscrowCommand({
+        request,
+        reply,
+        authUser,
+        safeDeal,
+        freshness: escrowFreshness
       });
     }
 
@@ -409,37 +426,12 @@ export async function registerSafeDealRoutes(
     
     const escrowFreshness = requireFreshEscrowProjection(safeDeal.escrowLastSyncedAt);
     if (!escrowFreshness.ok) {
-    recordOperationalMetric({
-      name: "api.request.completed",
-      value: 1,
-      unit: "count",
-      correlationId: request.id,
-      aggregateId: safeDeal.id,
-      source: "render.api",
-      metadata: {
-        reason: "STALE_ESCROW_PROJECTION",
-        projection: "ESCROW",
-        freshness: escrowFreshness.state
-      }
-    });
-
-    void writeAuditLog({
-      request,
-      actorUserId: authUser.userId,
-      action: "SAFE_DEAL_COMMAND_BLOCKED_STALE_ESCROW_PROJECTION",
-      entityType: "SAFE_DEAL",
-      entityId: safeDeal.id,
-      metadata: {
-        projection: "ESCROW",
-        freshness: escrowFreshness.state,
-        trustLayerEscrowId: safeDeal.trustLayerEscrowId
-      }
-    });
-
-      return reply.code(409).send({
-        error: escrowFreshness.error,
-        projection: "ESCROW",
-        freshness: escrowFreshness.state
+      return blockStaleEscrowCommand({
+        request,
+        reply,
+        authUser,
+        safeDeal,
+        freshness: escrowFreshness
       });
     }
 
