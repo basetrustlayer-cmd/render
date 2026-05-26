@@ -1224,23 +1224,16 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     });
 
     const hasMore = auditLogs.length > parsedQuery.data.take;
-    const results = hasMore
-      ? auditLogs.slice(0, parsedQuery.data.take)
-      : auditLogs;
-
-    const nextCursor = hasMore
-      ? results[results.length - 1]?.id ?? null
-      : null;
+    const auditLogPage = auditLogs.slice(0, parsedQuery.data.take);
+    const nextCursor = hasMore ? auditLogPage.at(-1)?.id ?? null : null;
 
     return {
-      auditLogs: results,
+      auditLogs: auditLogPage,
       pageInfo: {
         hasMore,
         nextCursor
       }
     };
-
-    return { auditLogs };
   });
 
   app.get("/admin/disputes", { preHandler: [authenticate, requireModerator] }, async (request, reply) => {
