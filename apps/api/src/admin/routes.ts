@@ -61,8 +61,6 @@ const disputeListQuerySchema = z.object({
     "UNDER_REVIEW",
     "NEEDS_BUYER_RESPONSE",
     "NEEDS_SELLER_RESPONSE",
-    "RESOLVED_BUYER_REFUND",
-    "RESOLVED_SELLER_RELEASE",
     "CANCELLED"
   ]).optional()
 });

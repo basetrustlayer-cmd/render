@@ -53,9 +53,6 @@ enum DisputeStatus {
   UNDER_REVIEW
   NEEDS_BUYER_RESPONSE
   NEEDS_SELLER_RESPONSE
-  RESOLVED_BUYER_REFUND
-  RESOLVED_SELLER_RELEASE
-  CANCELLED
 }
 
 enum DisputeEventType {
@@ -381,8 +378,10 @@ model Dispute {
   openedById String        @map("opened_by_id") @db.Uuid
   status      DisputeStatus @default(OPEN)
   reason      String        @db.VarChar(500)
-  resolution  String?
-  resolvedAt  DateTime?     @map("resolved_at") @db.Timestamptz(6)
+  trustLayerDisputeId String? @map("trustlayer_dispute_id") @db.VarChar(100)
+  disputeStatusCached String? @map("dispute_status_cached") @db.VarChar(40)
+  disputeReasonCached String? @map("dispute_reason_cached") @db.VarChar(500)
+  disputeLastSyncedAt DateTime? @map("dispute_last_synced_at") @db.Timestamptz(6)
   createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -392,6 +391,7 @@ model Dispute {
   events      DisputeEvent[]
 
   @@index([status])
+  @@index([trustLayerDisputeId])
   @@index([organizationId])
   @@index([openedById])
   @@index([createdAt])
