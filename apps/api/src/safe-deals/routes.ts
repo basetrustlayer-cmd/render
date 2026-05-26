@@ -457,6 +457,7 @@ export async function registerSafeDealRoutes(
       const dispute = await tx.dispute.create({
         data: {
           safeDealId: safeDeal.id,
+          organizationId: safeDeal.organizationId,
           openedById: authUser.userId,
           reason: body.data.reason,
           status: "OPEN"
