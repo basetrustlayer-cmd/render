@@ -211,10 +211,27 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
 
     const code = generateOtp();
 
-    const delivery = await sendOtpSms({
-      phone: parsed.data.phone,
-      code
-    });
+    let delivery: Awaited<ReturnType<typeof sendOtpSms>>;
+
+    try {
+      delivery = await sendOtpSms({
+        phone: parsed.data.phone,
+        code
+      });
+    } catch (error) {
+      void writeAuditLog({
+        request,
+        action: "AUTH_OTP_SEND_FAILED",
+        metadata: {
+          phone: parsed.data.phone,
+          reason: error instanceof Error ? error.message : "UNKNOWN_OTP_DELIVERY_FAILURE"
+        }
+      });
+
+      return reply.code(503).send({
+        error: "Unable to send OTP right now."
+      });
+    }
 
     await prisma.otpChallenge.create({
       data: {
