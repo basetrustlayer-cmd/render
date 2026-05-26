@@ -1185,6 +1185,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       actorUserId: z.string().uuid().optional(),
       from: z.coerce.date().optional(),
       to: z.coerce.date().optional(),
+      cursor: z.string().uuid().optional(),
       take: z.coerce.number().int().min(1).max(100).default(100)
     });
 
@@ -1209,8 +1210,17 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
             }
           : {})
       },
-      orderBy: { createdAt: "desc" },
-      take: parsedQuery.data.take
+      orderBy: [
+        { createdAt: "desc" },
+        { id: "desc" }
+      ],
+      take: parsedQuery.data.take,
+      ...(parsedQuery.data.cursor
+        ? {
+            cursor: { id: parsedQuery.data.cursor },
+            skip: 1
+          }
+        : {})
     });
 
     return { auditLogs };
