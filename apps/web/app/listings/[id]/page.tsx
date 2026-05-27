@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getListing } from "../../../lib/get-listing";
 import { TrustScoreBadge } from "../../../components/trust-score-badge";
-import { MessageSellerButton } from "./message-seller-button";
+import { ListingDetailActions } from "./listing-detail-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -68,7 +68,14 @@ export default async function ListingDetailPage({ params }: PageProps) {
               </div>
 
               <div className="mt-6 flex flex-wrap gap-3">
-                <MessageSellerButton listingId={listing.id} sellerId={seller.id} listingTitle={listing.title} className={buttonBlack} />
+                <MessageSellerButton
+                  listingId={listing.id}
+                  sellerId={seller.id}
+                  listingTitle={listing.title}
+                  messageClassName={buttonBlack}
+                  manageClassName={buttonBlack}
+                  reviewClassName={buttonGreen}
+                />
                 <Link href={`/safe-deal/new?listingId=${listing.id}`} className={buttonAmber}>Start Safe Deal</Link>
               </div>
             </div>
@@ -126,5 +133,4 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
-const buttonBlack = "rounded-xl bg-gray-950 px-5 py-3 text-sm font-bold text-white hover:bg-black";
-const buttonAmber = "rounded-xl bg-amber-500 px-5 py-3 text-sm font-bold text-gray-950 hover:bg-amber-400";
+const buttonGreen = "rounded-xl border border-emerald-600 bg-emerald-50 px-5 py-3 text-sm font-bold text-emerald-800 hover:bg-emerald-100";
