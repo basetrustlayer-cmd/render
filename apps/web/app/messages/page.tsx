@@ -223,7 +223,22 @@ export default function MessagesPage() {
   async function handleSend() {
     const trimmed = body.trim();
 
-    if (!accessToken || !selectedConversationId || !trimmed || sending) {
+    if (!accessToken) {
+      setError("Please log in again before sending a message.");
+      return;
+    }
+
+    if (!selectedConversationId) {
+      setError("Select or create a conversation before sending a message.");
+      return;
+    }
+
+    if (!trimmed) {
+      setError("Type a message before sending.");
+      return;
+    }
+
+    if (sending) {
       return;
     }
 
