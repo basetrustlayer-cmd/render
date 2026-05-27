@@ -105,3 +105,18 @@ export async function createConversation(
 
   return { id: result.conversation.id };
 }
+
+
+export async function markMessageRead(
+  accessToken: string,
+  messageId: string
+): Promise<Message> {
+  const result = await apiFetch<{ message: Message }>(`/messages/${messageId}/read`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`
+    }
+  });
+
+  return result.message;
+}

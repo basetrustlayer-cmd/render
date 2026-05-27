@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import {
   getConversationMessages,
   getConversations,
+  markMessageRead,
   sendMessage,
   type Conversation,
   type Message
@@ -117,6 +118,75 @@ export default function MessagesPage() {
     [conversations, selectedConversationId]
   );
 
+  useEffect(() => {
+    if (!accessToken) return;
+
+    const interval = window.setInterval(() => {
+      void getConversations(accessToken)
+        .then((loaded) => {
+          setConversations(loaded);
+          setSelectedConversationId((current) => current ?? requestedConversationId ?? loaded[0]?.id ?? null);
+        })
+        .catch(() => {
+          // Keep existing inbox state during transient polling failures.
+        });
+    }, 10000);
+
+    return () => window.clearInterval(interval);
+  }, [accessToken, requestedConversationId]);
+
+  useEffect(() => {
+    if (!accessToken || !selectedConversationId) return;
+
+    const interval = window.setInterval(() => {
+      void getConversationMessages(accessToken, selectedConversationId)
+        .then((loaded) => {
+          setMessages((current) => {
+            const existingIds = new Set(current.map((message) => message.id));
+            const incoming = loaded.filter((message) => !existingIds.has(message.id));
+            return incoming.length > 0 ? [...current, ...incoming] : current;
+          });
+        })
+        .catch(() => {
+          // Keep current thread during transient polling failures.
+        });
+    }, 5000);
+
+    return () => window.clearInterval(interval);
+  }, [accessToken, selectedConversationId]);
+
+  useEffect(() => {
+    if (!accessToken || !user?.id || messages.length === 0) return;
+
+    const unreadIncoming = messages.filter(
+      (message) => message.senderId !== user.id && !message.readAt
+    );
+
+    if (unreadIncoming.length === 0) return;
+
+    void Promise.allSettled(
+      unreadIncoming.map((message) => markMessageRead(accessToken, message.id))
+    ).then((results) => {
+      const readIds = new Set<string>();
+
+      results.forEach((result, index) => {
+        if (result.status === "fulfilled") {
+          readIds.add(unreadIncoming[index].id);
+        }
+      });
+
+      if (readIds.size === 0) return;
+
+      setMessages((current) =>
+        current.map((message) =>
+          readIds.has(message.id)
+            ? { ...message, readAt: message.readAt ?? new Date().toISOString() }
+            : message
+        )
+      );
+    });
+  }, [accessToken, messages, user?.id]);
+
   async function handleSend() {
     const trimmed = body.trim();
 
@@ -130,7 +200,10 @@ export default function MessagesPage() {
 
       const created = await sendMessage(accessToken, selectedConversationId, trimmed);
 
-      setMessages((current) => [...current, created]);
+      setMessages((current) => {
+        if (current.some((message) => message.id === created.id)) return current;
+        return [...current, created];
+      });
       setBody("");
       setConversations((current) =>
         current.map((conversation) =>
