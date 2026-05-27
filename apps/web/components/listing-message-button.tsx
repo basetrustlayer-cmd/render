@@ -11,14 +11,22 @@ type Props = {
   listingTitle: string;
 };
 
-export function ListingMessageButton({ listingId, sellerId, listingTitle }: Props) {
+export function ListingMessageButton({
+  listingId,
+  sellerId,
+  listingTitle
+}: Props) {
   const router = useRouter();
+
   const { accessToken, user, hydrate } = useAuthStore();
+
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     hydrate();
   }, [hydrate]);
+
+  const isOwnListing = user?.id === sellerId;
 
   async function handleClick() {
     if (!accessToken || !user?.id) {
@@ -26,8 +34,8 @@ export function ListingMessageButton({ listingId, sellerId, listingTitle }: Prop
       return;
     }
 
-    if (user.id === sellerId) {
-      router.push("/messages");
+    if (isOwnListing) {
+      router.push("/dashboard/listings");
       return;
     }
 
@@ -41,10 +49,28 @@ export function ListingMessageButton({ listingId, sellerId, listingTitle }: Prop
       });
 
       const draft = `Hi, I’m interested in ${listingTitle}. Is it still available?`;
-      router.push(`/messages?conversation=${conversation.id}&draft=${encodeURIComponent(draft)}`);
+
+      router.push(
+        `/messages?conversation=${conversation.id}&draft=${encodeURIComponent(draft)}`
+      );
+    } catch (error) {
+      console.error(error);
+      alert("Unable to start conversation.");
     } finally {
       setLoading(false);
     }
+  }
+
+  if (isOwnListing) {
+    return (
+      <button
+        type="button"
+        disabled
+        className="rounded-xl border border-gray-200 bg-gray-100 px-4 py-2 text-center text-sm font-bold text-gray-500"
+      >
+        Your listing
+      </button>
+    );
   }
 
   return (
@@ -52,7 +78,7 @@ export function ListingMessageButton({ listingId, sellerId, listingTitle }: Prop
       type="button"
       onClick={handleClick}
       disabled={loading}
-      className="rounded-xl border border-gray-300 px-4 py-2 text-center text-sm font-bold text-gray-900 hover:bg-gray-50 disabled:opacity-60"
+      className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-center text-sm font-bold text-gray-900 hover:bg-gray-50 disabled:opacity-60"
     >
       {loading ? "Opening..." : "Message seller"}
     </button>
