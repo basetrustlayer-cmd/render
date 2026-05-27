@@ -26,6 +26,7 @@ function formatTime(value: string | null): string {
 export default function MessagesPage() {
   const searchParams = useSearchParams();
   const requestedConversationId = searchParams.get("conversation");
+  const requestedDraft = searchParams.get("draft");
   const { accessToken, user, hydrate } = useAuthStore();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
@@ -39,6 +40,12 @@ export default function MessagesPage() {
   useEffect(() => {
     hydrate();
   }, [hydrate]);
+
+  useEffect(() => {
+    if (requestedDraft) {
+      setBody((current) => current || requestedDraft);
+    }
+  }, [requestedDraft]);
 
   useEffect(() => {
     let cancelled = false;
@@ -347,7 +354,15 @@ export default function MessagesPage() {
             {loadingMessages ? (
               <p style={{ margin: 0, opacity: 0.72 }}>Loading messages...</p>
             ) : messages.length === 0 ? (
-              <p style={{ margin: 0, opacity: 0.72 }}>No messages in this conversation yet.</p>
+              <div style={{ margin: "auto", maxWidth: "520px", textAlign: "center" }}>
+                <div style={{ margin: "0 auto 16px", height: "56px", width: "56px", borderRadius: "999px", background: "rgba(16, 185, 129, 0.12)", display: "grid", placeItems: "center", color: "var(--green)", fontWeight: 900 }}>
+                  ✉
+                </div>
+                <h3 style={{ margin: 0, fontSize: "24px" }}>Start the conversation</h3>
+                <p style={{ margin: "10px 0 0", opacity: 0.72, lineHeight: 1.6 }}>
+                  Ask about availability, inspection, payment terms, or Safe Deal before making any commitment.
+                </p>
+              </div>
             ) : (
               messages.map((message) => {
                 const isMine = message.senderId === user?.id;

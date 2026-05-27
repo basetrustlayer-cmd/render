@@ -8,10 +8,11 @@ import { useAuthStore } from "../../../store/auth";
 type Props = {
   listingId: string;
   sellerId: string;
+  listingTitle?: string;
   className: string;
 };
 
-export function MessageSellerButton({ listingId, sellerId, className }: Props) {
+export function MessageSellerButton({ listingId, sellerId, listingTitle, className }: Props) {
   const router = useRouter();
   const { accessToken, user, hydrate } = useAuthStore();
   const [loading, setLoading] = useState(false);
@@ -40,7 +41,11 @@ export function MessageSellerButton({ listingId, sellerId, className }: Props) {
         listingId
       });
 
-      router.push(`/messages?conversation=${conversation.id}`);
+      const firstMessage = listingTitle
+        ? `Hi, I’m interested in ${listingTitle}. Is it still available?`
+        : "Hi, I’m interested in this listing. Is it still available?";
+
+      router.push(`/messages?conversation=${conversation.id}&draft=${encodeURIComponent(firstMessage)}`);
     } finally {
       setLoading(false);
     }

@@ -68,7 +68,7 @@ export default async function ListingDetailPage({ params }: PageProps) {
               </div>
 
               <div className="mt-6 flex flex-wrap gap-3">
-                <MessageSellerButton listingId={listing.id} sellerId={seller.id} className={buttonBlack} />
+                <MessageSellerButton listingId={listing.id} sellerId={seller.id} listingTitle={listing.title} className={buttonBlack} />
                 <Link href={`/safe-deal/new?listingId=${listing.id}`} className={buttonAmber}>Start Safe Deal</Link>
               </div>
             </div>
