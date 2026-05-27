@@ -511,6 +511,7 @@ function MessagesContent() {
 
               <button
                 type="submit"
+                onPointerDown={() => setSendDebug("Send button touched. Waiting for submit...")}
                 disabled={sending}
                 style={{
                   padding: "16px 24px",
