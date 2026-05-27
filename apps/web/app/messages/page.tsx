@@ -386,7 +386,7 @@ export default function MessagesPage() {
 
                 {selectedConversation.listingId ? (
                   <a
-                    href={`/safe-deal/new?listingId=${selectedConversation.listingId}`}
+                    href={`/safe-deal/new?listingId=${selectedConversation.listingId}&conversationId=${selectedConversation.id}`}
                     style={{
                       borderRadius: "14px",
                       background: "var(--gold)",

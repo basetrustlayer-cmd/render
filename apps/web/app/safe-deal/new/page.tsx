@@ -24,6 +24,7 @@ type SafeDealResponse = {
 function SafeDealCheckout() {
   const searchParams = useSearchParams();
   const listingId = searchParams.get("listingId");
+  const conversationId = searchParams.get("conversationId");
   const user = useAuthStore((state) => state.user);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
