@@ -23,6 +23,32 @@ function formatTime(value: string | null): string {
   }).format(new Date(value));
 }
 
+function formatMoney(value?: number | null): string {
+  if (typeof value !== "number") return "";
+
+  return `GH₵ ${value.toLocaleString("en-GH")}`;
+}
+
+function getParticipantLabel(input: {
+  isBusiness: boolean;
+  trustTier: string | null;
+  verificationLevel: number;
+}): string {
+  if (input.isBusiness) return "Verified Business Seller";
+  if (input.verificationLevel > 0) return "Verified Render User";
+  return "Marketplace User";
+}
+
+function getTrustLabel(input: {
+  isBusiness: boolean;
+  trustTier: string | null;
+  verificationLevel: number;
+}): string {
+  if (input.trustTier) return input.trustTier;
+  if (input.verificationLevel > 0) return "VERIFIED";
+  return "NEW";
+}
+
 export default function MessagesPage() {
   const searchParams = useSearchParams();
   const requestedConversationId = searchParams.get("conversation");
@@ -296,14 +322,16 @@ export default function MessagesPage() {
                     }}
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", gap: "12px" }}>
-                      <strong>{otherUser.isBusiness ? "Business seller" : "Marketplace user"}</strong>
+                      <strong>{getParticipantLabel(otherUser)}</strong>
                       <span style={{ fontSize: "12px", opacity: 0.6 }}>
                         {formatTime(conversation.lastMessageAt ?? conversation.createdAt)}
                       </span>
                     </div>
 
                     <p style={{ margin: "6px 0", color: "var(--gold)", fontWeight: 700, fontSize: "13px" }}>
-                      {conversation.listing?.title ?? "General conversation"}
+                      {conversation.listing
+                        ? `${conversation.listing.title} · ${formatMoney(conversation.listing.price)}`
+                        : "General conversation"}
                     </p>
 
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
@@ -334,14 +362,52 @@ export default function MessagesPage() {
           }}
         >
           <header style={{ padding: "24px", borderBottom: "1px solid var(--border)" }}>
-            <h2 style={{ margin: 0 }}>
-              {selectedConversation?.listing?.title ?? "Conversation"}
-            </h2>
-            <p style={{ margin: "6px 0 0", opacity: 0.72 }}>
-              {selectedConversation
-                ? `Conversation ${selectedConversation.id.slice(0, 8)}`
-                : "Select a conversation"}
-            </p>
+            {selectedConversation ? (
+              <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", alignItems: "flex-start" }}>
+                <div>
+                  <h2 style={{ margin: 0 }}>
+                    {selectedConversation.listing?.title ?? "Conversation"}
+                  </h2>
+                  <p style={{ margin: "6px 0 0", opacity: 0.72 }}>
+                    {getParticipantLabel(
+                      selectedConversation.buyerId === user?.id
+                        ? selectedConversation.seller
+                        : selectedConversation.buyer
+                    )} · {getTrustLabel(
+                      selectedConversation.buyerId === user?.id
+                        ? selectedConversation.seller
+                        : selectedConversation.buyer
+                    )}
+                    {selectedConversation.listing
+                      ? ` · ${formatMoney(selectedConversation.listing.price)}`
+                      : ""}
+                  </p>
+                </div>
+
+                {selectedConversation.listingId ? (
+                  <a
+                    href={`/safe-deal/new?listingId=${selectedConversation.listingId}`}
+                    style={{
+                      borderRadius: "14px",
+                      background: "var(--gold)",
+                      color: "var(--ink)",
+                      padding: "12px 16px",
+                      fontSize: "14px",
+                      fontWeight: 900,
+                      textDecoration: "none",
+                      whiteSpace: "nowrap"
+                    }}
+                  >
+                    Start Safe Deal
+                  </a>
+                ) : null}
+              </div>
+            ) : (
+              <>
+                <h2 style={{ margin: 0 }}>Conversation</h2>
+                <p style={{ margin: "6px 0 0", opacity: 0.72 }}>Select a conversation</p>
+              </>
+            )}
           </header>
 
           {error ? (
