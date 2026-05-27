@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getListing } from "../../../lib/get-listing";
 import { TrustScoreBadge } from "../../../components/trust-score-badge";
+import { MessageSellerButton } from "./message-seller-button";
 
 export const dynamic = "force-dynamic";
 
@@ -67,7 +68,7 @@ export default async function ListingDetailPage({ params }: PageProps) {
               </div>
 
               <div className="mt-6 flex flex-wrap gap-3">
-                <Link href="/messages" className={buttonBlack}>Message seller</Link>
+                <MessageSellerButton listingId={listing.id} sellerId={seller.id} className={buttonBlack} />
                 <Link href={`/safe-deal/new?listingId=${listing.id}`} className={buttonAmber}>Start Safe Deal</Link>
               </div>
             </div>

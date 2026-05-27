@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   getConversationMessages,
   getConversations,
@@ -22,6 +23,8 @@ function formatTime(value: string | null): string {
 }
 
 export default function MessagesPage() {
+  const searchParams = useSearchParams();
+  const requestedConversationId = searchParams.get("conversation");
   const { accessToken, user, hydrate } = useAuthStore();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
@@ -54,7 +57,7 @@ export default function MessagesPage() {
         if (cancelled) return;
 
         setConversations(loaded);
-        setSelectedConversationId((current) => current ?? loaded[0]?.id ?? null);
+        setSelectedConversationId((current) => requestedConversationId ?? current ?? loaded[0]?.id ?? null);
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Unable to load conversations.");
@@ -71,7 +74,7 @@ export default function MessagesPage() {
     return () => {
       cancelled = true;
     };
-  }, [accessToken]);
+  }, [accessToken, requestedConversationId]);
 
   useEffect(() => {
     let cancelled = false;

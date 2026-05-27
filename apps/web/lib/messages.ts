@@ -86,3 +86,22 @@ export async function sendMessage(
 
   return result.message;
 }
+
+export async function createConversation(
+  accessToken: string,
+  input: {
+    buyerId: string;
+    sellerId: string;
+    listingId?: string;
+  }
+): Promise<{ id: string }> {
+  const result = await apiFetch<{ conversation: { id: string } }>("/conversations", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`
+    },
+    body: JSON.stringify(input)
+  });
+
+  return { id: result.conversation.id };
+}
