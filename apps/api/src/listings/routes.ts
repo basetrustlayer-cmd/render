@@ -147,6 +147,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       },
       select: {
         id: true,
+        sellerId: true,
         title: true,
         description: true,
         price: true,

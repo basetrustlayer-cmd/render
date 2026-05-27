@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { TrustScoreBadge } from "./trust-score-badge";
+import { ListingMessageButton } from "./listing-message-button";
 import type { Listing } from "../lib/get-listings";
 
 type ListingCardProps = {

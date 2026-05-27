@@ -2,6 +2,7 @@ import { apiFetch } from "./api";
 
 export type Listing = {
   id: string;
+  sellerId: string;
   title: string;
   description?: string | null;
   price: number | string;
