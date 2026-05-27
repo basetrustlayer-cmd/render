@@ -37,10 +37,11 @@ export function SiteHeader() {
     }
 
     let cancelled = false;
+    const token = accessToken;
 
     async function loadUnread() {
       try {
-        const loaded = await getConversations(accessToken);
+        const loaded = await getConversations(token);
 
         if (!cancelled) {
           setConversations(loaded);
