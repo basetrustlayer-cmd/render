@@ -62,7 +62,6 @@ function MessagesContent() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sendDebug, setSendDebug] = useState<string>("Send not tapped yet.");
 
   useEffect(() => {
     hydrate();
@@ -175,8 +174,7 @@ function MessagesContent() {
     const interval = window.setInterval(() => {
       void getConversationMessages(accessToken, selectedConversationId)
         .then((loaded) => {
-          setSendDebug("API returned success. Appending message.");
-      setMessages((current) => {
+          setMessages((current) => {
             const existingIds = new Set(current.map((message) => message.id));
             const incoming = loaded.filter((message) => !existingIds.has(message.id));
             return incoming.length > 0 ? [...current, ...incoming] : current;
@@ -251,7 +249,6 @@ function MessagesContent() {
 
       const created = await sendMessage(accessToken, selectedConversationId, trimmed);
 
-      setSendDebug("API returned success. Appending message.");
       setMessages((current) => {
         if (current.some((message) => message.id === created.id)) return current;
         return [...current, created];
@@ -511,7 +508,6 @@ function MessagesContent() {
 
               <button
                 type="submit"
-                onPointerDown={() => setSendDebug("Send button touched. Waiting for submit...")}
                 disabled={sending}
                 style={{
                   padding: "16px 24px",
