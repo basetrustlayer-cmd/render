@@ -62,6 +62,7 @@ export default function MessagesPage() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sendDebug, setSendDebug] = useState<string>("Send not tapped yet.");
 
   useEffect(() => {
     hydrate();
@@ -174,7 +175,8 @@ export default function MessagesPage() {
     const interval = window.setInterval(() => {
       void getConversationMessages(accessToken, selectedConversationId)
         .then((loaded) => {
-          setMessages((current) => {
+          setSendDebug("API returned success. Appending message.");
+      setMessages((current) => {
             const existingIds = new Set(current.map((message) => message.id));
             const incoming = loaded.filter((message) => !existingIds.has(message.id));
             return incoming.length > 0 ? [...current, ...incoming] : current;
@@ -222,6 +224,7 @@ export default function MessagesPage() {
 
   async function handleSend() {
     const trimmed = body.trim();
+    setSendDebug(`Send tapped. token=${accessToken ? "yes" : "no"} conversation=${selectedConversationId ?? "none"} bodyLength=${trimmed.length} sending=${sending ? "yes" : "no"}`);
 
     if (!accessToken) {
       setError("Please log in again before sending a message.");
@@ -248,6 +251,7 @@ export default function MessagesPage() {
 
       const created = await sendMessage(accessToken, selectedConversationId, trimmed);
 
+      setSendDebug("API returned success. Appending message.");
       setMessages((current) => {
         if (current.some((message) => message.id === created.id)) return current;
         return [...current, created];
@@ -265,7 +269,9 @@ export default function MessagesPage() {
         )
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to send message.");
+      const message = err instanceof Error ? err.message : "Unable to send message.";
+      setSendDebug(`Send failed: ${message}`);
+      setError(message);
     } finally {
       setSending(false);
     }
@@ -521,6 +527,9 @@ export default function MessagesPage() {
                 {sending ? "Sending..." : "Send"}
               </button>
             </form>
+            <p style={{ margin: "12px 0 0", fontSize: "12px", opacity: 0.7 }}>
+              Debug: {sendDebug}
+            </p>
           </footer>
         </section>
       </section>
