@@ -500,7 +500,7 @@ export default function MessagesPage() {
               <button
                 type="button"
                 onClick={() => void handleSend()}
-                disabled={!selectedConversationId || !body.trim() || sending}
+                disabled={sending}
                 style={{
                   padding: "16px 24px",
                   borderRadius: "16px",
@@ -509,8 +509,8 @@ export default function MessagesPage() {
                   color: "#fff",
                   fontWeight: 800,
                   fontSize: "16px",
-                  cursor: !selectedConversationId || !body.trim() || sending ? "not-allowed" : "pointer",
-                  opacity: !selectedConversationId || !body.trim() || sending ? 0.6 : 1
+                  cursor: sending ? "not-allowed" : "pointer",
+                  opacity: sending ? 0.6 : 1
                 }}
               >
                 {sending ? "Sending..." : "Send"}
