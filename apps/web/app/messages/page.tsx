@@ -222,7 +222,6 @@ function MessagesContent() {
 
   async function handleSend() {
     const trimmed = body.trim();
-    setSendDebug(`Send tapped. token=${accessToken ? "yes" : "no"} conversation=${selectedConversationId ?? "none"} bodyLength=${trimmed.length} sending=${sending ? "yes" : "no"}`);
 
     if (!accessToken) {
       setError("Please log in again before sending a message.");
@@ -267,7 +266,6 @@ function MessagesContent() {
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unable to send message.";
-      setSendDebug(`Send failed: ${message}`);
       setError(message);
     } finally {
       setSending(false);
@@ -524,9 +522,6 @@ function MessagesContent() {
                 {sending ? "Sending..." : "Send"}
               </button>
             </form>
-            <p style={{ margin: "12px 0 0", fontSize: "12px", opacity: 0.7 }}>
-              Debug: {sendDebug}
-            </p>
           </footer>
         </section>
       </section>
