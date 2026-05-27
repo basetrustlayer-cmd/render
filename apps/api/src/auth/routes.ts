@@ -227,7 +227,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
         }
       });
 
-      const code = generateOtp();
+      const code = process.env.OTP_PROVIDER === "mock" ? process.env.MOCK_OTP_CODE ?? "123456" : generateOtp();
 
       let delivery: Awaited<ReturnType<typeof sendOtpSms>>;
 
@@ -264,7 +264,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       return {
         ok: true,
         delivery: delivery.provider === "HUBTEL" ? "sms_sent" : "dev_otp",
-        devCode: process.env.NODE_ENV === "production" ? undefined : code
+        devCode: delivery.provider === "DEV" ? code : process.env.NODE_ENV === "production" ? undefined : code
       };
     } catch (error) {
       void writeAuditLog({

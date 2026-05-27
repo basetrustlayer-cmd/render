@@ -12,6 +12,15 @@ export async function sendOtpSms(input: {
   phone: string;
   code: string;
 }): Promise<HubtelSmsResult | DevSmsResult> {
+  const otpProvider = process.env.OTP_PROVIDER ?? "hubtel";
+
+  if (otpProvider === "mock" || otpProvider === "dev") {
+    return {
+      provider: "DEV",
+      status: "SKIPPED"
+    };
+  }
+
   const clientId = process.env.HUBTEL_CLIENT_ID;
   const clientSecret = process.env.HUBTEL_CLIENT_SECRET;
   const sender = process.env.HUBTEL_SENDER_ID ?? "Render";
