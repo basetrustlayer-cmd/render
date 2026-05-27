@@ -180,31 +180,6 @@ export async function registerSafeDealRoutes(
       where: {
         id: parsed.data.conversationId,
         listingId: listing.id,
-        conversationId,
-        buyerId: authUser.userId,
-        sellerId: listing.sellerId,
-        organizationId: listing.organizationId
-      },
-      select: { id: true }
-    });
-
-    if (!conversation) {
-      return reply.code(403).send({
-        error: "Safe Deal conversation context is invalid for this listing."
-      });
-    }
-
-    conversationId = conversation.id;
-  }
-
-  let conversationId: string | null = null;
-
-  if (parsed.data.conversationId) {
-    const conversation = await prisma.conversation.findFirst({
-      where: {
-        id: parsed.data.conversationId,
-        listingId: listing.id,
-        conversationId,
         buyerId: authUser.userId,
         sellerId: listing.sellerId,
         organizationId: listing.organizationId
@@ -235,7 +210,6 @@ export async function registerSafeDealRoutes(
           renderListingId: listing.id,
           renderBuyerId: authUser.userId,
           renderSellerId: listing.sellerId,
-          renderConversationId: conversationId,
           renderConversationId: conversationId
         }
       },
