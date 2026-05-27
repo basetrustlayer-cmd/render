@@ -25,7 +25,12 @@ export function ListingDetailActions({ listingId, sellerId, listingTitle }: Prop
 
   useEffect(() => {
     hydrate();
-    setHydrated(true);
+
+    const timeout = window.setTimeout(() => {
+      setHydrated(true);
+    }, 300);
+
+    return () => window.clearTimeout(timeout);
   }, [hydrate]);
 
   async function messageSeller() {
@@ -44,6 +49,7 @@ export function ListingDetailActions({ listingId, sellerId, listingTitle }: Prop
       });
 
       const draft = `Hi, I’m interested in ${listingTitle}. Is it still available?`;
+
       router.push(`/messages?conversation=${conversation.id}&draft=${encodeURIComponent(draft)}`);
     } finally {
       setLoading(false);
