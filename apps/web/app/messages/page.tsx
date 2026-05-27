@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   getConversationMessages,
@@ -49,7 +49,7 @@ function getTrustLabel(input: {
   return "NEW";
 }
 
-export default function MessagesPage() {
+function MessagesContent() {
   const searchParams = useSearchParams();
   const requestedConversationId = searchParams.get("conversation");
   const requestedDraft = searchParams.get("draft");
@@ -534,5 +534,14 @@ export default function MessagesPage() {
         </section>
       </section>
     </main>
+  );
+}
+
+
+export default function MessagesPage() {
+  return (
+    <Suspense fallback={<main style={{ minHeight: "100vh", padding: "32px" }}>Loading messages...</main>}>
+      <MessagesContent />
+    </Suspense>
   );
 }
