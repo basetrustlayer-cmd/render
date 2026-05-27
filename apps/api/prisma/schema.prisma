@@ -180,6 +180,7 @@ model Listing {
 model SafeDeal {
   id                  String        @id @default(uuid()) @db.Uuid
   listingId           String        @map("listing_id") @db.Uuid
+  conversationId      String?       @map("conversation_id") @db.Uuid
   buyerId             String        @map("buyer_id") @db.Uuid
   sellerId            String        @map("seller_id") @db.Uuid
   organizationId      String?       @map("organization_id") @db.Uuid
@@ -196,6 +197,7 @@ model SafeDeal {
   updatedAt           DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   listing             Listing       @relation(fields: [listingId], references: [id])
+  conversation        Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
   buyer               User          @relation("BuyerDeals", fields: [buyerId], references: [id])
   seller              User          @relation("SellerDeals", fields: [sellerId], references: [id])
   organization        Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
@@ -203,6 +205,7 @@ model SafeDeal {
   dispute             Dispute?
 
   @@index([listingId])
+  @@index([conversationId])
   @@index([buyerId])
   @@index([sellerId])
   @@index([organizationId])
@@ -262,6 +265,7 @@ model Conversation {
   listing        Listing?  @relation(fields: [listingId], references: [id], onDelete: SetNull)
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   messages       Message[]
+  safeDeals      SafeDeal[]
 
   @@index([buyerId])
   @@index([sellerId])

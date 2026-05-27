@@ -67,7 +67,8 @@ function blockStaleEscrowCommand(input: {
 }
 
 const createSafeDealSchema = z.object({
-  listingId: z.string().uuid()
+  listingId: z.string().uuid(),
+  conversationId: z.string().uuid().optional()
 });
 
 const safeDealProjectionCacheFields = {
@@ -172,7 +173,55 @@ export async function registerSafeDealRoutes(
       });
     }
 
-    const amount = listing.price;
+    let conversationId: string | null = null;
+
+  if (parsed.data.conversationId) {
+    const conversation = await prisma.conversation.findFirst({
+      where: {
+        id: parsed.data.conversationId,
+        listingId: listing.id,
+        conversationId,
+        buyerId: authUser.userId,
+        sellerId: listing.sellerId,
+        organizationId: listing.organizationId
+      },
+      select: { id: true }
+    });
+
+    if (!conversation) {
+      return reply.code(403).send({
+        error: "Safe Deal conversation context is invalid for this listing."
+      });
+    }
+
+    conversationId = conversation.id;
+  }
+
+  let conversationId: string | null = null;
+
+  if (parsed.data.conversationId) {
+    const conversation = await prisma.conversation.findFirst({
+      where: {
+        id: parsed.data.conversationId,
+        listingId: listing.id,
+        conversationId,
+        buyerId: authUser.userId,
+        sellerId: listing.sellerId,
+        organizationId: listing.organizationId
+      },
+      select: { id: true }
+    });
+
+    if (!conversation) {
+      return reply.code(403).send({
+        error: "Safe Deal conversation context is invalid for this listing."
+      });
+    }
+
+    conversationId = conversation.id;
+  }
+
+  const amount = listing.price;
     const amountNumber = Number(amount);
     const trustLayer = getTrustLayerClient();
 
@@ -185,7 +234,9 @@ export async function registerSafeDealRoutes(
         metadata: {
           renderListingId: listing.id,
           renderBuyerId: authUser.userId,
-          renderSellerId: listing.sellerId
+          renderSellerId: listing.sellerId,
+          renderConversationId: conversationId,
+          renderConversationId: conversationId
         }
       },
       {
@@ -197,6 +248,7 @@ export async function registerSafeDealRoutes(
     const safeDeal = await prisma.safeDeal.create({
       data: {
         listingId: listing.id,
+        conversationId,
         buyerId: authUser.userId,
         sellerId: listing.sellerId,
         organizationId: listing.organizationId,
@@ -209,9 +261,9 @@ export async function registerSafeDealRoutes(
       }
     });
 
-    void writeAuditLog({ request, actorUserId: authUser.userId, organizationId: listing.organizationId, action: "SAFE_DEAL_INTENT_CREATED", entityType: "SAFE_DEAL", entityId: safeDeal.id, metadata: { listingId: listing.id, sellerId: listing.sellerId, trustLayerEscrowId: intent.escrowId } });
+    void writeAuditLog({ request, actorUserId: authUser.userId, organizationId: listing.organizationId, action: "SAFE_DEAL_INTENT_CREATED", entityType: "SAFE_DEAL", entityId: safeDeal.id, metadata: { listingId: listing.id, sellerId: listing.sellerId, conversationId, trustLayerEscrowId: intent.escrowId } });
 
-    void writeAuditLog({ request, actorUserId: authUser.userId, organizationId: listing.organizationId, action: "SAFE_DEAL_INITIATED", entityType: "SAFE_DEAL", entityId: safeDeal.id, metadata: { listingId: listing.id, sellerId: listing.sellerId } });
+    void writeAuditLog({ request, actorUserId: authUser.userId, organizationId: listing.organizationId, action: "SAFE_DEAL_INITIATED", entityType: "SAFE_DEAL", entityId: safeDeal.id, metadata: { listingId: listing.id, sellerId: listing.sellerId, conversationId } });
 
     return reply.code(201).send({
       safeDeal,

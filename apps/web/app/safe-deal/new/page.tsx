@@ -46,7 +46,7 @@ function SafeDealCheckout() {
     try {
       const result = await apiFetch<SafeDealResponse>("/safe-deals", {
         method: "POST",
-        body: JSON.stringify({ listingId })
+        body: JSON.stringify({ listingId, conversationId: conversationId ?? undefined })
       });
 
       window.location.href = result.checkout.authorizationUrl;
