@@ -15,17 +15,18 @@ type Props = {
 const buttonBlack = "rounded-xl bg-gray-950 px-5 py-3 text-sm font-bold text-white hover:bg-black";
 const buttonAmber = "rounded-xl bg-amber-500 px-5 py-3 text-sm font-bold text-gray-950 hover:bg-amber-400";
 const buttonGreen = "rounded-xl border border-emerald-600 bg-emerald-50 px-5 py-3 text-sm font-bold text-emerald-800 hover:bg-emerald-100";
+const buttonMuted = "rounded-xl border border-gray-200 bg-gray-100 px-5 py-3 text-sm font-bold text-gray-500";
 
 export function ListingDetailActions({ listingId, sellerId, listingTitle }: Props) {
   const router = useRouter();
   const { accessToken, user, hydrate } = useAuthStore();
   const [loading, setLoading] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     hydrate();
+    setHydrated(true);
   }, [hydrate]);
-
-  const isOwnListing = user?.id === sellerId;
 
   async function messageSeller() {
     if (!accessToken || !user?.id) {
@@ -49,7 +50,15 @@ export function ListingDetailActions({ listingId, sellerId, listingTitle }: Prop
     }
   }
 
-  if (isOwnListing) {
+  if (!hydrated) {
+    return (
+      <button type="button" disabled className={buttonMuted}>
+        Loading actions...
+      </button>
+    );
+  }
+
+  if (user?.id === sellerId) {
     return (
       <>
         <Link href={`/dashboard/listings/${listingId}/edit`} className={buttonBlack}>
