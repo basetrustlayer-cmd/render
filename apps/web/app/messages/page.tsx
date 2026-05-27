@@ -476,7 +476,13 @@ export default function MessagesPage() {
           </div>
 
           <footer style={{ padding: "24px", borderTop: "1px solid var(--border)" }}>
-            <div style={{ display: "flex", gap: "12px" }}>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                void handleSend();
+              }}
+              style={{ display: "flex", gap: "12px" }}
+            >
               <input
                 value={body}
                 onChange={(event) => setBody(event.target.value)}
@@ -498,8 +504,7 @@ export default function MessagesPage() {
               />
 
               <button
-                type="button"
-                onClick={() => void handleSend()}
+                type="submit"
                 disabled={sending}
                 style={{
                   padding: "16px 24px",
@@ -515,7 +520,7 @@ export default function MessagesPage() {
               >
                 {sending ? "Sending..." : "Send"}
               </button>
-            </div>
+            </form>
           </footer>
         </section>
       </section>
