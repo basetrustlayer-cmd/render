@@ -269,6 +269,9 @@ export default function MessagesPage() {
                 const lastMessage = conversation.messages[0]?.body ?? "No messages yet.";
                 const otherUser =
                   conversation.buyerId === user?.id ? conversation.seller : conversation.buyer;
+                const unreadCount = conversation.messages.filter(
+                  (message) => message.senderId !== user?.id && !message.readAt
+                ).length;
 
                 return (
                   <button
@@ -296,9 +299,16 @@ export default function MessagesPage() {
                       {conversation.listing?.title ?? "General conversation"}
                     </p>
 
-                    <p style={{ margin: 0, fontSize: "14px", opacity: 0.72, lineHeight: 1.5 }}>
-                      {lastMessage}
-                    </p>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+                      <p style={{ margin: 0, fontSize: "14px", opacity: 0.72, lineHeight: 1.5 }}>
+                        {lastMessage}
+                      </p>
+                      {unreadCount > 0 ? (
+                        <span style={{ borderRadius: "999px", background: "var(--green)", color: "#fff", padding: "4px 8px", fontSize: "12px", fontWeight: 800 }}>
+                          {unreadCount > 9 ? "9+" : unreadCount}
+                        </span>
+                      ) : null}
+                    </div>
                   </button>
                 );
               })}

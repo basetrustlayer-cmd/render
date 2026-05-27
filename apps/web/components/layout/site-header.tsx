@@ -2,18 +2,67 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { getConversations, type Conversation } from "../../lib/messages";
 import { useAuthStore } from "../../store/auth";
+
+function countUnread(conversations: Conversation[], userId?: string): number {
+  if (!userId) return 0;
+
+  return conversations.reduce((total, conversation) => {
+    const unread = conversation.messages.filter(
+      (message) => message.senderId !== userId && !message.readAt
+    ).length;
+
+    return total + unread;
+  }, 0);
+}
 
 export function SiteHeader() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
+  const accessToken = useAuthStore((state) => state.accessToken);
   const logout = useAuthStore((state) => state.logout);
   const hydrate = useAuthStore((state) => state.hydrate);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
 
   useEffect(() => {
     hydrate();
   }, [hydrate]);
+
+  useEffect(() => {
+    if (!accessToken || !user?.id) {
+      setConversations([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadUnread() {
+      try {
+        const loaded = await getConversations(accessToken);
+
+        if (!cancelled) {
+          setConversations(loaded);
+        }
+      } catch {
+        // Keep header stable during transient API failures.
+      }
+    }
+
+    void loadUnread();
+
+    const interval = window.setInterval(() => {
+      void loadUnread();
+    }, 15000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [accessToken, user?.id]);
+
+  const unreadCount = useMemo(() => countUnread(conversations, user?.id), [conversations, user?.id]);
 
   function handleLogout() {
     logout();
@@ -41,6 +90,15 @@ export function SiteHeader() {
 
           {user ? (
             <>
+              <Link href="/messages" className="relative hover:text-gray-900">
+                Messages
+                {unreadCount > 0 ? (
+                  <span className="absolute -right-4 -top-3 rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-black text-white">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                ) : null}
+              </Link>
+
               <Link
                 href="/dashboard"
                 className="rounded-lg border border-gray-300 px-4 py-2 hover:bg-gray-50"
