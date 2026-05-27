@@ -42,12 +42,20 @@ export function ListingCard({ listing, imageHeightClass = "h-44" }: ListingCardP
           <TrustScoreBadge score={score} tier={tier} />
         </div>
 
-        <Link
-          href={`/listings/${listing.id}`}
-          className="mt-4 block rounded-xl bg-black px-4 py-2 text-center text-sm font-bold text-white hover:bg-gray-800"
-        >
-          View details
-        </Link>
+        <div className="mt-5 flex flex-col gap-2">
+          <Link
+            href={`/listings/${listing.id}`}
+            className="block rounded-xl bg-black px-4 py-2 text-center text-sm font-bold text-white hover:bg-gray-800"
+          >
+            View details
+          </Link>
+
+          <ListingMessageButton
+            listingId={listing.id}
+            sellerId={listing.sellerId}
+            listingTitle={listing.title}
+          />
+        </div>
       </div>
     </article>
   );
