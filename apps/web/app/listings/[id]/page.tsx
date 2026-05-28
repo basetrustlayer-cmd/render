@@ -16,7 +16,6 @@ function formatDate(value: string) {
   });
 }
 
-
 function formatTrustSyncedAt(value?: string | null) {
   return value ? `Trust data last synced ${formatDate(value)}` : "Trust data sync pending";
 }
@@ -25,6 +24,7 @@ export default async function ListingDetailPage({ params }: PageProps) {
   const { listing, seller } = await getListing(params.id);
   const coverImage = listing.images.find((image) => image.isCover) ?? listing.images[0];
   const otherImages = listing.images.filter((image) => image.id !== coverImage?.id);
+  const galleryImages = coverImage ? [coverImage, ...otherImages] : [];
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -35,20 +35,37 @@ export default async function ListingDetailPage({ params }: PageProps) {
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[1.6fr_0.8fr]">
           <section className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
-            {coverImage ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={coverImage.url} alt={listing.title} className="h-96 w-full bg-gray-100 object-contain" />
-            ) : (
-              <div className="flex h-96 w-full items-center justify-center bg-gradient-to-br from-amber-100 to-emerald-100 text-gray-600">
-                No listing photos yet
-              </div>
-            )}
+            <div className="bg-gray-100">
+              {coverImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={coverImage.url}
+                  alt={listing.title}
+                  className="h-96 w-full object-contain p-4"
+                />
+              ) : (
+                <div className="flex h-96 w-full items-center justify-center bg-gradient-to-br from-amber-100 to-emerald-100 text-gray-600">
+                  No listing photos yet
+                </div>
+              )}
+            </div>
 
-            {otherImages.length > 0 && (
-              <div className="grid grid-cols-3 gap-3 p-5">
-                {otherImages.slice(0, 6).map((image) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img key={image.id} src={image.url} alt={listing.title} className="h-28 w-full rounded-2xl bg-gray-100 object-contain" />
+            {galleryImages.length > 1 && (
+              <div className="grid grid-cols-3 gap-3 border-t border-gray-100 bg-white p-5 md:grid-cols-6">
+                {galleryImages.slice(0, 6).map((image, index) => (
+                  <div
+                    key={image.id}
+                    className={`rounded-2xl border bg-gray-100 p-2 ${
+                      index === 0 ? "border-amber-500" : "border-gray-200"
+                    }`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={image.url}
+                      alt={`${listing.title} photo ${index + 1}`}
+                      className="h-24 w-full rounded-xl object-contain"
+                    />
+                  </div>
                 ))}
               </div>
             )}
@@ -128,5 +145,3 @@ function Metric({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-
-const buttonGreen = "rounded-xl border border-emerald-600 bg-emerald-50 px-5 py-3 text-sm font-bold text-emerald-800 hover:bg-emerald-100";
