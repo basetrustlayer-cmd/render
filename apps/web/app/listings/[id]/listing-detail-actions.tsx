@@ -15,7 +15,7 @@ type Props = {
 const buttonBlack = "rounded-xl bg-gray-950 px-5 py-3 text-sm font-bold text-white hover:bg-black";
 const buttonAmber = "rounded-xl bg-amber-500 px-5 py-3 text-sm font-bold text-gray-950 hover:bg-amber-400";
 const buttonGreen = "rounded-xl border border-emerald-600 bg-emerald-50 px-5 py-3 text-sm font-bold text-emerald-800 hover:bg-emerald-100";
-const buttonMuted = "rounded-xl border border-gray-200 bg-gray-100 px-5 py-3 text-sm font-bold text-gray-500";
+const debugBox = "basis-full rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-xs font-mono text-red-800";
 
 export function ListingDetailActions({ listingId, sellerId, listingTitle }: Props) {
   const router = useRouter();
@@ -28,10 +28,13 @@ export function ListingDetailActions({ listingId, sellerId, listingTitle }: Prop
 
     const timeout = window.setTimeout(() => {
       setHydrated(true);
-    }, 300);
+    }, 500);
 
     return () => window.clearTimeout(timeout);
   }, [hydrate]);
+
+  const userId = user?.id ?? "NO_USER";
+  const isOwnListing = hydrated && user?.id === sellerId;
 
   async function messageSeller() {
     if (!accessToken || !user?.id) {
@@ -56,35 +59,31 @@ export function ListingDetailActions({ listingId, sellerId, listingTitle }: Prop
     }
   }
 
-  if (!hydrated) {
-    return (
-      <button type="button" disabled className={buttonMuted}>
-        Loading actions...
-      </button>
-    );
-  }
-
-  if (user?.id === sellerId) {
-    return (
-      <>
-        <Link href={`/dashboard/listings/${listingId}/edit`} className={buttonBlack}>
-          Manage listing
-        </Link>
-        <Link href={`/dashboard/safe-deals?listingId=${listingId}`} className={buttonGreen}>
-          Review Safe Deal Requests
-        </Link>
-      </>
-    );
-  }
-
   return (
     <>
-      <button type="button" onClick={messageSeller} disabled={loading} className={buttonBlack}>
-        {loading ? "Opening..." : "Message seller"}
-      </button>
-      <Link href={`/safe-deal/new?listingId=${listingId}`} className={buttonAmber}>
-        Start Safe Deal
-      </Link>
+      <div className={debugBox}>
+        hydrated={String(hydrated)} | userId={userId} | sellerId={sellerId} | own={String(isOwnListing)}
+      </div>
+
+      {isOwnListing ? (
+        <>
+          <Link href={`/dashboard/listings/${listingId}/edit`} className={buttonBlack}>
+            Manage listing
+          </Link>
+          <Link href={`/dashboard/safe-deals?listingId=${listingId}`} className={buttonGreen}>
+            Review Safe Deal Requests
+          </Link>
+        </>
+      ) : (
+        <>
+          <button type="button" onClick={messageSeller} disabled={loading} className={buttonBlack}>
+            {loading ? "Opening..." : "Message seller"}
+          </button>
+          <Link href={`/safe-deal/new?listingId=${listingId}`} className={buttonAmber}>
+            Start Safe Deal
+          </Link>
+        </>
+      )}
     </>
   );
 }
