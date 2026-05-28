@@ -36,7 +36,6 @@ export async function addListingImage(listingId: string, input: ListingImageInpu
   });
 }
 
-
 export type CloudinarySignatureResponse = {
   cloudName: string;
   timestamp: number;
@@ -47,6 +46,7 @@ export type CloudinarySignatureResponse = {
 
 export async function getListingImageUploadSignature(listingId: string): Promise<CloudinarySignatureResponse> {
   return apiFetch<CloudinarySignatureResponse>(`/listings/${listingId}/images/signature`, {
-    method: "POST"
+    method: "POST",
+    body: JSON.stringify({})
   });
 }
