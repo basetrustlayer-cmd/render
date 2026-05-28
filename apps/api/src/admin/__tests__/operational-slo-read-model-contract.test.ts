@@ -15,7 +15,9 @@ describe("operational SLO read model contract", () => {
   it("computes operational status from existing audit and webhook sources", () => {
     expect(source).toContain("prisma.auditLog.findMany");
     expect(source).toContain("prisma.webhookEvent.count");
-    expect(source).toContain('sourceModels: ["auditLog", "webhookEvent"]');
+    expect(source).toContain("sourceModels");
+    expect(source).toContain('"auditLog"');
+    expect(source).toContain('"webhookEvent"');
     expect(source).toContain('persistenceMode: "COMPUTED_READ_MODEL"');
   });
 

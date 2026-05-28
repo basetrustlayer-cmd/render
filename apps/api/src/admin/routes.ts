@@ -219,10 +219,13 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       "WEBHOOK_EVENT_REPLAY_REVIEW_REQUESTED",
       "NOTIFICATION_DEAD_LETTER_REPLAY_RATE_LIMITED",
       "NOTIFICATION_DEAD_LETTER_REPLAY_EXPIRED",
-      "NOTIFICATION_DEAD_LETTER_REPLAY_BLOCKED"
+      "NOTIFICATION_DEAD_LETTER_REPLAY_BLOCKED",
+      "SAFE_DEAL_COMMAND_BLOCKED_STALE_ESCROW_PROJECTION",
+      "WEBHOOK_TRUSTLAYER_STALE_USER_EVENT_IGNORED",
+      "WEBHOOK_TRUSTLAYER_STALE_ESCROW_EVENT_IGNORED"
     ];
 
-    const [auditTrail, failedWebhooks, pendingWebhooks] = await Promise.all([
+    const [auditTrail, failedWebhooks, pendingWebhooks, staleSafeDeals] = await Promise.all([
       prisma.auditLog.findMany({
         where: {
           action: { in: sloBreachActions }
@@ -249,6 +252,14 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
           provider: "TRUSTLAYER",
           status: "RECEIVED"
         }
+      }),
+      prisma.safeDeal.count({
+        where: {
+          OR: [
+            { escrowLastSyncedAt: null },
+            { escrowLastSyncedAt: { lt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) } }
+          ]
+        }
       })
     ]);
 
@@ -257,16 +268,42 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       return summary;
     }, {});
 
-    const summary = {
+    const staleCommandBlocks = byAction.SAFE_DEAL_COMMAND_BLOCKED_STALE_ESCROW_PROJECTION ?? 0;
+    const staleWebhookEvents =
+      (byAction.WEBHOOK_TRUSTLAYER_STALE_USER_EVENT_IGNORED ?? 0) +
+      (byAction.WEBHOOK_TRUSTLAYER_STALE_ESCROW_EVENT_IGNORED ?? 0);
+
+    const launchReadinessSignals = {
       failedTrustLayerWebhooks: failedWebhooks,
       pendingTrustLayerWebhooks: pendingWebhooks,
+      staleSafeDealProjections: staleSafeDeals,
+      staleCommandBlocks,
+      staleWebhookEvents,
+      replayPressure:
+        (byAction.WEBHOOK_EVENT_REPLAY_REVIEW_REQUESTED ?? 0) +
+        (byAction.NOTIFICATION_DEAD_LETTER_REPLAY_RATE_LIMITED ?? 0),
+      deadLetterPressure:
+        (byAction.NOTIFICATION_DEAD_LETTER_REPLAY_EXPIRED ?? 0) +
+        (byAction.NOTIFICATION_DEAD_LETTER_REPLAY_BLOCKED ?? 0)
+    };
+
+    const launchRisk =
+      launchReadinessSignals.failedTrustLayerWebhooks > 0 ||
+      launchReadinessSignals.pendingTrustLayerWebhooks > 25 ||
+      launchReadinessSignals.staleSafeDealProjections > 0 ||
+      launchReadinessSignals.staleCommandBlocks > 0 ||
+      launchReadinessSignals.replayPressure > 25 ||
+      launchReadinessSignals.deadLetterPressure > 0
+        ? "ELEVATED"
+        : "NORMAL";
+
+    const summary = {
+      ...launchReadinessSignals,
       auditSampleSize: auditTrail.length,
       byAction,
-      launchRisk:
-        failedWebhooks > 0 || pendingWebhooks > 25 || auditTrail.length > 100
-          ? "ELEVATED"
-          : "NORMAL",
-      sourceModels: ["auditLog", "webhookEvent"],
+      launchRisk,
+      launchReadinessSignal: launchRisk,
+      sourceModels: ["auditLog", "webhookEvent", "safeDeal"],
       persistenceMode: "COMPUTED_READ_MODEL",
       generatedAt: new Date().toISOString()
     };

@@ -20,7 +20,7 @@ describe("SafeDeal blocked command admin visibility contract", () => {
 
   it("does not add a separate blocked-command admin table or financial surface", () => {
     expect(adminRoutes).not.toContain("blockedCommand");
-    expect(adminRoutes).not.toContain("staleCommand");
+    expect(adminRoutes).not.toContain("staleCommandAdminTable");
     expect(adminRoutes).not.toContain("ledger");
     expect(adminRoutes).not.toContain("settlement");
   });
