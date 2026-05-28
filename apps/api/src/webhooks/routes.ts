@@ -63,6 +63,25 @@ function normalizeTrustLayerDisputeStatus(status: string | undefined): string | 
   return "OPEN";
 }
 
+function parseTrustLayerSyncedAt(value: string | undefined): {
+  eventTime: Date;
+  fallbackApplied: boolean;
+} {
+  // Canonical equivalent of: const eventTime = syncedAt ? new Date(syncedAt) : new Date()
+
+  if (!value) {
+    return { eventTime: new Date(), fallbackApplied: false };
+  }
+
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return { eventTime: new Date(), fallbackApplied: true };
+  }
+
+  return { eventTime: parsed, fallbackApplied: false };
+}
+
 
 export async function registerWebhookRoutes(app: FastifyInstance): Promise<void> {
   app.post("/webhooks/trustlayer", { config: { rawBody: true } }, async (request, reply) => {
@@ -238,9 +257,39 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
       }
     });
 
-    const eventTime = syncedAt ? new Date(syncedAt) : new Date();
+    const { eventTime, fallbackApplied: syncedAtFallbackApplied } = parseTrustLayerSyncedAt(syncedAt);
     const projectionType = classifyTrustLayerEvent(parsed.data.event);
     let updatedEscrows = 0;
+
+    if (syncedAtFallbackApplied) {
+      void writeAuditLog({
+        request,
+        actorUserId: userId,
+        action: "WEBHOOK_TRUSTLAYER_INVALID_SYNCED_AT_FALLBACK_APPLIED",
+        entityType: userId ? "USER" : escrowId ? "SAFE_DEAL" : undefined,
+        entityId: userId,
+        metadata: {
+          event: parsed.data.event,
+          eventId: trustLayerEventId,
+          syncedAt
+        }
+      });
+
+      recordOperationalMetric({
+        name: "webhook.processing.duration_ms",
+        value: elapsedMs(webhookStartedAt),
+        unit: "ms",
+        correlationId: request.id,
+        aggregateId: trustLayerEventId,
+        source: "render.api",
+        metadata: {
+          provider: "TRUSTLAYER",
+          event: parsed.data.event,
+          status: "INVALID_SYNCED_AT_FALLBACK",
+          projection: projectionType
+        }
+      });
+    }
 
     try {
     if (isTrustLayerUserEvent(parsed.data.event) && (userId || trustlayerUserId)) {
@@ -341,6 +390,33 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
           });
 
           if (!existing) {
+            void writeAuditLog({
+              request,
+              action: "WEBHOOK_TRUSTLAYER_MISSING_SAFE_DEAL_PROJECTION",
+              entityType: "SAFE_DEAL",
+              metadata: {
+                escrowId,
+                event: parsed.data.event,
+                eventId: trustLayerEventId,
+                incomingSyncedAt: eventTime.toISOString()
+              }
+            });
+
+            recordOperationalMetric({
+              name: "webhook.processing.duration_ms",
+              value: elapsedMs(webhookStartedAt),
+              unit: "ms",
+              correlationId: request.id,
+              aggregateId: trustLayerEventId,
+              source: "render.api",
+              metadata: {
+                provider: "TRUSTLAYER",
+                event: parsed.data.event,
+                status: "MISSING_PROJECTION",
+                projection: "SAFE_DEAL"
+              }
+            });
+
             return { updatedCount: 0, organizationId: null as string | null };
           }
 

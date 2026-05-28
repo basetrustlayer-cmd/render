@@ -33,4 +33,15 @@ describe("TrustLayer webhook projection sync hardening", () => {
     expect(safeDealsRoutes).not.toContain("verificationProjectionExpiresAt: new Date(");
     expect(safeDealsRoutes).not.toContain("processedAt: new Date()");
   });
+
+  it("records diagnostics for invalid TrustLayer syncedAt timestamps", () => {
+    expect(webhookRoutes).toContain("parseTrustLayerSyncedAt");
+    expect(webhookRoutes).toContain("WEBHOOK_TRUSTLAYER_INVALID_SYNCED_AT_FALLBACK_APPLIED");
+    expect(webhookRoutes).toContain("INVALID_SYNCED_AT_FALLBACK");
+  });
+
+  it("records diagnostics when TrustLayer references a missing SafeDeal projection", () => {
+    expect(webhookRoutes).toContain("WEBHOOK_TRUSTLAYER_MISSING_SAFE_DEAL_PROJECTION");
+    expect(webhookRoutes).toContain('status: "MISSING_PROJECTION"');
+  });
 });
