@@ -37,7 +37,7 @@ export default async function ListingDetailPage({ params }: PageProps) {
           <section className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
             {coverImage ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={coverImage.url} alt={listing.title} className="h-96 w-full object-cover" />
+              <img src={coverImage.url} alt={listing.title} className="h-96 w-full bg-gray-100 object-contain" />
             ) : (
               <div className="flex h-96 w-full items-center justify-center bg-gradient-to-br from-amber-100 to-emerald-100 text-gray-600">
                 No listing photos yet
@@ -48,7 +48,7 @@ export default async function ListingDetailPage({ params }: PageProps) {
               <div className="grid grid-cols-3 gap-3 p-5">
                 {otherImages.slice(0, 6).map((image) => (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img key={image.id} src={image.url} alt={listing.title} className="h-28 w-full rounded-2xl object-cover" />
+                  <img key={image.id} src={image.url} alt={listing.title} className="h-28 w-full rounded-2xl bg-gray-100 object-contain" />
                 ))}
               </div>
             )}
