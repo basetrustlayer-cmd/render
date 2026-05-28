@@ -54,10 +54,13 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!user?.id) return;
 
+    const userId = user.id;
+
     async function loadDashboard() {
       try {
         const listingResult = await apiFetch<{ listings: Listing[] }>("/listings/my");
         setListings(listingResult.listings);
+        setError(null);
       } catch (err) {
         if (err instanceof ApiError && [401, 403].includes(err.status)) {
           logout();
@@ -76,7 +79,7 @@ export default function DashboardPage() {
       }
 
       try {
-        const trustScoreResult = await apiFetch<TrustScore>(`/users/${user.id}/trust-score`);
+        const trustScoreResult = await apiFetch<TrustScore>(`/users/${userId}/trust-score`);
         setTrustScore(trustScoreResult);
       } catch {
         setTrustScore(null);
@@ -97,7 +100,7 @@ export default function DashboardPage() {
         <StatCard label="Active Listings" value={String(listings.length)} helper="Listings owned by this user" />
         <StatCard label="Open Safe Deals" value={String(safeDeals.length)} helper="Buyer or seller escrow deals" />
         <StatCard label="Completed Deals" value={String(completedDeals)} helper="Successful marketplace deals" />
-        <StatCard label="Trust Score" value={trustScore ? String(trustScore.score) : "—"} helper={trustScore?.tier ?? "Powered by TrustLayer"} />
+        <StatCard label="Trust Score" value={trustScore ? String(trustScore.score) : "—"} helper={trustScore?.tier ?? "Pending TrustLayer sync"} />
       </div>
 
       {error && (
