@@ -36,6 +36,7 @@ jobs:
         run: |
           pnpm --filter @render/events build
           pnpm --filter @render/observability build
+          pnpm --filter @render/queue build
 
       - name: Lint
         run: pnpm lint
