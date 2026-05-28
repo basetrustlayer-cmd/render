@@ -124,10 +124,23 @@ export async function buildApp(): Promise<FastifyInstance> {
     };
   });
 
-  app.get("/health", async () => {
+  app.get("/health", async (request) => {
+    recordOperationalMetric({
+      name: "api.health.checked",
+      value: 1,
+      unit: "count",
+      correlationId: request.id,
+      aggregateId: "render-api-health",
+      source: "render.api",
+      metadata: {
+        status: "ok"
+      }
+    });
+
     return {
       service: "render-api",
-      status: "ok"
+      status: "ok",
+      observability: "enabled"
     };
   });
 

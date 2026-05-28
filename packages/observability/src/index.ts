@@ -4,6 +4,9 @@ export type OperationalSeverity = "INFO" | "WARN" | "ERROR" | "CRITICAL";
 
 export type OperationalMetricName =
   | "api.request.completed"
+  | "api.health.checked"
+  | "api.runtime.started"
+  | "api.runtime.shutdown"
   | "auth.failure.recorded"
   | "webhook.processing.duration_ms"
   | "settlement.projection.duration_ms"
@@ -20,7 +23,8 @@ export type OperationalMetricName =
   | "notification.dead_letter.queued"
   | "notification.dead_letter.processed"
   | "notification.dead_letter.replayed_pending"
-  | "notification.replay.requested" | "webhook.replay.requested"
+  | "notification.replay.requested"
+  | "webhook.replay.requested"
   | "notification.replay.blocked"
   | "notification.replay.delivery_enqueued"
   | "notification.replay.duplicate_rejected"

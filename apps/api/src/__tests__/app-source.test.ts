@@ -17,6 +17,13 @@ describe("api app factory boundary", () => {
     expect(appSource).not.toContain("await app.listen");
   });
 
+  it("records runtime startup and shutdown observability", () => {
+    expect(mainSource).toContain('event: "api.runtime.started"');
+    expect(mainSource).toContain('name: "api.runtime.started"');
+    expect(mainSource).toContain('event: "api.runtime.shutdown"');
+    expect(mainSource).toContain('name: "api.runtime.shutdown"');
+  });
+
   it("keeps route registration inside the app factory", () => {
     expect(appSource).toContain("await registerAuthRoutes(app);");
     expect(appSource).toContain("await registerWebhookRoutes(app);");

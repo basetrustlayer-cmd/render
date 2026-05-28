@@ -19,4 +19,9 @@ describe("api health route app-factory contract", () => {
     expect(appSource).toContain('name: "api.request.completed"');
     expect(appSource).toContain("recordOperationalMetric");
   });
+
+  it("keeps health-check observability explicit", () => {
+    expect(appSource).toContain('name: "api.health.checked"');
+    expect(appSource).toContain('observability: "enabled"');
+  });
 });
