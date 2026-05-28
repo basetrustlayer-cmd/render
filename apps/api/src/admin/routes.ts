@@ -692,6 +692,33 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
   });
 
 
+
+  app.get("/admin/operations/launch-dashboard", { preHandler: [authenticate, requireSuperAdmin] }, async (request) => {
+    const authUser = requireAuthUser(request);
+
+    const launchReadinessDashboard = {
+      sloSummary: "/admin/operations/slo-summary",
+      launchReadinessHistory: "/admin/operations/launch-readiness-history",
+      operationalAlerts: "/admin/operations/alerts",
+      alertTimeline: "/admin/operations/alerts/timeline",
+      launchRisk: "COMPUTED_FROM_OPERATIONAL_READ_MODELS",
+      launchReadinessImpact: "MANUAL_OPERATOR_REVIEW_REQUIRED",
+      sourceModels: ["auditLog", "webhookEvent", "safeDeal"],
+      persistenceMode: "COMPUTED_READ_MODEL",
+      generatedAt: new Date().toISOString()
+    };
+
+    void writeAuditLog({
+      request,
+      actorUserId: authUser.userId,
+      action: "ADMIN_LAUNCH_READINESS_DASHBOARD_VIEWED",
+      entityType: "OPERATIONAL_SLO_READ_MODEL",
+      metadata: launchReadinessDashboard
+    });
+
+    return { launchReadinessDashboard };
+  });
+
   app.get("/admin/reviews", { preHandler: [authenticate, requireModerator] }, async () => {
     const [reviews, reports] = await Promise.all([
       prisma.review.findMany({
