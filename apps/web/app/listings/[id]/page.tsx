@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getListing } from "../../../lib/get-listing";
 import { TrustScoreBadge } from "../../../components/trust-score-badge";
 import { ListingDetailActions } from "./listing-detail-actions";
+import { ListingImageGallery } from "./listing-image-gallery";
 
 export const dynamic = "force-dynamic";
 
@@ -36,39 +37,10 @@ export default async function ListingDetailPage({ params }: PageProps) {
         <div className="mt-6 grid gap-6 lg:grid-cols-[1.6fr_0.8fr]">
           <section className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
             <div className="bg-gray-100">
-              {coverImage ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={coverImage.url}
-                  alt={listing.title}
-                  className="h-96 w-full object-contain p-4"
-                />
-              ) : (
-                <div className="flex h-96 w-full items-center justify-center bg-gradient-to-br from-amber-100 to-emerald-100 text-gray-600">
-                  No listing photos yet
-                </div>
-              )}
-            </div>
-
-            {galleryImages.length > 1 && (
-              <div className="grid grid-cols-3 gap-3 border-t border-gray-100 bg-white p-5 md:grid-cols-6">
-                {galleryImages.slice(0, 6).map((image, index) => (
-                  <div
-                    key={image.id}
-                    className={`rounded-2xl border bg-gray-100 p-2 ${
-                      index === 0 ? "border-amber-500" : "border-gray-200"
-                    }`}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={image.url}
-                      alt={`${listing.title} photo ${index + 1}`}
-                      className="h-24 w-full rounded-xl object-contain"
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
+              <ListingImageGallery
+              title={listing.title}
+              images={galleryImages}
+            />
 
             <div className="p-6">
               <p className="text-sm font-bold uppercase tracking-wide text-amber-700">{listing.category}</p>
