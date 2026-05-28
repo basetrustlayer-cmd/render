@@ -336,6 +336,114 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
   });
 
 
+
+  app.get("/admin/operations/alerts", { preHandler: [authenticate, requireSuperAdmin] }, async (request) => {
+    const authUser = requireAuthUser(request);
+
+    const operationalAlertThresholds = [
+      { key: "failedTrustLayerWebhooks", severity: "CRITICAL", threshold: 0, cooldownMinutes: 15 },
+      { key: "pendingTrustLayerWebhooks", severity: "WARN", threshold: 25, cooldownMinutes: 30 },
+      { key: "staleSafeDealProjections", severity: "ERROR", threshold: 0, cooldownMinutes: 30 },
+      { key: "replayPressure", severity: "WARN", threshold: 25, cooldownMinutes: 60 },
+      { key: "deadLetterPressure", severity: "ERROR", threshold: 0, cooldownMinutes: 30 }
+    ];
+
+    const sloBreachActions = [
+      "WEBHOOK_EVENT_REPLAY_REVIEW_REQUESTED",
+      "NOTIFICATION_DEAD_LETTER_REPLAY_RATE_LIMITED",
+      "NOTIFICATION_DEAD_LETTER_REPLAY_EXPIRED",
+      "NOTIFICATION_DEAD_LETTER_REPLAY_BLOCKED",
+      "SAFE_DEAL_COMMAND_BLOCKED_STALE_ESCROW_PROJECTION",
+      "WEBHOOK_TRUSTLAYER_STALE_USER_EVENT_IGNORED",
+      "WEBHOOK_TRUSTLAYER_STALE_ESCROW_EVENT_IGNORED"
+    ];
+
+    const [auditTrail, failedTrustLayerWebhooks, pendingTrustLayerWebhooks, staleSafeDealProjections] = await Promise.all([
+      prisma.auditLog.findMany({
+        where: { action: { in: sloBreachActions } },
+        select: { action: true, entityType: true, entityId: true, correlationId: true, metadata: true, createdAt: true },
+        orderBy: { createdAt: "desc" },
+        take: 500
+      }),
+      prisma.webhookEvent.count({ where: { provider: "TRUSTLAYER", status: "FAILED" } }),
+      prisma.webhookEvent.count({ where: { provider: "TRUSTLAYER", status: "RECEIVED" } }),
+      prisma.safeDeal.count({
+        where: {
+          OR: [
+            { escrowLastSyncedAt: null },
+            { escrowLastSyncedAt: { lt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) } }
+          ]
+        }
+      })
+    ]);
+
+    const byAction = auditTrail.reduce<Record<string, number>>((summary, entry) => {
+      summary[entry.action] = (summary[entry.action] ?? 0) + 1;
+      return summary;
+    }, {});
+
+    const signals = {
+      failedTrustLayerWebhooks,
+      pendingTrustLayerWebhooks,
+      staleSafeDealProjections,
+      replayPressure:
+        (byAction.WEBHOOK_EVENT_REPLAY_REVIEW_REQUESTED ?? 0) +
+        (byAction.NOTIFICATION_DEAD_LETTER_REPLAY_RATE_LIMITED ?? 0),
+      deadLetterPressure:
+        (byAction.NOTIFICATION_DEAD_LETTER_REPLAY_EXPIRED ?? 0) +
+        (byAction.NOTIFICATION_DEAD_LETTER_REPLAY_BLOCKED ?? 0)
+    };
+
+    const operationalAlerts = operationalAlertThresholds.map((threshold) => {
+      const value = signals[threshold.key as keyof typeof signals];
+      const active = value > threshold.threshold;
+
+      return {
+        dedupeKey: `launch-readiness:${threshold.key}`,
+        signal: threshold.key,
+        value,
+        threshold: threshold.threshold,
+        severity: threshold.severity,
+        cooldownMinutes: threshold.cooldownMinutes,
+        status: active ? "ALERT_ACTIVE" : "ALERT_CLEAR",
+        launchReadinessImpact: active ? "ELEVATED" : "NORMAL"
+      };
+    });
+
+    const summary = {
+      operationalAlerts,
+      operationalAlertThresholds,
+      signals,
+      sourceModels: ["auditLog", "webhookEvent", "safeDeal"],
+      persistenceMode: "COMPUTED_READ_MODEL",
+      generatedAt: new Date().toISOString()
+    };
+
+    recordOperationalMetric({
+      name: "notification.replay.summary_viewed",
+      value: 1,
+      unit: "count",
+      correlationId: request.id,
+      aggregateId: authUser.userId,
+      source: "render.api",
+      metadata: {
+        surface: "admin.operations.alerts",
+        ...summary
+      }
+    });
+
+    void writeAuditLog({
+      request,
+      actorUserId: authUser.userId,
+      action: "ADMIN_OPERATIONAL_ALERTS_VIEWED",
+      entityType: "OPERATIONAL_SLO_READ_MODEL",
+      metadata: summary
+    });
+
+    return summary;
+  });
+
+
   app.get("/admin/operations/launch-readiness-history", { preHandler: [authenticate, requireSuperAdmin] }, async (request) => {
     const authUser = requireAuthUser(request);
     const now = Date.now();
