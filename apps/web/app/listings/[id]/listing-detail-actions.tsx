@@ -21,28 +21,22 @@ const buttonAmber =
 const buttonGreen =
   "rounded-xl border border-emerald-600 bg-emerald-50 px-5 py-3 text-sm font-bold text-emerald-800 hover:bg-emerald-100";
 
-const buttonMuted =
-  "rounded-xl border border-gray-200 bg-gray-100 px-5 py-3 text-sm font-bold text-gray-500";
-
 export function ListingDetailActions({
   listingId,
   sellerId,
   listingTitle
 }: Props) {
   const router = useRouter();
+
   const { accessToken, user, hydrate } = useAuthStore();
+
   const [loading, setLoading] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     hydrate();
-
-    const timeout = window.setTimeout(() => {
-      setHydrated(true);
-    }, 150);
-
-    return () => window.clearTimeout(timeout);
   }, [hydrate]);
+
+  const currentUserId = user?.id;
 
   async function messageSeller() {
     if (!accessToken || !user?.id) {
@@ -69,37 +63,51 @@ export function ListingDetailActions({
     }
   }
 
-  if (!hydrated) {
-    return (
-      <button type="button" disabled className={buttonMuted}>
-        Loading actions...
-      </button>
-    );
-  }
-
-  if (user?.id === sellerId) {
-    return (
-      <>
-        <Link href={`/dashboard/listings/${listingId}/edit`} className={buttonBlack}>
-          Manage listing
-        </Link>
-
-        <Link href={`/dashboard/safe-deals?listingId=${listingId}`} className={buttonGreen}>
-          Review Safe Deal Requests
-        </Link>
-      </>
-    );
-  }
+  const isOwner = currentUserId === sellerId;
 
   return (
     <>
-      <button type="button" onClick={messageSeller} disabled={loading} className={buttonBlack}>
-        {loading ? "Opening..." : "Message seller"}
-      </button>
+      <div className="mb-4 rounded-xl border border-red-400 bg-red-50 p-4 text-xs text-red-700">
+        <div>Current User ID: {currentUserId ?? "NULL"}</div>
+        <div>Seller ID: {sellerId}</div>
+        <div>Owner Match: {String(isOwner)}</div>
+      </div>
 
-      <Link href={`/safe-deal/new?listingId=${listingId}`} className={buttonAmber}>
-        Start Safe Deal
-      </Link>
+      {isOwner ? (
+        <>
+          <Link
+            href={`/dashboard/listings/${listingId}/edit`}
+            className={buttonBlack}
+          >
+            Manage listing
+          </Link>
+
+          <Link
+            href={`/dashboard/safe-deals?listingId=${listingId}`}
+            className={buttonGreen}
+          >
+            Review Safe Deal Requests
+          </Link>
+        </>
+      ) : (
+        <>
+          <button
+            type="button"
+            onClick={messageSeller}
+            disabled={loading}
+            className={buttonBlack}
+          >
+            {loading ? "Opening..." : "Message seller"}
+          </button>
+
+          <Link
+            href={`/safe-deal/new?listingId=${listingId}`}
+            className={buttonAmber}
+          >
+            Start Safe Deal
+          </Link>
+        </>
+      )}
     </>
   );
 }
