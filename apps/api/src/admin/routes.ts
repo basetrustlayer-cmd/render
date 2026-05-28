@@ -719,6 +719,35 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     return { launchReadinessDashboard };
   });
 
+
+  app.get("/admin/operations/launch-readiness-export", { preHandler: [authenticate, requireSuperAdmin] }, async (request) => {
+    const authUser = requireAuthUser(request);
+
+    const exportPayload = {
+      exportFormat: "JSON",
+      exportedBy: authUser.userId,
+      generatedAt: new Date().toISOString(),
+      persistenceMode: "COMPUTED_READ_MODEL",
+      sourceModels: ["auditLog", "webhookEvent", "safeDeal"],
+      launchRisk: "COMPUTED_FROM_OPERATIONAL_READ_MODELS",
+      launchReadinessImpact: "MANUAL_OPERATOR_REVIEW_REQUIRED",
+      launchReadinessDashboard: "/admin/operations/launch-dashboard",
+      launchReadinessHistory: "/admin/operations/launch-readiness-history",
+      operationalAlerts: "/admin/operations/alerts",
+      alertTimeline: "/admin/operations/alerts/timeline"
+    };
+
+    void writeAuditLog({
+      request,
+      actorUserId: authUser.userId,
+      action: "ADMIN_LAUNCH_READINESS_EXPORT_VIEWED",
+      entityType: "OPERATIONAL_SLO_READ_MODEL",
+      metadata: exportPayload
+    });
+
+    return { exportPayload };
+  });
+
   app.get("/admin/reviews", { preHandler: [authenticate, requireModerator] }, async () => {
     const [reviews, reports] = await Promise.all([
       prisma.review.findMany({
