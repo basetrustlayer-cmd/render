@@ -86,3 +86,19 @@ export function isOperationalSloBreached(input: {
   const definition = getOperationalSloDefinition(input.name);
   return input.value > definition.threshold;
 }
+
+export function getOperationalSloBreachMetadata(input: {
+  name: OperationalSloName;
+  value: number;
+}): Record<string, unknown> {
+  const definition = getOperationalSloDefinition(input.name);
+
+  return {
+    sloName: definition.name,
+    sloThreshold: definition.threshold,
+    sloUnit: definition.unit,
+    sloSeverity: definition.severity,
+    sloBreached: isOperationalSloBreached(input),
+    observedValue: input.value
+  };
+}

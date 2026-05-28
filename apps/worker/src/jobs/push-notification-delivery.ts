@@ -7,7 +7,7 @@ import {
   type NotificationDeadLetterJobData,
   type PushNotificationDeliveryJobData
 } from "@render/queue";
-import { elapsedMs, nowMs, recordOperationalMetric, writeOperationalLog } from "@render/observability";
+import { elapsedMs, getOperationalSloBreachMetadata, nowMs, recordOperationalMetric, writeOperationalLog } from "@render/observability";
 import { createRenderEvent, RENDER_EVENT_TYPES } from "@render/events";
 
 const connection = createQueueConnection();
@@ -93,9 +93,11 @@ export const pushNotificationDeliveryWorker =
         }
       });
 
+      const deliveryDurationMs = elapsedMs(startedAt);
+
       recordOperationalMetric({
         name: "notification.delivery.duration_ms",
-        value: elapsedMs(startedAt),
+        value: deliveryDurationMs,
         unit: "ms",
         correlationId: job.data.correlationId,
         aggregateId: job.data.userId,
@@ -104,7 +106,11 @@ export const pushNotificationDeliveryWorker =
           queue: RENDER_QUEUE_NAMES.pushNotificationDelivery,
           jobId: String(job.id ?? ""),
           channel: "push",
-          status: "DEFERRED"
+          status: "DEFERRED",
+        ...getOperationalSloBreachMetadata({
+          name: "notification.delivery.duration_ms",
+          value: deliveryDurationMs
+        })
         }
       });
 
@@ -206,7 +212,14 @@ pushNotificationDeliveryWorker.on("failed", async (job, error) => {
         correlationId: job.data.correlationId,
         aggregateId: job.data.userId,
         source: "render.worker",
-        metadata: { retryExhaustedEvent, attemptsMade }
+        metadata: {
+          retryExhaustedEvent,
+          attemptsMade,
+          ...getOperationalSloBreachMetadata({
+            name: "notification.delivery.retry_exhausted",
+            value: 1
+          })
+        }
       });
 
       recordOperationalMetric({
@@ -219,7 +232,11 @@ pushNotificationDeliveryWorker.on("failed", async (job, error) => {
         metadata: {
           deadLetterQueuedEvent,
           deadLetterJobId: String(deadLetterJob.id ?? ""),
-          originalJobId: String(job.id ?? "")
+          originalJobId: String(job.id ?? ""),
+          ...getOperationalSloBreachMetadata({
+            name: "notification.dead_letter.queued",
+            value: 1
+          })
         }
       });
     }

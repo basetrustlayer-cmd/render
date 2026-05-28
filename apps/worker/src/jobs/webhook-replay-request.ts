@@ -4,7 +4,7 @@ import {
   RENDER_QUEUE_NAMES,
   type WebhookReplayRequestJobData
 } from "@render/queue";
-import { recordOperationalMetric, writeOperationalLog } from "@render/observability";
+import { getOperationalSloBreachMetadata, recordOperationalMetric, writeOperationalLog } from "@render/observability";
 
 const connection = createQueueConnection();
 
@@ -30,7 +30,11 @@ export const webhookReplayRequestWorker = new Worker<WebhookReplayRequestJobData
         requestedByUserId: job.data.requestedByUserId,
         manualApproval,
         automaticReplay,
-        replayMode
+        replayMode,
+        ...getOperationalSloBreachMetadata({
+          name: "webhook.replay.requested",
+          value: 1
+        })
       }
     });
 
@@ -47,7 +51,11 @@ export const webhookReplayRequestWorker = new Worker<WebhookReplayRequestJobData
         webhookEventId: job.data.webhookEventId,
         manualApproval,
         automaticReplay,
-        replayMode
+        replayMode,
+        ...getOperationalSloBreachMetadata({
+          name: "webhook.replay.requested",
+          value: 1
+        })
       }
     });
 
