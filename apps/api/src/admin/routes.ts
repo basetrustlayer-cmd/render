@@ -211,6 +211,93 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
   });
 
 
+
+  app.get("/admin/operations/slo-summary", { preHandler: [authenticate, requireSuperAdmin] }, async (request) => {
+    const authUser = requireAuthUser(request);
+    const sloBreachActions = [
+      "ADMIN_NOTIFICATION_REPLAY_SUMMARY_VIEWED",
+      "WEBHOOK_EVENT_REPLAY_REVIEW_REQUESTED",
+      "NOTIFICATION_DEAD_LETTER_REPLAY_RATE_LIMITED",
+      "NOTIFICATION_DEAD_LETTER_REPLAY_EXPIRED",
+      "NOTIFICATION_DEAD_LETTER_REPLAY_BLOCKED"
+    ];
+
+    const [auditTrail, failedWebhooks, pendingWebhooks] = await Promise.all([
+      prisma.auditLog.findMany({
+        where: {
+          action: { in: sloBreachActions }
+        },
+        select: {
+          action: true,
+          entityType: true,
+          entityId: true,
+          correlationId: true,
+          metadata: true,
+          createdAt: true
+        },
+        orderBy: { createdAt: "desc" },
+        take: 500
+      }),
+      prisma.webhookEvent.count({
+        where: {
+          provider: "TRUSTLAYER",
+          status: "FAILED"
+        }
+      }),
+      prisma.webhookEvent.count({
+        where: {
+          provider: "TRUSTLAYER",
+          status: "RECEIVED"
+        }
+      })
+    ]);
+
+    const byAction = auditTrail.reduce<Record<string, number>>((summary, entry) => {
+      summary[entry.action] = (summary[entry.action] ?? 0) + 1;
+      return summary;
+    }, {});
+
+    const summary = {
+      failedTrustLayerWebhooks: failedWebhooks,
+      pendingTrustLayerWebhooks: pendingWebhooks,
+      auditSampleSize: auditTrail.length,
+      byAction,
+      launchRisk:
+        failedWebhooks > 0 || pendingWebhooks > 25 || auditTrail.length > 100
+          ? "ELEVATED"
+          : "NORMAL",
+      sourceModels: ["auditLog", "webhookEvent"],
+      persistenceMode: "COMPUTED_READ_MODEL",
+      generatedAt: new Date().toISOString()
+    };
+
+    recordOperationalMetric({
+      name: "notification.replay.summary_viewed",
+      value: 1,
+      unit: "count",
+      correlationId: request.id,
+      aggregateId: authUser.userId,
+      source: "render.api",
+      metadata: {
+        surface: "admin.operations.slo_summary",
+        ...summary
+      }
+    });
+
+    void writeAuditLog({
+      request,
+      actorUserId: authUser.userId,
+      action: "ADMIN_OPERATIONAL_SLO_SUMMARY_VIEWED",
+      entityType: "OPERATIONAL_SLO_READ_MODEL",
+      metadata: summary
+    });
+
+    return {
+      summary,
+      recentSignals: auditTrail.slice(0, 25)
+    };
+  });
+
   app.get("/admin/reviews", { preHandler: [authenticate, requireModerator] }, async () => {
     const [reviews, reports] = await Promise.all([
       prisma.review.findMany({
