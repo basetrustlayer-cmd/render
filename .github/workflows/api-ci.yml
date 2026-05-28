@@ -32,11 +32,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build workspace dependencies
-        run: |
-          pnpm --filter @render/events build
-          pnpm --filter @render/observability build
-          pnpm --filter @render/queue build
+      - name: Build workspace packages
+        run: pnpm --filter "./packages/**" build
 
       - name: Lint
         run: pnpm lint
