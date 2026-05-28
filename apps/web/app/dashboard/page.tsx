@@ -54,20 +54,10 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!user?.id) return;
 
-    const userId = user.id;
-
     async function loadDashboard() {
       try {
-        const [listingResult, safeDealResult, trustScoreResult] = await Promise.all([
-          apiFetch<{ listings: Listing[] }>("/listings/my"),
-          apiFetch<{ safeDeals: SafeDeal[] }>("/safe-deals/my"),
-          apiFetch<TrustScore>(`/users/${userId}/trust-score`)
-        ]);
-
+        const listingResult = await apiFetch<{ listings: Listing[] }>("/listings/my");
         setListings(listingResult.listings);
-        setSafeDeals(safeDealResult.safeDeals);
-        setTrustScore(trustScoreResult);
-        setError(null);
       } catch (err) {
         if (err instanceof ApiError && [401, 403].includes(err.status)) {
           logout();
@@ -75,7 +65,21 @@ export default function DashboardPage() {
           return;
         }
 
-        setError(err instanceof Error ? err.message : "Unable to load dashboard data.");
+        setError(err instanceof Error ? err.message : "Unable to load listings.");
+      }
+
+      try {
+        const safeDealResult = await apiFetch<{ safeDeals: SafeDeal[] }>("/safe-deals/my");
+        setSafeDeals(safeDealResult.safeDeals);
+      } catch {
+        setSafeDeals([]);
+      }
+
+      try {
+        const trustScoreResult = await apiFetch<TrustScore>(`/users/${user.id}/trust-score`);
+        setTrustScore(trustScoreResult);
+      } catch {
+        setTrustScore(null);
       }
     }
 
