@@ -335,6 +335,156 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
+
+  app.get("/admin/operations/launch-readiness-history", { preHandler: [authenticate, requireSuperAdmin] }, async (request) => {
+    const authUser = requireAuthUser(request);
+    const now = Date.now();
+    const oneHour = new Date(now - 60 * 60 * 1000);
+    const twentyFourHours = new Date(now - 24 * 60 * 60 * 1000);
+    const sevenDays = new Date(now - 7 * 24 * 60 * 60 * 1000);
+
+    const buildWindow = async (label: string, since: Date, windowHours: number) => {
+      const [auditTrail, webhookEvents] = await Promise.all([
+        prisma.auditLog.findMany({
+          where: {
+            createdAt: { gte: since },
+            action: {
+              in: [
+                "SAFE_DEAL_COMMAND_BLOCKED_STALE_ESCROW_PROJECTION",
+                "WEBHOOK_TRUSTLAYER_STALE_USER_EVENT_IGNORED",
+                "WEBHOOK_TRUSTLAYER_STALE_ESCROW_EVENT_IGNORED",
+                "WEBHOOK_EVENT_REPLAY_REVIEW_REQUESTED",
+                "NOTIFICATION_DEAD_LETTER_REPLAY_RATE_LIMITED",
+                "NOTIFICATION_DEAD_LETTER_REPLAY_EXPIRED",
+                "NOTIFICATION_DEAD_LETTER_REPLAY_BLOCKED"
+              ]
+            }
+          },
+          select: {
+            action: true,
+            entityType: true,
+            entityId: true,
+            correlationId: true,
+            createdAt: true,
+            metadata: true
+          },
+          orderBy: { createdAt: "desc" },
+          take: 500
+        }),
+        prisma.webhookEvent.findMany({
+          where: {
+            provider: "TRUSTLAYER",
+            createdAt: { gte: since },
+            status: { in: ["FAILED", "RECEIVED"] }
+          },
+          select: {
+            provider: true,
+            eventType: true,
+            status: true,
+            createdAt: true
+          },
+          orderBy: { createdAt: "desc" },
+          take: 500
+        })
+      ]);
+
+      const byAction = auditTrail.reduce<Record<string, number>>((summary, entry) => {
+        summary[entry.action] = (summary[entry.action] ?? 0) + 1;
+        return summary;
+      }, {});
+
+      const failedTrustLayerWebhooks = webhookEvents.filter((event) => event.status === "FAILED").length;
+      const pendingTrustLayerWebhooks = webhookEvents.filter((event) => event.status === "RECEIVED").length;
+      const staleProjectionSignals =
+        (byAction.SAFE_DEAL_COMMAND_BLOCKED_STALE_ESCROW_PROJECTION ?? 0) +
+        (byAction.WEBHOOK_TRUSTLAYER_STALE_USER_EVENT_IGNORED ?? 0) +
+        (byAction.WEBHOOK_TRUSTLAYER_STALE_ESCROW_EVENT_IGNORED ?? 0);
+      const replayPressure =
+        (byAction.WEBHOOK_EVENT_REPLAY_REVIEW_REQUESTED ?? 0) +
+        (byAction.NOTIFICATION_DEAD_LETTER_REPLAY_RATE_LIMITED ?? 0);
+      const deadLetterPressure =
+        (byAction.NOTIFICATION_DEAD_LETTER_REPLAY_EXPIRED ?? 0) +
+        (byAction.NOTIFICATION_DEAD_LETTER_REPLAY_BLOCKED ?? 0);
+
+      const launchRisk =
+        failedTrustLayerWebhooks > 0 ||
+        pendingTrustLayerWebhooks > 25 ||
+        staleProjectionSignals > 0 ||
+        replayPressure > 25 ||
+        deadLetterPressure > 0
+          ? "ELEVATED"
+          : "NORMAL";
+
+      return {
+        label,
+        windowHours,
+        since: since.toISOString(),
+        auditSignalCount: auditTrail.length,
+        webhookSignalCount: webhookEvents.length,
+        failedTrustLayerWebhooks,
+        pendingTrustLayerWebhooks,
+        staleProjectionSignals,
+        replayPressure,
+        deadLetterPressure,
+        byAction,
+        launchRisk
+      };
+    };
+
+    const launchReadinessHistory = {
+      oneHour: await buildWindow("oneHour", oneHour, 1),
+      twentyFourHours: await buildWindow("twentyFourHours", twentyFourHours, 24),
+      sevenDays: await buildWindow("sevenDays", sevenDays, 168)
+    };
+
+    const trend = {
+      riskDirection:
+        launchReadinessHistory.oneHour.launchRisk === "ELEVATED"
+          ? "ACTIVE_DEGRADATION"
+          : launchReadinessHistory.twentyFourHours.launchRisk === "ELEVATED"
+            ? "RECENT_DEGRADATION"
+            : "STABLE",
+      staleProjectionAcceleration:
+        launchReadinessHistory.oneHour.staleProjectionSignals >
+        launchReadinessHistory.twentyFourHours.staleProjectionSignals / 24,
+      replayPressureAcceleration:
+        launchReadinessHistory.oneHour.replayPressure >
+        launchReadinessHistory.twentyFourHours.replayPressure / 24
+    };
+
+    const summary = {
+      launchReadinessHistory,
+      trend,
+      sourceModels: ["auditLog", "webhookEvent"],
+      persistenceMode: "COMPUTED_READ_MODEL",
+      generatedAt: new Date().toISOString()
+    };
+
+    recordOperationalMetric({
+      name: "notification.replay.summary_viewed",
+      value: 1,
+      unit: "count",
+      correlationId: request.id,
+      aggregateId: authUser.userId,
+      source: "render.api",
+      metadata: {
+        surface: "admin.operations.launch_readiness_history",
+        ...summary
+      }
+    });
+
+    void writeAuditLog({
+      request,
+      actorUserId: authUser.userId,
+      action: "ADMIN_LAUNCH_READINESS_HISTORY_VIEWED",
+      entityType: "OPERATIONAL_SLO_READ_MODEL",
+      metadata: summary
+    });
+
+    return summary;
+  });
+
+
   app.get("/admin/reviews", { preHandler: [authenticate, requireModerator] }, async () => {
     const [reviews, reports] = await Promise.all([
       prisma.review.findMany({
