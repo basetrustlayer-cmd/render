@@ -36,11 +36,7 @@ export default async function ListingDetailPage({ params }: PageProps) {
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[1.6fr_0.8fr]">
           <section className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
-            <div className="bg-gray-100">
-              <ListingImageGallery
-              title={listing.title}
-              images={galleryImages}
-            />
+            <ListingImageGallery title={listing.title} images={galleryImages} />
 
             <div className="p-6">
               <p className="text-sm font-bold uppercase tracking-wide text-amber-700">{listing.category}</p>
