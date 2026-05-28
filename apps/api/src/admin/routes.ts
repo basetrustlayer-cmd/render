@@ -593,6 +593,105 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
   });
 
 
+
+  app.get("/admin/operations/alerts/timeline", { preHandler: [authenticate, requireSuperAdmin] }, async (request) => {
+    const authUser = requireAuthUser(request);
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    const [auditTrail, webhookEvents] = await Promise.all([
+      prisma.auditLog.findMany({
+        where: {
+          createdAt: { gte: since },
+          action: {
+            in: [
+              "SAFE_DEAL_COMMAND_BLOCKED_STALE_ESCROW_PROJECTION",
+              "WEBHOOK_TRUSTLAYER_STALE_USER_EVENT_IGNORED",
+              "WEBHOOK_TRUSTLAYER_STALE_ESCROW_EVENT_IGNORED",
+              "WEBHOOK_EVENT_REPLAY_REVIEW_REQUESTED",
+              "NOTIFICATION_DEAD_LETTER_REPLAY_RATE_LIMITED",
+              "NOTIFICATION_DEAD_LETTER_REPLAY_EXPIRED",
+              "NOTIFICATION_DEAD_LETTER_REPLAY_BLOCKED"
+            ]
+          }
+        },
+        select: {
+          action: true,
+          entityType: true,
+          entityId: true,
+          correlationId: true,
+          metadata: true,
+          createdAt: true
+        },
+        orderBy: { createdAt: "desc" },
+        take: 500
+      }),
+      prisma.webhookEvent.findMany({
+        where: {
+          provider: "TRUSTLAYER",
+          createdAt: { gte: since },
+          status: { in: ["FAILED", "PROCESSED"] }
+        },
+        select: {
+          eventId: true,
+          eventType: true,
+          status: true,
+          createdAt: true
+        },
+        orderBy: { createdAt: "desc" },
+        take: 500
+      })
+    ]);
+
+    const auditTimeline = auditTrail.map((entry) => ({
+      transition: "ALERT_ACTIVE",
+      alertType: entry.action,
+      severity: entry.action.includes("BLOCKED") || entry.action.includes("EXPIRED") ? "ERROR" : "WARN",
+      launchReadinessImpact: "ELEVATED",
+      sourceModel: "auditLog",
+      dedupeKey: `${entry.action}:${entry.entityType ?? "UNKNOWN"}:${entry.entityId ?? entry.correlationId ?? "UNKNOWN"}`,
+      correlationId: entry.correlationId,
+      metadata: entry.metadata,
+      occurredAt: entry.createdAt
+    }));
+
+    const webhookTimeline = webhookEvents.map((event) => ({
+      transition: event.status === "FAILED" ? "ALERT_ACTIVE" : "ALERT_CLEAR",
+      alertType: `TRUSTLAYER_WEBHOOK_${event.status}`,
+      severity: event.status === "FAILED" ? "ERROR" : "INFO",
+      launchReadinessImpact: event.status === "FAILED" ? "ELEVATED" : "NORMAL",
+      sourceModel: "webhookEvent",
+      dedupeKey: `TRUSTLAYER_WEBHOOK:${event.eventType}:${event.eventId}`,
+      correlationId: event.eventId,
+      metadata: {
+        eventType: event.eventType,
+        status: event.status
+      },
+      occurredAt: event.createdAt
+    }));
+
+    const timeline = [...auditTimeline, ...webhookTimeline].sort(
+      (a, b) => b.occurredAt.getTime() - a.occurredAt.getTime()
+    );
+
+    const operationalAlerts = {
+      timeline,
+      sourceModels: ["auditLog", "webhookEvent"],
+      persistenceMode: "COMPUTED_READ_MODEL",
+      generatedAt: new Date().toISOString()
+    };
+
+    void writeAuditLog({
+      request,
+      actorUserId: authUser.userId,
+      action: "ADMIN_OPERATIONAL_ALERT_TIMELINE_VIEWED",
+      entityType: "OPERATIONAL_SLO_READ_MODEL",
+      metadata: operationalAlerts
+    });
+
+    return operationalAlerts;
+  });
+
+
   app.get("/admin/reviews", { preHandler: [authenticate, requireModerator] }, async () => {
     const [reviews, reports] = await Promise.all([
       prisma.review.findMany({
