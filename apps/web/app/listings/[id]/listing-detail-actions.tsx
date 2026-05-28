@@ -27,16 +27,14 @@ export function ListingDetailActions({
   listingTitle
 }: Props) {
   const router = useRouter();
-
   const { accessToken, user, hydrate } = useAuthStore();
-
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     hydrate();
   }, [hydrate]);
 
-  const currentUserId = user?.id;
+  const isOwner = user?.id === sellerId;
 
   async function messageSeller() {
     if (!accessToken || !user?.id) {
@@ -63,51 +61,29 @@ export function ListingDetailActions({
     }
   }
 
-  const isOwner = currentUserId === sellerId;
+  if (isOwner) {
+    return (
+      <>
+        <Link href={`/dashboard/listings/${listingId}/edit`} className={buttonBlack}>
+          Manage listing
+        </Link>
+
+        <Link href={`/dashboard/safe-deals?listingId=${listingId}`} className={buttonGreen}>
+          Review Safe Deal Requests
+        </Link>
+      </>
+    );
+  }
 
   return (
     <>
-      <div className="mb-4 rounded-xl border border-red-400 bg-red-50 p-4 text-xs text-red-700">
-        <div>Current User ID: {currentUserId ?? "NULL"}</div>
-        <div>Seller ID: {sellerId}</div>
-        <div>Owner Match: {String(isOwner)}</div>
-      </div>
+      <button type="button" onClick={messageSeller} disabled={loading} className={buttonBlack}>
+        {loading ? "Opening..." : "Message seller"}
+      </button>
 
-      {isOwner ? (
-        <>
-          <Link
-            href={`/dashboard/listings/${listingId}/edit`}
-            className={buttonBlack}
-          >
-            Manage listing
-          </Link>
-
-          <Link
-            href={`/dashboard/safe-deals?listingId=${listingId}`}
-            className={buttonGreen}
-          >
-            Review Safe Deal Requests
-          </Link>
-        </>
-      ) : (
-        <>
-          <button
-            type="button"
-            onClick={messageSeller}
-            disabled={loading}
-            className={buttonBlack}
-          >
-            {loading ? "Opening..." : "Message seller"}
-          </button>
-
-          <Link
-            href={`/safe-deal/new?listingId=${listingId}`}
-            className={buttonAmber}
-          >
-            Start Safe Deal
-          </Link>
-        </>
-      )}
+      <Link href={`/safe-deal/new?listingId=${listingId}`} className={buttonAmber}>
+        Start Safe Deal
+      </Link>
     </>
   );
 }
