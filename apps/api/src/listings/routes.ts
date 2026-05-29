@@ -302,11 +302,23 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       take: 10
     });
 
+    const aggregate = await prisma.review.aggregate({
+      where: {
+        revieweeId: parsed.data.id
+      },
+      _avg: {
+        rating: true
+      },
+      _count: {
+        rating: true
+      }
+    });
+
     return {
       summary: {
-        averageRating: null,
-        reviewCount: null,
-        source: "TRUSTLAYER_REPUTATION_PROJECTION_PENDING"
+        averageRating: aggregate._avg.rating,
+        reviewCount: aggregate._count.rating,
+        source: "RENDER_BUYER_REVIEWS"
       },
       reviews: reviews.map((review) => ({
         id: review.id,
