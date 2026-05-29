@@ -113,10 +113,12 @@ export async function registerTrustLayerRoutes(app: FastifyInstance): Promise<vo
     const user = await prisma.user.update({
       where: { id: authUser.userId },
       data: {
-        verificationLevel: verification.verificationLevel ?? 2,
+        ...(verification.verificationLevel !== undefined
+          ? { verificationLevel: verification.verificationLevel }
+          : {}),
         verificationStatusCached: normalizeVerificationStatus(verification.status),
-        trustScore: verification.trustScore ?? 750,
-        trustTier: verification.trustTier ?? "VERIFIED",
+        ...(verification.trustScore !== undefined ? { trustScore: verification.trustScore } : {}),
+        ...(verification.trustTier !== undefined ? { trustTier: verification.trustTier } : {}),
         trustLastSyncedAt: new Date()
       },
       select: {

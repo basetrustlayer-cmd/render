@@ -45,13 +45,17 @@ describe("TrustLayer verification route contract", () => {
     expect(source).toContain("return reply.code(202).send");
   });
 
-  it("updates local trust projection only after verified response", () => {
+  it("updates local trust projection only with TrustLayer-provided values", () => {
     expect(source).toContain("prisma.user.update");
-    expect(source).toContain("verificationLevel: verification.verificationLevel ?? 2");
-    expect(source).toContain("trustScore: verification.trustScore ?? 750");
+    expect(source).toContain("verification.verificationLevel !== undefined");
+    expect(source).toContain("verification.trustScore !== undefined");
+    expect(source).toContain("verification.trustTier !== undefined");
     expect(source).toContain("verificationStatusCached: normalizeVerificationStatus(verification.status)");
     expect(source).toContain("trustLastSyncedAt: new Date()");
     expect(source).toContain("GHANA_CARD_VERIFIED");
+    expect(source).not.toContain("verificationLevel: verification.verificationLevel ?? 2");
+    expect(source).not.toContain("trustScore: verification.trustScore ?? 750");
+    expect(source).not.toContain("trustTier: verification.trustTier ?? \"VERIFIED\"");
   });
   it("returns canonical normalized verification status after direct Ghana Card verification", () => {
     expect(source).toContain('import { createTrustLayerClient, normalizeVerificationStatus } from "@render/trustlayer-sdk";');
