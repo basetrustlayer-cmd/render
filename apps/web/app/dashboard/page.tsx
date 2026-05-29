@@ -11,6 +11,13 @@ type Listing = {
   id: string;
   title: string;
   status: string;
+  viewsCount?: number;
+};
+
+type SellerLead = {
+  id: string;
+  source: string;
+  status: string;
 };
 
 type SafeDeal = {
@@ -31,6 +38,7 @@ export default function DashboardPage() {
 
   const [listings, setListings] = useState<Listing[]>([]);
   const [safeDeals, setSafeDeals] = useState<SafeDeal[]>([]);
+  const [leads, setLeads] = useState<SellerLead[]>([]);
   const [trustScore, setTrustScore] = useState<TrustScore | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,6 +87,13 @@ export default function DashboardPage() {
       }
 
       try {
+        const leadResult = await apiFetch<{ leads: SellerLead[] }>("/leads/my");
+        setLeads(leadResult.leads);
+      } catch {
+        setLeads([]);
+      }
+
+      try {
         const trustScoreResult = await apiFetch<TrustScore>(`/users/${userId}/trust-score`);
         setTrustScore(trustScoreResult);
       } catch {
@@ -94,10 +109,17 @@ export default function DashboardPage() {
     [safeDeals]
   );
 
+  const totalListingViews = useMemo(
+    () => listings.reduce((total, listing) => total + (listing.viewsCount ?? 0), 0),
+    [listings]
+  );
+
   return (
     <DashboardShell>
       <div className="grid gap-4 md:grid-cols-4">
         <StatCard label="Active Listings" value={String(listings.length)} helper="Listings owned by this user" />
+        <StatCard label="WhatsApp Leads" value={String(leads.length)} helper="Buyer attention captured from listings" />
+        <StatCard label="Listing Views" value={String(totalListingViews)} helper="Total views across your listings" />
         <StatCard label="Open Safe Deals" value={String(safeDeals.length)} helper="Buyer or seller escrow deals" />
         <StatCard label="Completed Deals" value={String(completedDeals)} helper="Successful marketplace deals" />
         <StatCard label="Trust Score" value={trustScore ? String(trustScore.score) : "—"} helper={trustScore?.tier ?? "Pending TrustLayer sync"} />
