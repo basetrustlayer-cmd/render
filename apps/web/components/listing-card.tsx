@@ -45,19 +45,24 @@ export function ListingCard({ listing, imageHeightClass = "h-44" }: ListingCardP
           </Link>
         </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-2">
+        <div className="mt-5 grid gap-2 sm:grid-cols-3">
           <Link
             href={`/listings/${listing.id}`}
             className="rounded-xl bg-black px-3 py-2 text-center text-xs font-bold text-white hover:bg-gray-800"
           >
             View details
           </Link>
-
           <ListingMessageButton
             listingId={listing.id}
             sellerId={listing.sellerId}
             listingTitle={listing.title}
           />
+          <Link
+            href={`/safe-deal/new?listingId=${listing.id}`}
+            className="rounded-xl bg-amber-500 px-3 py-2 text-center text-xs font-bold text-gray-950 hover:bg-amber-400"
+          >
+            Start Safe Deal
+          </Link>
         </div>
       </div>
     </article>
