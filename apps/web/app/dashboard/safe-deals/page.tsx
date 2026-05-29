@@ -99,7 +99,7 @@ export default function SafeDealsPage() {
             <article key={deal.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h3 className="font-bold text-gray-900">{deal.listing.title}</h3>
+                  <Link href={`/safe-deal/${deal.id}`} className="font-bold text-gray-900 hover:text-emerald-800">{deal.listing.title}</Link>
                   <p className="mt-1 text-sm text-gray-600">{deal.buyerId === user?.id ? "Buyer" : "Seller"} · {dealStatus(deal)}</p>
                 </div>
                 <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-700">
@@ -159,7 +159,7 @@ export default function SafeDealsPage() {
             <tbody>
               {safeDeals.map((deal) => (
                 <tr key={deal.id} className="border-b last:border-0">
-                  <td className="py-4 font-medium text-gray-900">{deal.listing.title}</td>
+                  <td className="py-4 font-medium text-gray-900"><Link href={`/safe-deal/${deal.id}`} className="hover:text-emerald-800">{deal.listing.title}</Link></td>
                   <td className="py-4 text-gray-600">{deal.buyerId === user?.id ? "Buyer" : "Seller"}</td>
                   <td className="py-4 text-gray-600">GHS {dealAmount(deal)}</td>
                   <td className="py-4 text-gray-600">GHS {dealFee(deal)}</td>
