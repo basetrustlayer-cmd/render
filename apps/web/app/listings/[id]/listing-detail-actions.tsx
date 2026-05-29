@@ -68,7 +68,7 @@ export function ListingDetailActions({
           Manage listing
         </Link>
 
-        <Link href={`/dashboard/safe-deals?listingId=${listingId}`} className={buttonGreen}>
+        <Link href="/dashboard/safe-deals" className={buttonGreen}>
           Review Safe Deal Requests
         </Link>
       </>

@@ -85,7 +85,7 @@ export function SiteHeader() {
           <Link href="/verify" className="hover:text-gray-900">
             Get Verified
           </Link>
-          <Link href="/safe-deal/new" className="hover:text-gray-900">
+          <Link href="/listings" className="hover:text-gray-900">
             Safe Deal
           </Link>
 
