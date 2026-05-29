@@ -13,6 +13,7 @@ export type OperationalMetricName =
   | "risk.signal.detected"
   | "notification.delivery.queued"
   | "notification.delivery.started"
+  | "messaging.notification_fanout.delivery_queued"
   | "notification.delivery.deferred"
   | "notification.delivery.failed"
   | "notification.delivery.duration_ms"
