@@ -83,7 +83,7 @@ export default async function ListingDetailPage({ params }: PageProps) {
             </div>
 
             <div className="mt-6 grid gap-4">
-              <Metric label="Reviews" value={String(seller.reviewCount)} />
+              <Metric label="Reviews" value={`${seller.reviewCount} · View seller reviews`} href={`/sellers/${seller.id}`} />
               <Metric label="Completed Deals" value={String(seller.completedDeals)} />
               <Metric label="Active Listings" value={String(seller.activeListings)} />
               <Metric label="Member Since" value={formatDate(seller.memberSince)} />
@@ -111,11 +111,19 @@ function Info({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function Metric({ label, value, href }: { label: string; value: string; href?: string }) {
+  const displayValue = value || "0";
+
   return (
     <div className="grid grid-cols-[1fr_auto] items-center gap-4 border-b border-gray-100 pb-3">
       <span className="text-sm text-gray-600">{label}</span>
-      <strong className="whitespace-nowrap text-right text-gray-950">{value || "0"}</strong>
+      {href ? (
+        <Link href={href} className="whitespace-nowrap text-right text-sm font-bold text-emerald-700 hover:text-emerald-900">
+          {displayValue}
+        </Link>
+      ) : (
+        <strong className="whitespace-nowrap text-right text-gray-950">{displayValue}</strong>
+      )}
     </div>
   );
 }
