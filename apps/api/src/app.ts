@@ -7,6 +7,7 @@ import rawBody from "fastify-raw-body";
 import { registerAdminRoutes } from "./admin/routes.js";
 import { registerAuthRoutes } from "./auth/routes.js";
 import { registerListingRoutes } from "./listings/routes.js";
+import { registerLeadRoutes } from "./leads/routes.js";
 import { registerMessagingRoutes } from "./messaging/routes.js";
 import { registerNotificationRoutes } from "./notifications/routes.js";
 import { registerQueueRoutes } from "./queues/routes.js";
@@ -134,6 +135,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await registerAuthRoutes(app);
   await registerAdminRoutes(app);
   await registerListingRoutes(app);
+  await registerLeadRoutes(app);
   await registerReviewRoutes(app);
   await registerMessagingRoutes(app);
   await registerSearchRoutes(app);
