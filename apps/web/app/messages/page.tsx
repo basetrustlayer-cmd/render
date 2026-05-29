@@ -377,7 +377,7 @@ function MessagesContent() {
         >
           <header style={{ padding: "24px", borderBottom: "1px solid var(--border)" }}>
             {selectedConversation ? (
-              <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", alignItems: "flex-start" }}>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <h2 style={{ margin: 0 }}>
                     {selectedConversation.listing?.title ?? "Conversation"}
@@ -452,7 +452,7 @@ function MessagesContent() {
                     key={message.id}
                     style={{
                       alignSelf: isMine ? "flex-end" : "flex-start",
-                      maxWidth: "70%"
+                      maxWidth: "min(100%, 640px)"
                     }}
                   >
                     <div
@@ -480,7 +480,7 @@ function MessagesContent() {
                 event.preventDefault();
                 void handleSend();
               }}
-              style={{ display: "flex", gap: "12px" }}
+              className="flex flex-col gap-3 sm:flex-row"
             >
               <input
                 value={body}
