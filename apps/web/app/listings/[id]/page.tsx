@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getListing } from "../../../lib/get-listing";
 import { TrustScoreBadge } from "../../../components/trust-score-badge";
+import { VerificationBadge } from "../../../components/verification-badge";
 import { ListingDetailActions } from "./listing-detail-actions";
 import { ListingImageGallery } from "./listing-image-gallery";
 
@@ -47,7 +48,7 @@ export default async function ListingDetailPage({ params }: PageProps) {
 
               <div className="mt-6 grid gap-3 md:grid-cols-3">
                 <Info label="Condition" value={listing.condition || "Not specified"} />
-                <Info label="Trust Status" value={seller.verificationStatus} />
+                <Info label="Trust Status" value={<VerificationBadge status={seller.verificationStatus} />} />
                 <Info label="Trust Badge" value={seller.trustBadge ?? "Not synced"} />
                 <Info label="Safe Deal" value="Available" />
               </div>
@@ -96,7 +97,7 @@ export default async function ListingDetailPage({ params }: PageProps) {
   );
 }
 
-function Info({ label, value }: { label: string; value: string }) {
+function Info({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
       <p className="text-sm text-gray-500">{label}</p>

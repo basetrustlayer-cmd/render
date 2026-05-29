@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ListingCard } from "../../../components/listing-card";
 import { TrustScoreBadge } from "../../../components/trust-score-badge";
+import { VerificationBadge } from "../../../components/verification-badge";
 import { SellerReviewSummary } from "../../../components/seller-review-summary";
 import { getSeller, getSellerListings } from "../../../lib/get-seller";
 import { getSellerReviews } from "../../../lib/get-seller-reviews";
@@ -60,9 +61,7 @@ export default async function SellerStorefrontPage({ params }: PageProps) {
                 </h1>
 
                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-white px-3 py-1 text-sm font-bold text-gray-700 shadow-sm">
-                    {seller.verificationStatus}
-                  </span>
+                  <VerificationBadge status={seller.verificationStatus} />
                   <span className="rounded-full bg-white px-3 py-1 text-sm font-bold text-emerald-700 shadow-sm">
                     {seller.trustBadge ?? "TrustLayer sync pending"}
                   </span>

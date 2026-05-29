@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { TrustScoreBadge } from "./trust-score-badge";
+import { VerificationBadge } from "./verification-badge";
 import { ListingMessageButton } from "./listing-message-button";
 import type { Listing } from "../lib/get-listings";
 
@@ -26,11 +27,7 @@ export function ListingCard({ listing, imageHeightClass = "h-44" }: ListingCardP
       <div className="p-5">
         <div className="flex items-start justify-between gap-3">
           <p className="text-sm font-bold text-amber-700">{listing.category}</p>
-          {verified && (
-            <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700">
-              Verified
-            </span>
-          )}
+          {verified && <VerificationBadge status="VERIFIED" compact />}
         </div>
 
         <h3 className="mt-2 text-xl font-bold text-gray-950">{listing.title}</h3>
