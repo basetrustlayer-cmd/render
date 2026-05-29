@@ -18,9 +18,12 @@ function formatDate(value: string) {
   });
 }
 
-
 function formatTrustSyncedAt(value?: string | null) {
   return value ? `Trust data last synced ${formatDate(value)}` : "Trust data sync pending";
+}
+
+function storefrontUrl(id: string) {
+  return `/sellers/${id}`;
 }
 
 export default async function SellerStorefrontPage({ params }: PageProps) {
@@ -32,31 +35,57 @@ export default async function SellerStorefrontPage({ params }: PageProps) {
 
   return (
     <main className="min-h-screen bg-gray-50">
-      <section className="mx-auto max-w-7xl px-6 py-8">
-        <Link href="/listings" className="text-sm font-semibold text-gray-600 hover:text-gray-950">
-          ← Back to listings
-        </Link>
+      <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <Link href="/listings" className="text-sm font-semibold text-gray-600 hover:text-gray-950">
+            ← Back to listings
+          </Link>
 
-        <section className="mt-6 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-          <p className="text-sm font-bold uppercase tracking-wide text-amber-700">Seller storefront</p>
-          <div className="mt-4 grid gap-6 lg:grid-cols-[1fr_auto]">
-            <div>
-              <h1 className="text-4xl font-black text-gray-950">{seller.displayName}</h1>
-              <p className="mt-2 text-gray-600">{seller.verificationStatus}</p>
-              <p className="mt-1 text-sm font-semibold text-emerald-700">{seller.trustBadge ?? "TrustLayer cache pending"}</p>
-              <div className="mt-4">
-                <TrustScoreBadge score={seller.trustScore} tier={seller.trustTier} />
-                <p className="mt-2 text-xs text-gray-500">{formatTrustSyncedAt(seller.trustLastSyncedAt)}</p>
+          <Link
+            href={storefrontUrl(seller.id)}
+            className="rounded-full border border-gray-200 bg-white px-4 py-2 text-center text-xs font-bold text-gray-700 shadow-sm hover:bg-gray-50"
+          >
+            Share storefront
+          </Link>
+        </div>
+
+        <section className="mt-6 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
+          <div className="bg-gradient-to-br from-amber-50 via-white to-emerald-50 p-5 sm:p-6 lg:p-8">
+            <p className="text-sm font-bold uppercase tracking-wide text-amber-700">Seller storefront</p>
+
+            <div className="mt-5 grid gap-6 lg:grid-cols-[1fr_0.9fr] lg:items-start">
+              <div>
+                <h1 className="text-3xl font-black tracking-tight text-gray-950 sm:text-4xl">
+                  {seller.displayName}
+                </h1>
+
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-white px-3 py-1 text-sm font-bold text-gray-700 shadow-sm">
+                    {seller.verificationStatus}
+                  </span>
+                  <span className="rounded-full bg-white px-3 py-1 text-sm font-bold text-emerald-700 shadow-sm">
+                    {seller.trustBadge ?? "TrustLayer sync pending"}
+                  </span>
+                </div>
+
+                <div className="mt-5">
+                  <TrustScoreBadge score={seller.trustScore} tier={seller.trustTier} />
+                  <p className="mt-2 text-xs text-gray-500">{formatTrustSyncedAt(seller.trustLastSyncedAt)}</p>
+                </div>
+
+                <p className="mt-5 max-w-2xl text-sm leading-6 text-gray-600">
+                  Review this seller’s listings, marketplace activity, and TrustLayer-provided trust signals before starting a conversation or Safe Deal.
+                </p>
               </div>
-            </div>
 
-            <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[620px]">
-              <Metric label="TrustScore" value={seller.trustScore === null ? "Pending" : `${seller.trustScore}/1000`} />
-              <Metric label="Listings" value={String(seller.activeListings)} />
-              <Metric label="Deals" value={String(seller.completedDeals)} />
-              <Metric label="Reviews" value={summary.reviewCount === null ? "Pending" : String(summary.reviewCount)} />
-              <Metric label="Rating" value={summary.averageRating === null ? "Pending" : summary.reviewCount === 0 ? "New" : summary.averageRating.toFixed(1)} />
-              <Metric label="Since" value={formatDate(seller.memberSince)} />
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <Metric label="TrustScore" value={seller.trustScore === null ? "Pending" : `${seller.trustScore}/1000`} />
+                <Metric label="Listings" value={String(seller.activeListings)} />
+                <Metric label="Deals" value={String(seller.completedDeals)} />
+                <Metric label="Reviews" value={summary.reviewCount === null ? "Pending" : String(summary.reviewCount)} />
+                <Metric label="Rating" value={summary.averageRating === null ? "Pending" : summary.reviewCount === 0 ? "New" : summary.averageRating.toFixed(1)} />
+                <Metric label="Since" value={formatDate(seller.memberSince)} />
+              </div>
             </div>
           </div>
         </section>
@@ -64,11 +93,14 @@ export default async function SellerStorefrontPage({ params }: PageProps) {
         <SellerReviewSummary summary={summary} reviews={reviews} />
 
         <section className="mt-8">
-          <div className="mb-5 flex items-end justify-between gap-4">
+          <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-sm font-bold uppercase tracking-wide text-amber-700">Active listings</p>
-              <h2 className="text-3xl font-black text-gray-950">More from this seller</h2>
+              <h2 className="text-2xl font-black text-gray-950 sm:text-3xl">More from this seller</h2>
             </div>
+            <p className="text-sm text-gray-600">
+              {listings.length} active listing{listings.length === 1 ? "" : "s"}
+            </p>
           </div>
 
           {listings.length === 0 ? (
@@ -76,7 +108,7 @@ export default async function SellerStorefrontPage({ params }: PageProps) {
               This seller has no active listings.
             </div>
           ) : (
-            <div className="grid gap-5 md:grid-cols-3">
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {listings.map((listing) => (
                 <ListingCard key={listing.id} listing={listing} />
               ))}
@@ -90,9 +122,9 @@ export default async function SellerStorefrontPage({ params }: PageProps) {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+    <div className="rounded-2xl border border-gray-200 bg-white/80 p-4 shadow-sm">
       <p className="text-xs font-bold uppercase text-gray-500">{label}</p>
-      <p className="mt-1 font-black text-gray-950">{value}</p>
+      <p className="mt-1 text-lg font-black text-gray-950">{value}</p>
     </div>
   );
 }
