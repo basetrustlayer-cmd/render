@@ -31,13 +31,13 @@ export default async function ListingsPage({ searchParams = {} }: ListingsPagePr
     const { listings } = await getListings(filters);
 
     return (
-      <main className="mx-auto max-w-7xl p-6">
+      <main className="mx-auto max-w-7xl p-4 sm:p-6">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-amber-700">
               Ghana marketplace
             </p>
-            <h1 className="text-4xl font-black text-gray-950">Browse Listings</h1>
+            <h1 className="text-3xl font-black text-gray-950 sm:text-4xl">Browse Listings</h1>
           </div>
 
           <Link href="/dashboard/create-listing" className="rounded-xl bg-black px-4 py-2 text-sm font-bold text-white">
@@ -78,7 +78,7 @@ export default async function ListingsPage({ searchParams = {} }: ListingsPagePr
         </form>
 
         {listings.length === 0 ? (
-          <div className="rounded-2xl bg-white p-8 text-gray-700 shadow-sm">
+          <div className="rounded-2xl bg-white p-5 text-gray-700 shadow-sm sm:p-8">
             No listings match this search.
           </div>
         ) : (
@@ -92,8 +92,8 @@ export default async function ListingsPage({ searchParams = {} }: ListingsPagePr
     );
   } catch (error) {
     return (
-      <main className="mx-auto max-w-3xl p-8">
-        <h1 className="text-4xl font-bold">Listings temporarily unavailable</h1>
+      <main className="mx-auto max-w-3xl p-4 sm:p-8">
+        <h1 className="text-3xl font-bold sm:text-4xl">Listings temporarily unavailable</h1>
         <pre className="mt-6 overflow-auto rounded bg-gray-100 p-4 text-sm">
           {error instanceof Error ? error.message : "Unknown error"}
         </pre>
