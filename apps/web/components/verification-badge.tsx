@@ -12,64 +12,87 @@ function badgeCopy(status?: string | null) {
 
   switch (normalized) {
     case "VERIFIED":
+    case "APPROVED":
+    case "ACTIVE":
       return {
-        label: "TrustLayer verified",
-        help: "TrustLayer verification status is verified."
+        label: "Verified by TrustLayer",
+        help: "TrustLayer verification projection is verified."
       };
     case "PENDING":
     case "VERIFICATION_PENDING":
+    case "SYNCING":
       return {
-        label: "Verification pending",
-        help: "TrustLayer verification is still pending."
+        label: "TrustLayer sync pending",
+        help: "Render is waiting for the latest TrustLayer verification projection."
+      };
+    case "MANUAL_REVIEW":
+    case "NEEDS_REVIEW":
+    case "UNDER_REVIEW":
+      return {
+        label: "TrustLayer review needed",
+        help: "TrustLayer verification projection indicates review is needed."
       };
     case "REJECTED":
+    case "NOT_VERIFIED":
+    case "FAILED":
       return {
-        label: "Verification rejected",
-        help: "TrustLayer did not approve this verification."
+        label: "Not verified",
+        help: "TrustLayer verification projection is not verified."
+      };
+    case "SUSPENDED":
+    case "BLOCKED":
+      return {
+        label: "Trust status blocked",
+        help: "TrustLayer or marketplace controls indicate this account is blocked or suspended."
       };
     case "STALE":
       return {
-        label: "Trust data stale",
-        help: "TrustLayer data may need a fresh sync."
-      };
-    case "SYNCING":
-      return {
-        label: "Trust syncing",
-        help: "TrustLayer verification data is syncing."
+        label: "TrustLayer data stale",
+        help: "TrustLayer verification projection may need a fresh sync."
       };
     case "UNKNOWN":
     case "UNAVAILABLE":
       return {
-        label: "Verification unavailable",
+        label: "TrustLayer status unavailable",
         help: "TrustLayer verification projection is unavailable or not yet synced."
       };
     default:
       return {
-        label: normalized.replace(/_/g, " ").toLowerCase(),
-        help: `TrustLayer verification status: ${normalized}.`
+        label: `TrustLayer: ${normalized.replace(/_/g, " ").toLowerCase()}`,
+        help: `Render is displaying TrustLayer verification projection: ${normalized}.`
       };
   }
 }
 
-export function VerificationBadge({ status, compact = false }: VerificationBadgeProps) {
+function badgeTone(status?: string | null) {
   const normalized = normalizeStatus(status);
-  const copy = badgeCopy(status);
 
-  const tone =
-    normalized === "VERIFIED"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-      : normalized === "REJECTED"
-        ? "border-red-200 bg-red-50 text-red-700"
-        : normalized === "STALE"
-          ? "border-amber-200 bg-amber-50 text-amber-800"
-          : normalized === "SYNCING"
-            ? "border-blue-200 bg-blue-50 text-blue-800"
-            : "border-gray-200 bg-gray-50 text-gray-700";
+  if (["VERIFIED", "APPROVED", "ACTIVE"].includes(normalized)) {
+    return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  }
+
+  if (["REJECTED", "NOT_VERIFIED", "FAILED", "SUSPENDED", "BLOCKED"].includes(normalized)) {
+    return "border-red-200 bg-red-50 text-red-700";
+  }
+
+  if (["STALE", "MANUAL_REVIEW", "NEEDS_REVIEW", "UNDER_REVIEW"].includes(normalized)) {
+    return "border-amber-200 bg-amber-50 text-amber-800";
+  }
+
+  if (["PENDING", "VERIFICATION_PENDING", "SYNCING"].includes(normalized)) {
+    return "border-blue-200 bg-blue-50 text-blue-800";
+  }
+
+  return "border-gray-200 bg-gray-50 text-gray-700";
+}
+
+export function VerificationBadge({ status, compact = false }: VerificationBadgeProps) {
+  const copy = badgeCopy(status);
 
   return (
     <span
       title={copy.help}
-      className={`inline-flex items-center rounded-full border font-bold ${tone} ${
+      className={`inline-flex items-center rounded-full border font-bold ${badgeTone(status)} ${
         compact ? "px-2 py-1 text-xs" : "px-3 py-1.5 text-sm"
       }`}
     >
