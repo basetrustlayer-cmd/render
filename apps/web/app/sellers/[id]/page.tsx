@@ -77,7 +77,7 @@ export default async function SellerStorefrontPage({ params }: PageProps) {
                 </div>
 
                 <p className="mt-5 max-w-2xl text-sm leading-6 text-gray-600">
-                  Review this seller’s listings, marketplace activity, and TrustLayer-provided trust signals before starting a conversation or Safe Deal.
+                  Review this seller’s active listings, Render buyer reviews, and TrustLayer-provided verification projections before starting a conversation or Safe Deal.
                 </p>
               </div>
 
@@ -85,8 +85,8 @@ export default async function SellerStorefrontPage({ params }: PageProps) {
                 <Metric label="TrustScore" value={seller.trustScore === null ? "Pending" : `${seller.trustScore}/1000`} />
                 <Metric label="Listings" value={String(seller.activeListings)} />
                 <Metric label="Safe Deal Requests" value={String(seller.safeDealRequestCount)} />
-                <Metric label="Reviews" value={summary.reviewCount === null ? "Pending" : String(summary.reviewCount)} />
-                <Metric label="Rating" value={summary.averageRating === null ? "Pending" : summary.reviewCount === 0 ? "New" : summary.averageRating.toFixed(1)} />
+                <Metric label="Render Reviews" value={summary.reviewCount === null ? "Pending" : String(summary.reviewCount)} />
+                <Metric label="Render Rating" value={summary.averageRating === null ? "Pending" : summary.reviewCount === 0 ? "New" : summary.averageRating.toFixed(1)} />
                 <Metric label="Since" value={formatDate(seller.memberSince)} />
               </div>
             </div>
@@ -99,7 +99,7 @@ export default async function SellerStorefrontPage({ params }: PageProps) {
           <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-sm font-bold uppercase tracking-wide text-amber-700">Active listings</p>
-              <h2 className="text-2xl font-black text-gray-950 sm:text-3xl">More from this seller</h2>
+              <h2 className="text-2xl font-black text-gray-950 sm:text-3xl">Active marketplace listings</h2>
             </div>
             <p className="text-sm text-gray-600">
               {listings.length} active listing{listings.length === 1 ? "" : "s"}
