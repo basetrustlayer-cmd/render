@@ -31,7 +31,7 @@ export default async function ListingDetailPage({ params }: PageProps) {
 
   return (
     <main className="min-h-screen bg-gray-50">
-      <section className="mx-auto max-w-7xl px-6 py-8">
+      <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
         <Link href="/listings" className="text-sm font-semibold text-gray-600 hover:text-gray-950">
           ← Back to listings
         </Link>
@@ -42,7 +42,7 @@ export default async function ListingDetailPage({ params }: PageProps) {
 
             <div className="p-6">
               <p className="text-sm font-bold uppercase tracking-wide text-amber-700">{listing.category}</p>
-              <h1 className="mt-2 text-4xl font-black tracking-tight text-gray-950">{listing.title}</h1>
+              <h1 className="mt-2 text-3xl font-black tracking-tight text-gray-950 sm:text-4xl">{listing.title}</h1>
               <p className="mt-2 text-gray-600">{listing.locationRegion ?? "Ghana"}</p>
               <p className="mt-5 text-3xl font-black text-gray-950">GH₵ {String(listing.price)}</p>
               <p className="mt-5 text-base leading-8 text-gray-700">{listing.description || "No description provided."}</p>
@@ -75,7 +75,7 @@ export default async function ListingDetailPage({ params }: PageProps) {
 
             <div className="mt-5 rounded-2xl bg-emerald-50 p-5">
               <p className="text-sm font-semibold text-emerald-800">TrustScore</p>
-              <strong className="mt-2 block text-5xl text-emerald-700">{seller.trustScore === null ? "Pending" : `${seller.trustScore}/1000`}</strong>
+              <strong className="mt-2 block text-4xl text-emerald-700 sm:text-5xl">{seller.trustScore === null ? "Pending" : `${seller.trustScore}/1000`}</strong>
               <p className="mt-2 text-sm text-emerald-800">{seller.trustBadge ?? seller.verificationStatus}</p>
               <div className="mt-3">
                 <TrustScoreBadge score={seller.trustScore} tier={seller.trustTier} />
