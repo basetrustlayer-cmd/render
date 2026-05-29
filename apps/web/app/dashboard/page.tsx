@@ -18,6 +18,11 @@ type SafeDeal = {
   status: string;
 };
 
+type SellerLead = {
+  id: string;
+  status: "NEW" | "CONTACTED" | "NEGOTIATING" | "WON" | "LOST" | string;
+};
+
 type TrustScore = {
   score: number;
   tier: string;
@@ -31,6 +36,7 @@ export default function DashboardPage() {
 
   const [listings, setListings] = useState<Listing[]>([]);
   const [safeDeals, setSafeDeals] = useState<SafeDeal[]>([]);
+  const [leads, setLeads] = useState<SellerLead[]>([]);
   const [trustScore, setTrustScore] = useState<TrustScore | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,6 +85,13 @@ export default function DashboardPage() {
       }
 
       try {
+        const leadResult = await apiFetch<{ leads: SellerLead[] }>("/leads/my");
+        setLeads(leadResult.leads);
+      } catch {
+        setLeads([]);
+      }
+
+      try {
         const trustScoreResult = await apiFetch<TrustScore>(`/users/${userId}/trust-score`);
         setTrustScore(trustScoreResult);
       } catch {
@@ -94,14 +107,50 @@ export default function DashboardPage() {
     [safeDeals]
   );
 
+  const leadPerformance = useMemo(() => {
+    const counts = {
+      NEW: 0,
+      CONTACTED: 0,
+      NEGOTIATING: 0,
+      WON: 0,
+      LOST: 0
+    };
+
+    leads.forEach((lead) => {
+      if (lead.status in counts) {
+        counts[lead.status as keyof typeof counts] += 1;
+      }
+    });
+
+    const wonRate = leads.length > 0 ? Math.round((counts.WON / leads.length) * 100) : 0;
+
+    return { counts, wonRate };
+  }, [leads]);
+
   return (
     <DashboardShell>
       <div className="grid gap-4 md:grid-cols-4">
         <StatCard label="Active Listings" value={String(listings.length)} helper="Listings owned by this user" />
+        <StatCard label="New Leads" value={String(leadPerformance.counts.NEW)} helper="Fresh buyer attention" />
+        <StatCard label="Negotiating" value={String(leadPerformance.counts.NEGOTIATING)} helper="Active seller follow-up" />
+        <StatCard label="Won Rate" value={`${leadPerformance.wonRate}%`} helper={`${leadPerformance.counts.WON} won · ${leadPerformance.counts.LOST} lost`} />
         <StatCard label="Open Safe Deals" value={String(safeDeals.length)} helper="Buyer or seller escrow deals" />
         <StatCard label="Completed Deals" value={String(completedDeals)} helper="Successful marketplace deals" />
         <StatCard label="Trust Score" value={trustScore ? String(trustScore.score) : "—"} helper={trustScore?.tier ?? "Pending TrustLayer sync"} />
       </div>
+
+      <section className="mt-6 rounded-2xl bg-white p-5 shadow-sm">
+        <p className="text-sm font-bold uppercase tracking-wide text-amber-700">Seller Performance</p>
+        <h2 className="mt-1 text-xl font-black text-gray-950">Lead Pipeline</h2>
+        <div className="mt-4 grid gap-3 sm:grid-cols-5">
+          {Object.entries(leadPerformance.counts).map(([status, count]) => (
+            <div key={status} className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+              <p className="text-xs font-bold uppercase text-gray-500">{status}</p>
+              <p className="mt-1 text-2xl font-black text-gray-950">{count}</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {error && (
         <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
