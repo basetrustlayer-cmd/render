@@ -50,6 +50,11 @@ const cards = [
     href: "/admin/notifications-replay",
     title: "Notification Replay",
     description: "Inspect governed notification replay controls, dead-letter status, and replay governance outcomes."
+  },
+  {
+    href: "/admin/operations",
+    title: "Launch Operations",
+    description: "Review launch readiness, operational alerts, SLO summaries, and computed production readiness signals."
   }
 ];
 
