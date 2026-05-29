@@ -35,8 +35,14 @@ export function ListingCard({ listing, imageHeightClass = "h-44" }: ListingCardP
         <p className="mt-4 text-lg font-black text-gray-950">GH₵ {String(listing.price)}</p>
         <p className="text-sm text-gray-600">{listing.locationRegion ?? "Ghana"}</p>
 
-        <div className="mt-4">
+        <div className="mt-4 flex flex-col gap-2">
           <TrustScoreBadge score={score} tier={tier} />
+          <Link
+            href={`/sellers/${listing.sellerId}`}
+            className="text-xs font-bold text-emerald-700 hover:text-emerald-900"
+          >
+            View seller storefront
+          </Link>
         </div>
 
         <div className="mt-5 grid grid-cols-2 gap-2">

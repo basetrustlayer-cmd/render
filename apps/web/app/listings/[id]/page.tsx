@@ -65,7 +65,12 @@ export default async function ListingDetailPage({ params }: PageProps) {
 
           <aside className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
             <p className="text-sm font-bold uppercase tracking-wide text-amber-700">Seller trust profile</p>
-            <h2 className="mt-2 text-2xl font-black text-gray-950">{seller.displayName}</h2>
+            <Link
+              href={`/sellers/${seller.id}`}
+              className="mt-2 block text-2xl font-black text-gray-950 hover:text-emerald-800"
+            >
+              {seller.displayName}
+            </Link>
 
             <div className="mt-5 rounded-2xl bg-emerald-50 p-5">
               <p className="text-sm font-semibold text-emerald-800">TrustScore</p>
