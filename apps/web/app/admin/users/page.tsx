@@ -89,7 +89,7 @@ export default function AdminUsersPage() {
                   </td>
                   <td className="p-3">{user.role}</td>
                   <td className="p-3">
-                    L{user.verificationLevel} · {user.trustTier ?? "NEW"} · {user.trustScore ?? 0}
+                    L{user.verificationLevel} · {user.trustTier ?? "Pending"} · {user.trustScore ?? "Pending"}
                     <span className="block text-xs text-gray-500">{formatTrustFreshness(user.updatedAt)}</span>
                   </td>
                   <td className="p-3">{user.isSuspended ? "Suspended" : "Active"}</td>

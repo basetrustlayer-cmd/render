@@ -91,7 +91,7 @@ export default function ProfilePage() {
           <div className="mt-6 grid gap-4 md:grid-cols-2">
             <ProfileField label="Phone" value={profile.phone ?? "Not provided"} />
             <ProfileField label="Verification Level" value={String(profile.verificationLevel)} />
-            <ProfileField label="Trust Tier" value={profile.trustTier ?? "NEW"} />
+            <ProfileField label="Trust Tier" value={profile.trustTier ?? "Pending"} />
             <ProfileField label="Account Type" value={profile.isBusiness ? "Business" : "Individual"} />
             <ProfileField label="Account Status" value={profile.isSuspended ? "Suspended" : "Active"} />
             <ProfileField label="User ID" value={profile.id} />
