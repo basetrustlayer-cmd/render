@@ -10,6 +10,16 @@ const whatsappLeadSchema = z.object({
   source: z.literal("WHATSAPP").default("WHATSAPP")
 });
 
+const leadIdParamsSchema = z.object({
+  id: z.string().uuid()
+});
+
+function auditMetadata(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
 export async function registerLeadRoutes(app: FastifyInstance): Promise<void> {
   app.post("/leads/whatsapp", { preHandler: authenticate }, async (request, reply) => {
     const authUser = requireAuthUser(request);

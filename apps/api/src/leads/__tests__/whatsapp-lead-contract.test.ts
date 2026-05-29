@@ -30,4 +30,11 @@ describe("whatsapp lead capture contract", () => {
     expect(source).toContain('status: "NEW"');
   });
 
+  it("exposes seller lead read model and governed WhispeRM export", () => {
+    expect(source).toContain('app.get("/leads/my", { preHandler: authenticate }');
+    expect(source).toContain('app.post("/leads/:id/whisperm-export", { preHandler: authenticate }');
+    expect(source).toContain("WHISPERM_LEAD_EXPORT_QUEUED");
+    expect(source).toContain('externalSync: "PENDING_IMPLEMENTATION"');
+  });
+
 });
