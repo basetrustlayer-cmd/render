@@ -13,8 +13,8 @@ function badgeCopy(status?: string | null) {
   switch (normalized) {
     case "VERIFIED":
       return {
-        label: "Verified by TrustLayer",
-        help: "TrustLayer has verified this seller signal."
+        label: "TrustLayer verified",
+        help: "TrustLayer verification status is verified."
       };
     case "PENDING":
     case "VERIFICATION_PENDING":
@@ -37,10 +37,16 @@ function badgeCopy(status?: string | null) {
         label: "Trust syncing",
         help: "TrustLayer verification data is syncing."
       };
+    case "UNKNOWN":
+    case "UNAVAILABLE":
+      return {
+        label: "Verification unavailable",
+        help: "TrustLayer verification projection is unavailable or not yet synced."
+      };
     default:
       return {
-        label: "Trust pending",
-        help: "TrustLayer verification status is not available yet."
+        label: normalized.replace(/_/g, " ").toLowerCase(),
+        help: `TrustLayer verification status: ${normalized}.`
       };
   }
 }
