@@ -39,6 +39,10 @@ function reputationSource(summary: SellerReviewSummary) {
     return "TrustLayer reputation projection";
   }
 
+  if (summary.source === "RENDER_BUYER_REVIEWS") {
+    return "Render buyer reviews";
+  }
+
   if (summary.averageRating === null || summary.reviewCount === null) {
     return "Reputation source unavailable";
   }
@@ -72,7 +76,7 @@ export function SellerReviewSummary({
 
       {reviews.length === 0 ? (
         <div className="mt-6 rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-6 text-gray-600">
-          This seller has not received public buyer reviews yet.
+          This seller has not received public Render buyer reviews yet. Reviews appear after completed marketplace transactions.
         </div>
       ) : (
         <div className="mt-6 grid gap-4">
