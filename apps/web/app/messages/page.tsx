@@ -59,6 +59,7 @@ function MessagesContent() {
   const [loadingConversations, setLoadingConversations] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -242,6 +243,7 @@ function MessagesContent() {
 
     try {
       setError(null);
+      setSendError(null);
       setSending(true);
 
       const created = await sendMessage(accessToken, selectedConversationId, trimmed);
@@ -264,7 +266,7 @@ function MessagesContent() {
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unable to send message.";
-      setError(message);
+      setSendError(message);
     } finally {
       setSending(false);
     }
@@ -476,6 +478,12 @@ function MessagesContent() {
           </div>
 
           <footer style={{ padding: "24px", borderTop: "1px solid var(--border)" }}>
+            {sendError ? (
+              <div style={{ marginBottom: "12px", padding: "12px 14px", borderRadius: "14px", background: "#fff1f1", color: "#9f1239", fontSize: "14px" }}>
+                {sendError}
+              </div>
+            ) : null}
+
             <form
               onSubmit={(event) => {
                 event.preventDefault();
