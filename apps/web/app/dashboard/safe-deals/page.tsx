@@ -102,7 +102,8 @@ export default function SafeDealsPage() {
                 <th className="py-3">Amount</th>
                 <th className="py-3">Fee</th>
                 <th className="py-3">Status</th>
-                <th className="py-3">Actions</th>
+                <th className="py-3">Projection</th>
+                    <th className="py-3">Actions</th>
               </tr>
             </thead>
             <tbody>

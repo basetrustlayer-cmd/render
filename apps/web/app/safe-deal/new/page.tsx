@@ -58,14 +58,14 @@ function SafeDealCheckout() {
   }
 
   return (
-    <main className="mx-auto max-w-4xl p-8">
+    <main className="mx-auto max-w-4xl p-4 sm:p-8">
       <Link href="/listings" className="text-sm underline">
         ← Back to listings
       </Link>
 
-      <section className="mt-6 rounded-2xl border bg-white p-8 shadow-sm">
+      <section className="mt-6 rounded-2xl border bg-white p-5 shadow-sm sm:p-8">
         <p className="font-bold text-amber-700">Safe Deal</p>
-        <h1 className="mt-2 text-4xl font-extrabold">Protected Transaction Checkout</h1>
+        <h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">Protected Transaction Checkout</h1>
         <p className="mt-4 max-w-2xl text-gray-600">
           Funds are held securely until the buyer confirms that the item was received and inspected.
         </p>
@@ -107,7 +107,7 @@ function SafeDealCheckout() {
 
 export default function NewSafeDealPage() {
   return (
-    <Suspense fallback={<main className="mx-auto max-w-4xl p-8">Loading Safe Deal checkout...</main>}>
+    <Suspense fallback={<main className="mx-auto max-w-4xl p-4 sm:p-8">Loading Safe Deal checkout...</main>}>
       <SafeDealCheckout />
     </Suspense>
   );
