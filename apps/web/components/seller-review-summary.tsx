@@ -35,9 +35,15 @@ function reputationLabel(summary: SellerReviewSummary) {
 }
 
 function reputationSource(summary: SellerReviewSummary) {
-  return summary.source === "TRUSTLAYER"
-    ? "TrustLayer reputation projection"
-    : "Render buyer reviews";
+  if (summary.source === "TRUSTLAYER") {
+    return "TrustLayer reputation projection";
+  }
+
+  if (summary.averageRating === null || summary.reviewCount === null) {
+    return "Reputation source unavailable";
+  }
+
+  return "Render buyer reviews";
 }
 
 export function SellerReviewSummary({
@@ -60,6 +66,7 @@ export function SellerReviewSummary({
         <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-right">
           <p className="text-3xl font-black text-gray-950">{reputationValue(summary)}</p>
           <p className="text-sm font-semibold text-gray-600">{reputationLabel(summary)}</p>
+          <p className="mt-1 text-xs font-semibold text-gray-500">{reputationSource(summary)}</p>
         </div>
       </div>
 
