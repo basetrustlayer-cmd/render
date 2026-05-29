@@ -4,8 +4,8 @@ type TrustScoreBadgeProps = {
 };
 
 export function TrustScoreBadge({ score, tier }: TrustScoreBadgeProps) {
-  const displayTier = tier ?? "PENDING";
-  const displayScore = score === null ? "Pending" : `${score}`;
+  const displayTier = tier ?? "UNSCORED";
+  const displayScore = score === null ? "No score" : `${score}`;
 
   const color =
     displayTier === "TRUSTED"
@@ -18,7 +18,11 @@ export function TrustScoreBadge({ score, tier }: TrustScoreBadgeProps) {
 
   return (
     <span
-      title={score === null || tier === null ? "TrustLayer sync pending" : undefined}
+      title={
+        score === null || tier === null
+          ? "TrustLayer score projection unavailable or not yet synced"
+          : "TrustLayer trust score"
+      }
       style={{
         display: "inline-flex",
         alignItems: "center",
