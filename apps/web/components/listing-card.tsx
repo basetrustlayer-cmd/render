@@ -13,7 +13,7 @@ export function ListingCard({ listing, imageHeightClass = "h-44" }: ListingCardP
   const coverImage = listing.images?.[0]?.url;
   const score = listing.seller?.trustScore ?? null;
   const tier = listing.seller?.trustTier ?? null;
-  const verified = (listing.seller?.verificationLevel ?? 0) >= 1;
+  const verificationStatus = listing.seller?.verificationStatus ?? null;
 
   return (
     <article className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
@@ -27,7 +27,7 @@ export function ListingCard({ listing, imageHeightClass = "h-44" }: ListingCardP
       <div className="p-5">
         <div className="flex items-start justify-between gap-3">
           <p className="text-sm font-bold text-amber-700">{listing.category}</p>
-          {verified && <VerificationBadge status="VERIFIED" compact />}
+          <VerificationBadge status={verificationStatus} compact />
         </div>
 
         <h3 className="mt-2 text-xl font-bold text-gray-950">{listing.title}</h3>

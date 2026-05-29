@@ -12,6 +12,7 @@ export type Listing = {
   createdAt: string;
   seller?: {
     verificationLevel: number;
+    verificationStatus?: string | null;
     trustScore: number | null;
     trustTier: "NEW" | "BUILDING" | "VERIFIED" | "TRUSTED" | null;
   };

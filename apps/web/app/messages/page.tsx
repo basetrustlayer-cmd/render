@@ -34,8 +34,8 @@ function getParticipantLabel(input: {
   trustTier: string | null;
   verificationLevel: number;
 }): string {
-  if (input.isBusiness) return "Verified Business Seller";
-  if (input.verificationLevel > 0) return "Verified Render User";
+  if (input.isBusiness) return "Business Seller";
+  if (input.verificationLevel > 0) return "TrustLayer-reviewed user";
   return "Marketplace User";
 }
 
