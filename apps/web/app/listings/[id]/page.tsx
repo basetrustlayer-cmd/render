@@ -5,6 +5,7 @@ import { VerificationBadge } from "../../../components/verification-badge";
 import { TrustLayerFreshnessCard } from "../../../components/trustlayer-freshness-card";
 import { ListingDetailActions } from "./listing-detail-actions";
 import { ListingImageGallery } from "./listing-image-gallery";
+import { WhatsAppSellerButton } from "./whatsapp-seller-button";
 
 export const dynamic = "force-dynamic";
 
