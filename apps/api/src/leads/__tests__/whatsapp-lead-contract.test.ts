@@ -37,4 +37,11 @@ describe("whatsapp lead capture contract", () => {
     expect(source).toContain('externalSync: "PENDING_IMPLEMENTATION"');
   });
 
+  it("records seller lead notification semantics without provider delivery", () => {
+    expect(source).toContain("SELLER_LEAD_RECEIVED");
+    expect(source).toContain('notificationStatus: "UNREAD"');
+    expect(source).toContain('notificationType: "SELLER_LEAD"');
+    expect(source).not.toContain("sendOtpSms");
+  });
+
 });

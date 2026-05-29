@@ -70,6 +70,24 @@ export async function registerLeadRoutes(app: FastifyInstance): Promise<void> {
       }
     });
 
+    void writeAuditLog({
+      request,
+      actorUserId: authUser.userId,
+      organizationId: listing.organizationId,
+      action: "SELLER_LEAD_RECEIVED",
+      entityType: "USER",
+      entityId: listing.sellerId,
+      metadata: {
+        listingId: listing.id,
+        listingTitle: listing.title,
+        sellerId: listing.sellerId,
+        buyerId: authUser.userId,
+        source: "WHATSAPP",
+        notificationStatus: "UNREAD",
+        notificationType: "SELLER_LEAD"
+      }
+    });
+
     return reply.code(201).send({
       ok: true,
       lead: {

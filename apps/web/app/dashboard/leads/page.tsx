@@ -13,6 +13,7 @@ type SellerLead = {
   listingId: string | null;
   listingTitle: string;
   buyerId: string | null;
+  notificationStatus?: "UNREAD" | "READ";
   createdAt: string;
 };
 
@@ -32,6 +33,7 @@ export default function SellerLeadsPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [exportingLeadId, setExportingLeadId] = useState<string | null>(null);
+  const unreadLeads = leads.filter((lead) => lead.notificationStatus !== "READ").length;
 
   useEffect(() => {
     hydrate();
@@ -104,7 +106,7 @@ export default function SellerLeadsPage() {
           </div>
 
           <span className="rounded-full bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-800">
-            {leads.length} lead{leads.length === 1 ? "" : "s"}
+            {unreadLeads} new · {leads.length} total
           </span>
         </div>
 
