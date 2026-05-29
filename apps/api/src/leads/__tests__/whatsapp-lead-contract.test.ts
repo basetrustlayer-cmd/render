@@ -27,7 +27,7 @@ describe("whatsapp lead capture contract", () => {
     expect(source).toContain('app.get("/leads/my", { preHandler: authenticate }');
     expect(source).toContain('action: "WHATSAPP_LEAD_CREATED"');
     expect(source).toContain('path: ["sellerId"]');
-    expect(source).toContain('status: "NEW"');
+    expect(source).toContain('status: latestStatusByLeadId.get(log.id) ?? "NEW"');
   });
 
   it("exposes seller lead read model and governed WhispeRM export", () => {
