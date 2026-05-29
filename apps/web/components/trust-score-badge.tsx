@@ -1,20 +1,24 @@
 type TrustScoreBadgeProps = {
-  score: number;
-  tier: string;
+  score: number | null;
+  tier: string | null;
 };
 
 export function TrustScoreBadge({ score, tier }: TrustScoreBadgeProps) {
+  const displayTier = tier ?? "PENDING";
+  const displayScore = score === null ? "Pending" : `${score}`;
+
   const color =
-    tier === "TRUSTED"
+    displayTier === "TRUSTED"
       ? "var(--green)"
-      : tier === "VERIFIED"
+      : displayTier === "VERIFIED"
         ? "var(--blue)"
-        : tier === "BUILDING"
+        : displayTier === "BUILDING"
           ? "var(--gold)"
           : "#8A837A";
 
   return (
     <span
+      title={score === null || tier === null ? "TrustLayer sync pending" : undefined}
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -35,7 +39,7 @@ export function TrustScoreBadge({ score, tier }: TrustScoreBadgeProps) {
           background: color
         }}
       />
-      {score} · {tier}
+      {displayScore} · {displayTier}
     </span>
   );
 }

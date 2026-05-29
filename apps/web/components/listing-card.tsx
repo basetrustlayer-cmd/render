@@ -10,8 +10,8 @@ type ListingCardProps = {
 
 export function ListingCard({ listing, imageHeightClass = "h-44" }: ListingCardProps) {
   const coverImage = listing.images?.[0]?.url;
-  const score = listing.seller?.trustScore ?? 500;
-  const tier = listing.seller?.trustTier ?? "NEW";
+  const score = listing.seller?.trustScore ?? null;
+  const tier = listing.seller?.trustTier ?? null;
   const verified = (listing.seller?.verificationLevel ?? 0) >= 1;
 
   return (

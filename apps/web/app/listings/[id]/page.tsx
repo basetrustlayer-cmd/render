@@ -68,7 +68,7 @@ export default async function ListingDetailPage({ params }: PageProps) {
 
             <div className="mt-5 rounded-2xl bg-emerald-50 p-5">
               <p className="text-sm font-semibold text-emerald-800">TrustScore</p>
-              <strong className="mt-2 block text-5xl text-emerald-700">{seller.trustScore}/1000</strong>
+              <strong className="mt-2 block text-5xl text-emerald-700">{seller.trustScore === null ? "Pending" : `${seller.trustScore}/1000`}</strong>
               <p className="mt-2 text-sm text-emerald-800">{seller.trustBadge ?? seller.verificationStatus}</p>
               <div className="mt-3">
                 <TrustScoreBadge score={seller.trustScore} tier={seller.trustTier} />

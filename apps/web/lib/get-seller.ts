@@ -6,8 +6,8 @@ export type PublicSeller = {
   displayName: string;
   verificationLevel: number;
   verificationStatus: string;
-  trustScore: number;
-  trustTier: "NEW" | "BUILDING" | "VERIFIED" | "TRUSTED";
+  trustScore: number | null;
+  trustTier: "NEW" | "BUILDING" | "VERIFIED" | "TRUSTED" | null;
   trustBadge?: string | null;
   trustLastSyncedAt?: string | null;
   reviewCount: number;
