@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { DashboardShell } from "../../../components/dashboard/dashboard-shell";
 import { apiFetch } from "../../../lib/api";
