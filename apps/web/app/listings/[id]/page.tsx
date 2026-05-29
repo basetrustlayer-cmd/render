@@ -88,7 +88,7 @@ export default async function ListingDetailPage({ params }: PageProps) {
 
             <div className="mt-6 grid gap-4">
               <Metric label="Reviews" value={`${seller.reviewCount} · View seller reviews`} href={`/sellers/${seller.id}`} />
-              <Metric label="Completed Deals" value={String(seller.completedDeals)} />
+              <Metric label="Safe Deal Requests" value={String(seller.safeDealRequestCount)} />
               <Metric label="Active Listings" value={String(seller.activeListings)} />
               <Metric label="Member Since" value={formatDate(seller.memberSince)} />
             </div>

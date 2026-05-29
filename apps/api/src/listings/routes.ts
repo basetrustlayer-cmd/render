@@ -225,7 +225,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
         trustBadge: seller.trustBadgeCached,
         trustLastSyncedAt: seller.trustLastSyncedAt,
         reviewCount: seller._count.reviewsReceived,
-        completedDeals: seller._count.sales,
+        safeDealRequestCount: seller._count.sales,
         activeListings: seller._count.listings,
         memberSince: seller.createdAt
       }
@@ -381,7 +381,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       trustBadge: listing.seller.trustBadgeCached,
       trustLastSyncedAt: listing.seller.trustLastSyncedAt,
       reviewCount: listing.seller._count.reviewsReceived,
-      completedDeals: listing.seller._count.sales,
+      safeDealRequestCount: listing.seller._count.sales,
       activeListings: listing.seller._count.listings,
       memberSince: listing.seller.createdAt
     };

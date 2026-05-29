@@ -24,7 +24,7 @@ export type SellerProfile = {
   trustBadge?: string | null;
   trustLastSyncedAt?: string | null;
   reviewCount: number;
-  completedDeals: number;
+  safeDealRequestCount: number;
   activeListings: number;
   memberSince: string;
 };

@@ -84,7 +84,7 @@ export default async function SellerStorefrontPage({ params }: PageProps) {
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 <Metric label="TrustScore" value={seller.trustScore === null ? "Pending" : `${seller.trustScore}/1000`} />
                 <Metric label="Listings" value={String(seller.activeListings)} />
-                <Metric label="Deals" value={String(seller.completedDeals)} />
+                <Metric label="Safe Deal Requests" value={String(seller.safeDealRequestCount)} />
                 <Metric label="Reviews" value={summary.reviewCount === null ? "Pending" : String(summary.reviewCount)} />
                 <Metric label="Rating" value={summary.averageRating === null ? "Pending" : summary.reviewCount === 0 ? "New" : summary.averageRating.toFixed(1)} />
                 <Metric label="Since" value={formatDate(seller.memberSince)} />
