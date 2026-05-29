@@ -28,10 +28,16 @@ function reputationValue(summary: SellerReviewSummary) {
 
 function reputationLabel(summary: SellerReviewSummary) {
   if (summary.averageRating === null || summary.reviewCount === null) {
-    return "TrustLayer projection pending";
+    return "Reputation projection unavailable";
   }
 
-  return `${summary.reviewCount} review${summary.reviewCount === 1 ? "" : "s"}`;
+  return `${summary.reviewCount} public review${summary.reviewCount === 1 ? "" : "s"}`;
+}
+
+function reputationSource(summary: SellerReviewSummary) {
+  return summary.source === "TRUSTLAYER"
+    ? "TrustLayer reputation projection"
+    : "Render buyer reviews";
 }
 
 export function SellerReviewSummary({
