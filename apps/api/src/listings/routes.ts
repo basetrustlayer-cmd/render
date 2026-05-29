@@ -274,12 +274,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       where: { id: parsed.data.id },
       select: {
         id: true,
-        isSuspended: true,
-        reviewsReceived: {
-          select: {
-            rating: true
-          }
-        }
+        isSuspended: true
       }
     });
 
@@ -307,17 +302,11 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       take: 10
     });
 
-    const reviewCount = seller.reviewsReceived.length;
-    const averageRating =
-      reviewCount === 0
-        ? 0
-        : seller.reviewsReceived.reduce((total, review) => total + review.rating, 0) /
-          reviewCount;
-
     return {
       summary: {
-        averageRating,
-        reviewCount
+        averageRating: null,
+        reviewCount: null,
+        source: "TRUSTLAYER_REPUTATION_PROJECTION_PENDING"
       },
       reviews: reviews.map((review) => ({
         id: review.id,
