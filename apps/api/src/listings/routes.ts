@@ -3,6 +3,7 @@ import { createTrustLayerClient, getVerifiedVerificationStatuses } from "@render
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../database/client.js";
+import { getSellerListingQuota } from "../billing/listing-quota.js";
 import { authenticate, requireAuthUser } from "../auth/middleware.js";
 import { writeAuditLog } from "../audit/log.js";
 import { resolveOptionalOrganizationContext, requireListingOrganizationAccess } from "../organizations/context.js";
@@ -431,6 +432,25 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       return reply.code(403).send({ error: "Invalid organization context." });
     }
 
+    const quota = await getSellerListingQuota(prisma, {
+      sellerId: authUser.userId,
+      organizationId: organizationMembership?.organizationId ?? null
+    });
+
+    if (!quota.allowed) {
+      return reply.code(402).send({
+        error: "LISTING_LIMIT_REACHED",
+        upgradeRequired: true,
+        message: "Free seller listing limit reached. Upgrade or pay for additional listings.",
+        plan: quota.plan,
+        usage: {
+          activeListings: quota.activeListings,
+          activeListingLimit: quota.activeListingLimit,
+          remainingListings: quota.remainingListings
+        }
+      });
+    }
+
     const seller = await prisma.user.findUnique({
       where: { id: authUser.userId },
       select: { id: true, trustlayerUserId: true }
@@ -509,11 +529,12 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
         reasons: riskAssessment.reasons ?? []
       },
       billing: {
-        status: "PENDING_PAYMENT",
-        amount: "25.00",
-        currency: "GHS",
-        provider: "PROCESSOR_PENDING",
-        message: "Listing fee payment is required before this listing can go live."
+        status: "FREE_PLAN_INCLUDED",
+        planCode: quota.plan.code,
+        activeListingLimit: quota.activeListingLimit,
+        activeListingsAfterCreate: quota.activeListings + 1,
+        currency: quota.plan.currency,
+        message: `Free plan listing ${quota.activeListings + 1}/${quota.activeListingLimit} used.`
       }
     });
   });

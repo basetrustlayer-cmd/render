@@ -108,7 +108,7 @@ export default function CreateListingPage() {
       await uploadImages(created.listing.id);
 
       const billingNotice = created.billing
-        ? `?billing=${encodeURIComponent(`${created.billing.currency} ${created.billing.amount} listing fee pending`)}`
+        ? `?billing=${encodeURIComponent(created.billing.message)}`
         : "";
 
       router.push(`/dashboard/listings/${created.listing.id}/edit${billingNotice}`);

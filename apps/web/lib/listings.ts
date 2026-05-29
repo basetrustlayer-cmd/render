@@ -31,10 +31,13 @@ export type CreateListingResponse = {
     id: string;
   };
   billing?: {
-    status: "PENDING_PAYMENT";
-    amount: string;
+    status: "FREE_PLAN_INCLUDED" | "PENDING_PAYMENT";
+    planCode?: string;
+    activeListingLimit?: number;
+    activeListingsAfterCreate?: number;
+    amount?: string;
     currency: "GHS";
-    provider: "PROCESSOR_PENDING";
+    provider?: "PROCESSOR_PENDING";
     message: string;
   };
 };
