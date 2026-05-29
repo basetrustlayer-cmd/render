@@ -83,6 +83,17 @@ function defaultListingExpiresAt(): Date {
   return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 }
 
+const updateListingSchema = z.object({
+  title: z.string().min(3).max(120).optional(),
+  description: z.string().min(10).max(5000).optional(),
+  price: z.coerce.number().positive().optional(),
+  category: z.enum(["VEHICLES", "REAL_ESTATE", "ELECTRONICS", "JOBS", "SERVICES", "FASHION"]).optional(),
+  condition: z.enum(["NEW", "LIKE_NEW", "GOOD", "FAIR"]).optional(),
+  locationRegion: z.string().min(2).max(120).optional()
+}).refine((value) => Object.keys(value).length > 0, {
+  message: "At least one listing field is required."
+});
+
 const listingInclude = {
   images: {
     orderBy: [{ isCover: "desc" as const }, { sortOrder: "asc" as const }, { createdAt: "asc" as const }]
@@ -498,6 +509,61 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
         reasons: riskAssessment.reasons ?? []
       }
     });
+  });
+
+  app.put("/listings/:id", { preHandler: authenticate }, async (request, reply) => {
+    const authUser = requireAuthUser(request);
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    const parsed = updateListingSchema.safeParse(request.body);
+
+    if (!params.success || !parsed.success) {
+      return reply.code(400).send({ error: "Invalid listing update payload." });
+    }
+
+    const listing = await prisma.listing.findFirst({
+      where: {
+        id: params.data.id,
+        deletedAt: null
+      },
+      select: {
+        id: true,
+        sellerId: true,
+        organizationId: true
+      }
+    });
+
+    if (!listing) {
+      return reply.code(404).send({ error: "Listing not found." });
+    }
+
+    if (listing.sellerId !== authUser.userId) {
+      return reply.code(403).send({ error: "Only the listing owner can edit this listing." });
+    }
+
+    const updated = await prisma.listing.update({
+      where: { id: listing.id },
+      data: {
+        ...parsed.data,
+        status: "PENDING",
+        fraudRiskScore: null
+      },
+      include: listingInclude
+    });
+
+    void writeAuditLog({
+      request,
+      actorUserId: authUser.userId,
+      organizationId: listing.organizationId,
+      action: "LISTING_UPDATED_BY_OWNER",
+      entityType: "LISTING",
+      entityId: listing.id,
+      metadata: {
+        updatedFields: Object.keys(parsed.data),
+        moderationStatus: "PENDING"
+      }
+    });
+
+    return { listing: updated };
   });
 
   app.get("/listings/:id/images", async (request, reply) => {

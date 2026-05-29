@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ChangeEvent, useEffect, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { DashboardShell } from "../../../../../components/dashboard/dashboard-shell";
 import { apiFetch } from "../../../../../lib/api";
 import {
   addListingImage,
-  getListingImageUploadSignature
+  getListingImageUploadSignature,
+  updateListing
 } from "../../../../../lib/listings";
 import { useAuthStore } from "../../../../../store/auth";
 
@@ -20,26 +21,46 @@ type ListingImage = {
 type ListingDetail = {
   id: string;
   title: string;
-  price: string;
+  description?: string | null;
+  price: string | number;
   category: string;
+  condition?: string | null;
+  locationRegion?: string | null;
   status: string;
   images: ListingImage[];
 };
 
-export default function EditListingPhotosPage() {
+export default function EditListingPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const hydrate = useAuthStore((state) => state.hydrate);
 
   const [listing, setListing] = useState<ListingDetail | null>(null);
+  const [form, setForm] = useState({
+    title: "",
+    description: "",
+    price: "",
+    category: "VEHICLES",
+    condition: "GOOD",
+    locationRegion: ""
+  });
   const [files, setFiles] = useState<FileList | null>(null);
+  const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function loadListing() {
     const result = await apiFetch<{ listing: ListingDetail }>(`/listings/${params.id}`);
     setListing(result.listing);
+    setForm({
+      title: result.listing.title ?? "",
+      description: result.listing.description ?? "",
+      price: String(result.listing.price ?? ""),
+      category: result.listing.category ?? "VEHICLES",
+      condition: result.listing.condition ?? "GOOD",
+      locationRegion: result.listing.locationRegion ?? ""
+    });
   }
 
   useEffect(() => {
@@ -58,6 +79,30 @@ export default function EditListingPhotosPage() {
     setFiles(event.target.files);
   }
 
+  async function saveListing(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving(true);
+    setError(null);
+
+    try {
+      await updateListing(params.id, {
+        title: form.title,
+        description: form.description,
+        price: Number(form.price),
+        category: form.category as any,
+        condition: form.condition as any,
+        locationRegion: form.locationRegion
+      });
+
+      router.push(`/listings/${params.id}`);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to save listing.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function uploadPhotos() {
     if (!files || files.length === 0) {
       setError("Choose at least one image.");
@@ -71,22 +116,22 @@ export default function EditListingPhotosPage() {
       const signature = await getListingImageUploadSignature(params.id);
 
       for (const [index, file] of Array.from(files).entries()) {
-        const form = new FormData();
+        const formData = new FormData();
         const cloudinaryApiKey = process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY;
 
         if (!cloudinaryApiKey) {
           throw new Error("NEXT_PUBLIC_CLOUDINARY_API_KEY is required.");
         }
 
-        form.append("file", file);
-        form.append("api_key", cloudinaryApiKey);
-        form.append("timestamp", String(signature.timestamp));
-        form.append("folder", signature.folder);
-        form.append("signature", signature.signature);
+        formData.append("file", file);
+        formData.append("api_key", cloudinaryApiKey);
+        formData.append("timestamp", String(signature.timestamp));
+        formData.append("folder", signature.folder);
+        formData.append("signature", signature.signature);
 
         const response = await fetch(signature.uploadUrl, {
           method: "POST",
-          body: form
+          body: formData
         });
 
         const uploaded = (await response.json()) as {
@@ -107,8 +152,7 @@ export default function EditListingPhotosPage() {
         });
       }
 
-      router.push(`/listings/${params.id}`);
-      router.refresh();
+      await loadListing();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to upload photos.");
     } finally {
@@ -124,12 +168,12 @@ export default function EditListingPhotosPage() {
         </Link>
 
         <div className="mt-6 flex flex-col gap-2">
-          <p className="text-sm font-semibold text-amber-700">Listing Photos</p>
+          <p className="text-sm font-semibold text-amber-700">Edit Listing</p>
           <h2 className="text-2xl font-bold text-gray-900">
             {listing?.title ?? "Edit Listing"}
           </h2>
           <p className="text-gray-600">
-            Add photos to this listing. The first uploaded photo becomes the cover if no image exists.
+            Update listing details or add photos. Saved corrections return the listing to pending moderation.
           </p>
         </div>
 
@@ -139,7 +183,72 @@ export default function EditListingPhotosPage() {
           </div>
         )}
 
-        <div className="mt-6 grid gap-4">
+        <form onSubmit={saveListing} className="mt-6 grid gap-4">
+          <input
+            value={form.title}
+            onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
+            className="rounded-xl border px-4 py-3"
+            placeholder="Title"
+          />
+
+          <textarea
+            value={form.description}
+            onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
+            className="min-h-32 rounded-xl border px-4 py-3"
+            placeholder="Description"
+          />
+
+          <input
+            value={form.price}
+            onChange={(event) => setForm((current) => ({ ...current, price: event.target.value }))}
+            className="rounded-xl border px-4 py-3"
+            placeholder="Price"
+            inputMode="decimal"
+          />
+
+          <select
+            value={form.category}
+            onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))}
+            className="rounded-xl border px-4 py-3"
+          >
+            <option value="VEHICLES">Vehicles</option>
+            <option value="REAL_ESTATE">Real Estate</option>
+            <option value="ELECTRONICS">Electronics</option>
+            <option value="JOBS">Jobs</option>
+            <option value="SERVICES">Services</option>
+            <option value="FASHION">Fashion</option>
+          </select>
+
+          <select
+            value={form.condition}
+            onChange={(event) => setForm((current) => ({ ...current, condition: event.target.value }))}
+            className="rounded-xl border px-4 py-3"
+          >
+            <option value="NEW">New</option>
+            <option value="LIKE_NEW">Like New</option>
+            <option value="GOOD">Good</option>
+            <option value="FAIR">Fair</option>
+          </select>
+
+          <input
+            value={form.locationRegion}
+            onChange={(event) => setForm((current) => ({ ...current, locationRegion: event.target.value }))}
+            className="rounded-xl border px-4 py-3"
+            placeholder="Region"
+          />
+
+          <button
+            type="submit"
+            disabled={saving || !user}
+            className="rounded-xl bg-gray-900 px-5 py-3 font-semibold text-white disabled:bg-gray-400"
+          >
+            {saving ? "Saving..." : "Save Listing Corrections"}
+          </button>
+        </form>
+
+        <div className="mt-8 grid gap-4 border-t pt-6">
+          <h3 className="text-lg font-bold text-gray-900">Listing Photos</h3>
+
           {listing?.images?.length ? (
             <div className="grid gap-4 md:grid-cols-3">
               {listing.images.map((image) => (

@@ -9,6 +9,16 @@ export type CreateListingInput = {
   locationRegion?: string;
 };
 
+
+export type UpdateListingInput = Partial<CreateListingInput>;
+
+export async function updateListing(listingId: string, input: UpdateListingInput) {
+  return apiFetch(`/listings/${listingId}`, {
+    method: "PUT",
+    body: JSON.stringify(input)
+  });
+}
+
 export type ListingImageInput = {
   url: string;
   cloudinaryId: string;
