@@ -11,15 +11,15 @@ function projectionBadge(label: string, freshness?: string) {
 }
 
 function dealStatus(deal: SafeDeal): string {
-  return deal.escrowStatusCached ?? dealStatus(deal) ?? "PENDING";
+  return deal.escrowStatusCached ?? deal.status ?? "PENDING";
 }
 
 function dealAmount(deal: SafeDeal): string {
-  return deal.escrowAmountCached ?? dealAmount(deal) ?? "0.00";
+  return deal.escrowAmountCached ?? deal.amount ?? "0.00";
 }
 
 function dealFee(deal: SafeDeal): string {
-  return deal.escrowFeeCached ?? dealFee(deal) ?? "0.00";
+  return deal.escrowFeeCached ?? deal.feeAmount ?? "0.00";
 }
 
 type SafeDeal = {
