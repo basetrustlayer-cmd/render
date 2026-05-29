@@ -67,6 +67,73 @@ function freshnessLabel(value?: ProjectionFreshness): string {
   return value.state ?? "UNKNOWN";
 }
 
+const lifecycleSteps = ["PENDING", "FUNDED", "DELIVERED", "CONFIRMED", "COMPLETE"];
+
+function lifecycleIndex(status: string) {
+  const index = lifecycleSteps.indexOf(status);
+  return index === -1 ? 0 : index;
+}
+
+function SafeDealLifecycle({
+  status,
+  escrowFreshness,
+  disputeStatus
+}: {
+  status: string;
+  escrowFreshness?: ProjectionFreshness;
+  disputeStatus?: string | null;
+}) {
+  const currentIndex = lifecycleIndex(status);
+  const freshness = freshnessLabel(escrowFreshness);
+
+  return (
+    <section className="rounded-2xl border border-gray-200 bg-white p-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-bold uppercase tracking-wide text-amber-700">
+            Safe Deal lifecycle
+          </p>
+          <h2 className="text-xl font-black text-gray-950">{status}</h2>
+        </div>
+        <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-bold text-gray-700">
+          Escrow projection: {freshness}
+        </span>
+      </div>
+
+      <div className="mt-5 grid gap-3 sm:grid-cols-5">
+        {lifecycleSteps.map((step, index) => {
+          const isComplete = index < currentIndex;
+          const isCurrent = index === currentIndex;
+
+          return (
+            <div
+              key={step}
+              className={`rounded-2xl border p-3 text-sm ${
+                isCurrent
+                  ? "border-emerald-300 bg-emerald-50 text-emerald-900"
+                  : isComplete
+                    ? "border-gray-200 bg-gray-50 text-gray-700"
+                    : "border-gray-200 bg-white text-gray-400"
+              }`}
+            >
+              <p className="font-black">{step}</p>
+              <p className="mt-1 text-xs">
+                {isCurrent ? "Current" : isComplete ? "Completed" : "Pending"}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      {disputeStatus && (
+        <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          Dispute projection: {disputeStatus}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function SafeDealDetailPage({ params }: { params: { id: string } }) {
   const user = useAuthStore((s) => s.user);
   const hydrate = useAuthStore((s) => s.hydrate);
@@ -151,6 +218,12 @@ export default function SafeDealDetailPage({ params }: { params: { id: string } 
 
         {safeDeal && (
           <div className="mt-6 grid gap-5">
+            <SafeDealLifecycle
+              status={currentStatus}
+              escrowFreshness={safeDeal.escrowProjection?.freshness}
+              disputeStatus={safeDeal.disputeProjection?.disputeStatusCached}
+            />
+
             <div className="grid gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4">
               <p><strong>Listing:</strong> {safeDeal.listing.title}</p>
               <p><strong>Amount:</strong> GHS {getDealAmount(safeDeal)}</p>
