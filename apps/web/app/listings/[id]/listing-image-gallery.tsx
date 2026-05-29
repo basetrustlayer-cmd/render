@@ -21,7 +21,7 @@ export function ListingImageGallery({ title, images }: Props) {
 
   if (!selected) {
     return (
-      <div className="flex h-96 w-full items-center justify-center bg-gradient-to-br from-amber-100 to-emerald-100 text-gray-600">
+      <div className="flex h-72 w-full sm:h-96 items-center justify-center bg-gradient-to-br from-amber-100 to-emerald-100 text-gray-600">
         No listing photos yet
       </div>
     );
@@ -34,7 +34,7 @@ export function ListingImageGallery({ title, images }: Props) {
         <img
           src={selected.url}
           alt={title}
-          className="h-96 w-full object-contain p-4"
+          className="h-72 w-full object-contain p-3 sm:h-96 sm:p-4"
         />
       </div>
 
@@ -58,7 +58,7 @@ export function ListingImageGallery({ title, images }: Props) {
                 <img
                   src={image.url}
                   alt={title}
-                  className="h-24 w-full rounded-xl object-contain"
+                  className="h-20 w-full rounded-xl object-contain sm:h-24"
                 />
               </button>
             );
