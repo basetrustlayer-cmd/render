@@ -13,6 +13,7 @@ type SellerLead = {
   listingId: string | null;
   listingTitle: string;
   buyerId: string | null;
+  notificationStatus?: "UNREAD" | "READ";
   createdAt: string;
 };
 
@@ -31,6 +32,8 @@ export default function SellerLeadsPage() {
   const [leads, setLeads] = useState<SellerLead[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [exportingLeadId, setExportingLeadId] = useState<string | null>(null);
+  const unreadLeads = leads.filter((lead) => lead.notificationStatus !== "READ").length;
 
   useEffect(() => {
     hydrate();
@@ -68,6 +71,26 @@ export default function SellerLeadsPage() {
     };
   }, [user?.id]);
 
+
+  async function exportToWhispeRM(leadId: string) {
+    try {
+      setExportingLeadId(leadId);
+      await apiFetch(`/leads/${leadId}/whisperm-export`, {
+        method: "POST"
+      });
+      setLeads((current) =>
+        current.map((lead) =>
+          lead.id === leadId ? { ...lead, status: "EXPORT_QUEUED" } : lead
+        )
+      );
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to export lead to WhispeRM.");
+    } finally {
+      setExportingLeadId(null);
+    }
+  }
+
   return (
     <DashboardShell>
       <section className="rounded-2xl bg-white p-5 shadow-sm">
@@ -83,7 +106,7 @@ export default function SellerLeadsPage() {
           </div>
 
           <span className="rounded-full bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-800">
-            {leads.length} lead{leads.length === 1 ? "" : "s"}
+            {unreadLeads} new · {leads.length} total
           </span>
         </div>
 
@@ -120,14 +143,25 @@ export default function SellerLeadsPage() {
                     </p>
                   </div>
 
-                  {lead.listingId ? (
-                    <Link
-                      href={`/listings/${lead.listingId}`}
-                      className="rounded-xl border border-gray-300 px-4 py-2 text-center text-sm font-bold text-gray-700 hover:bg-gray-50"
+                  <div className="flex flex-wrap gap-2">
+                    {lead.listingId ? (
+                      <Link
+                        href={`/listings/${lead.listingId}`}
+                        className="rounded-xl border border-gray-300 px-4 py-2 text-center text-sm font-bold text-gray-700 hover:bg-gray-50"
+                      >
+                        View listing
+                      </Link>
+                    ) : null}
+
+                    <button
+                      type="button"
+                      onClick={() => exportToWhispeRM(lead.id)}
+                      disabled={exportingLeadId === lead.id}
+                      className="rounded-xl bg-gray-950 px-4 py-2 text-center text-sm font-bold text-white hover:bg-black disabled:bg-gray-400"
                     >
-                      View listing
-                    </Link>
-                  ) : null}
+                      {exportingLeadId === lead.id ? "Queueing..." : "Export to WhispeRM"}
+                    </button>
+                  </div>
                 </div>
               </article>
             ))}

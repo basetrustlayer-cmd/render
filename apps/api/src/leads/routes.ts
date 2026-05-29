@@ -10,6 +10,16 @@ const whatsappLeadSchema = z.object({
   source: z.literal("WHATSAPP").default("WHATSAPP")
 });
 
+const leadIdParamsSchema = z.object({
+  id: z.string().uuid()
+});
+
+function auditMetadata(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
 export async function registerLeadRoutes(app: FastifyInstance): Promise<void> {
   app.post("/leads/whatsapp", { preHandler: authenticate }, async (request, reply) => {
     const authUser = requireAuthUser(request);
@@ -57,6 +67,24 @@ export async function registerLeadRoutes(app: FastifyInstance): Promise<void> {
         source: "WHATSAPP",
         leadSystem: "AUDIT_LOG_READ_MODEL",
         futureWhispeRMSync: true
+      }
+    });
+
+    void writeAuditLog({
+      request,
+      actorUserId: authUser.userId,
+      organizationId: listing.organizationId,
+      action: "SELLER_LEAD_RECEIVED",
+      entityType: "USER",
+      entityId: listing.sellerId,
+      metadata: {
+        listingId: listing.id,
+        listingTitle: listing.title,
+        sellerId: listing.sellerId,
+        buyerId: authUser.userId,
+        source: "WHATSAPP",
+        notificationStatus: "UNREAD",
+        notificationType: "SELLER_LEAD"
       }
     });
 
