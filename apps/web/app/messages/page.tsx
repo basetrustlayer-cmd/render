@@ -285,16 +285,8 @@ function MessagesContent() {
   }
 
   return (
-    <main style={{ minHeight: "100vh", padding: "32px" }}>
-      <section
-        style={{
-          maxWidth: "1200px",
-          margin: "0 auto",
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 360px) minmax(0, 1fr)",
-          gap: "24px"
-        }}
-      >
+    <main className="min-h-screen px-4 py-6 sm:px-8">
+      <section className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
         <aside
           style={{
             border: "1px solid var(--border)",
@@ -302,7 +294,7 @@ function MessagesContent() {
             background: "#fff",
             overflow: "hidden"
           }}
-          className="max-lg:grid-cols-1"
+          className="w-full min-w-0"
         >
           <div style={{ padding: "24px", borderBottom: "1px solid var(--border)" }}>
             <p style={{ color: "var(--gold)", fontWeight: 700, margin: 0 }}>Inbox</p>
@@ -375,7 +367,7 @@ function MessagesContent() {
             background: "#fff",
             display: "flex",
             flexDirection: "column",
-            minHeight: "720px"
+            minHeight: "min(720px, calc(100vh - 48px))"
           }}
         >
           <header style={{ padding: "24px", borderBottom: "1px solid var(--border)" }}>
@@ -477,7 +469,7 @@ function MessagesContent() {
             )}
           </div>
 
-          <footer style={{ padding: "24px", borderTop: "1px solid var(--border)" }}>
+          <footer className="p-4 sm:p-6" style={{ borderTop: "1px solid var(--border)" }}>
             {sendError ? (
               <div style={{ marginBottom: "12px", padding: "12px 14px", borderRadius: "14px", background: "#fff1f1", color: "#9f1239", fontSize: "14px" }}>
                 {sendError}
@@ -513,7 +505,7 @@ function MessagesContent() {
 
               <button
                 type="submit"
-                disabled={sending}
+                disabled={sending || !selectedConversationId}
                 style={{
                   padding: "16px 24px",
                   borderRadius: "16px",
