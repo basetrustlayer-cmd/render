@@ -175,6 +175,28 @@ export async function registerSafeDealRoutes(
 
     let conversationId: string | null = null;
 
+    const existingSafeDeal = await prisma.safeDeal.findFirst({
+      where: {
+        listingId: listing.id,
+        buyerId: authUser.userId,
+        sellerId: listing.sellerId,
+        organizationId: listing.organizationId,
+        ...(parsed.data.conversationId ? { conversationId: parsed.data.conversationId } : {})
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    if (existingSafeDeal?.checkoutUrl && existingSafeDeal.trustLayerEscrowId) {
+      return reply.code(200).send({
+        safeDeal: existingSafeDeal,
+        checkout: {
+          provider: "TRUSTLAYER",
+          authorizationUrl: existingSafeDeal.checkoutUrl,
+          escrowId: existingSafeDeal.trustLayerEscrowId,
+          status: existingSafeDeal.escrowStatusCached
+        }
+      });
+    }
   if (parsed.data.conversationId) {
     const conversation = await prisma.conversation.findFirst({
       where: {
