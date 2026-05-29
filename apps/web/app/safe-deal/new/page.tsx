@@ -2,7 +2,7 @@
 
 import { Suspense } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { apiFetch } from "../../../lib/api";
 import { useAuthStore } from "../../../store/auth";
@@ -22,6 +22,7 @@ type SafeDealResponse = {
 };
 
 function SafeDealCheckout() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const listingId = searchParams.get("listingId");
   const conversationId = searchParams.get("conversationId");
@@ -36,7 +37,7 @@ function SafeDealCheckout() {
     }
 
     if (!user?.id) {
-      setError("Please log in before starting a Safe Deal.");
+      router.push("/login");
       return;
     }
 
@@ -94,7 +95,7 @@ function SafeDealCheckout() {
 
         <button
           onClick={fundSafeDeal}
-          disabled={loading || !listingId || !user}
+          disabled={loading || !listingId}
           className="mt-8 w-full rounded-xl bg-black px-5 py-4 font-semibold text-white disabled:bg-gray-400"
         >
           {loading ? "Starting Safe Deal..." : "Fund Safe Deal"}
