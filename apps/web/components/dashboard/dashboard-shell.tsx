@@ -7,6 +7,7 @@ const navItems = [
   { href: "/dashboard/create-listing", label: "Create Listing" },
   { href: "/dashboard/safe-deals", label: "Safe Deals" },
   { href: "/dashboard/messages", label: "Messages" },
+  { href: "/dashboard/leads", label: "Leads" },
   { href: "/dashboard/profile", label: "Profile" }
 ];
 
