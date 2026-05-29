@@ -23,4 +23,11 @@ describe("whatsapp lead capture contract", () => {
     expect(source).not.toContain("prisma.lead");
     expect(source).not.toContain("lead.create");
   });
+  it("exposes seller lead dashboard read model from audit logs", () => {
+    expect(source).toContain('app.get("/leads/my", { preHandler: authenticate }');
+    expect(source).toContain('action: "WHATSAPP_LEAD_CREATED"');
+    expect(source).toContain('path: ["sellerId"]');
+    expect(source).toContain('status: "NEW"');
+  });
+
 });
