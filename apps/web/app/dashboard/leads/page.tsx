@@ -17,6 +17,8 @@ type SellerLead = {
   createdAt: string;
 };
 
+const leadStatuses = ["NEW", "CONTACTED", "NEGOTIATING", "WON", "LOST"];
+
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-GH", {
     month: "short",
@@ -71,6 +73,21 @@ export default function SellerLeadsPage() {
     };
   }, [user?.id]);
 
+
+  async function updateLeadStatus(leadId: string, status: string) {
+    try {
+      await apiFetch(`/leads/${leadId}/status`, {
+        method: "POST",
+        body: JSON.stringify({ status })
+      });
+      setLeads((current) =>
+        current.map((lead) => (lead.id === leadId ? { ...lead, status } : lead))
+      );
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to update lead status.");
+    }
+  }
 
   async function exportToWhispeRM(leadId: string) {
     try {
@@ -152,6 +169,18 @@ export default function SellerLeadsPage() {
                         View listing
                       </Link>
                     ) : null}
+
+                    <select
+                      value={lead.status}
+                      onChange={(event) => updateLeadStatus(lead.id, event.target.value)}
+                      className="rounded-xl border border-gray-300 px-3 py-2 text-sm font-bold text-gray-700"
+                    >
+                      {leadStatuses.map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </select>
 
                     <button
                       type="button"
