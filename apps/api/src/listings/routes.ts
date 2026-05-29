@@ -507,6 +507,13 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
         decision: riskAssessment.decision,
         riskScore: riskAssessment.riskScore,
         reasons: riskAssessment.reasons ?? []
+      },
+      billing: {
+        status: "PENDING_PAYMENT",
+        amount: "25.00",
+        currency: "GHS",
+        provider: "PROCESSOR_PENDING",
+        message: "Listing fee payment is required before this listing can go live."
       }
     });
   });

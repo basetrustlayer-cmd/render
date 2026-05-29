@@ -107,7 +107,11 @@ export default function CreateListingPage() {
 
       await uploadImages(created.listing.id);
 
-      router.push("/dashboard/listings");
+      const billingNotice = created.billing
+        ? `?billing=${encodeURIComponent(`${created.billing.currency} ${created.billing.amount} listing fee pending`)}`
+        : "";
+
+      router.push(`/dashboard/listings/${created.listing.id}/edit${billingNotice}`);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to create listing.");

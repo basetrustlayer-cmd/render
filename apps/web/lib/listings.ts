@@ -30,6 +30,13 @@ export type CreateListingResponse = {
   listing: {
     id: string;
   };
+  billing?: {
+    status: "PENDING_PAYMENT";
+    amount: string;
+    currency: "GHS";
+    provider: "PROCESSOR_PENDING";
+    message: string;
+  };
 };
 
 export async function createListing(input: CreateListingInput): Promise<CreateListingResponse> {
