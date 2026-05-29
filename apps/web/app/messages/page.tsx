@@ -44,9 +44,7 @@ function getTrustLabel(input: {
   trustTier: string | null;
   verificationLevel: number;
 }): string {
-  if (input.trustTier) return input.trustTier;
-  if (input.verificationLevel > 0) return "VERIFIED";
-  return "NEW";
+  return input.trustTier ?? "Pending TrustLayer sync";
 }
 
 function MessagesContent() {

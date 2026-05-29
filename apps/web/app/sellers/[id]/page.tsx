@@ -51,7 +51,7 @@ export default async function SellerStorefrontPage({ params }: PageProps) {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[620px]">
-              <Metric label="TrustScore" value={`${seller.trustScore}/1000`} />
+              <Metric label="TrustScore" value={seller.trustScore === null ? "Pending" : `${seller.trustScore}/1000`} />
               <Metric label="Listings" value={String(seller.activeListings)} />
               <Metric label="Deals" value={String(seller.completedDeals)} />
               <Metric label="Reviews" value={summary.reviewCount === null ? "Pending" : String(summary.reviewCount)} />

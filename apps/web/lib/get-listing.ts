@@ -20,7 +20,7 @@ export type SellerProfile = {
   verificationLevel: number;
   verificationStatus: string;
   trustScore: number | null;
-  trustTier: string;
+  trustTier: string | null;
   trustBadge?: string | null;
   trustLastSyncedAt?: string | null;
   reviewCount: number;
