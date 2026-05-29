@@ -289,7 +289,7 @@ function MessagesContent() {
           maxWidth: "1200px",
           margin: "0 auto",
           display: "grid",
-          gridTemplateColumns: "360px 1fr",
+          gridTemplateColumns: "minmax(0, 360px) minmax(0, 1fr)",
           gap: "24px"
         }}
       >
@@ -300,6 +300,7 @@ function MessagesContent() {
             background: "#fff",
             overflow: "hidden"
           }}
+          className="max-lg:grid-cols-1"
         >
           <div style={{ padding: "24px", borderBottom: "1px solid var(--border)" }}>
             <p style={{ color: "var(--gold)", fontWeight: 700, margin: 0 }}>Inbox</p>
