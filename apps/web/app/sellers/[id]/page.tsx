@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ListingCard } from "../../../components/listing-card";
 import { TrustScoreBadge } from "../../../components/trust-score-badge";
 import { VerificationBadge } from "../../../components/verification-badge";
+import { TrustLayerFreshnessCard } from "../../../components/trustlayer-freshness-card";
 import { SellerReviewSummary } from "../../../components/seller-review-summary";
 import { getSeller, getSellerListings } from "../../../lib/get-seller";
 import { getSellerReviews } from "../../../lib/get-seller-reviews";
@@ -70,6 +71,9 @@ export default async function SellerStorefrontPage({ params }: PageProps) {
                 <div className="mt-5">
                   <TrustScoreBadge score={seller.trustScore} tier={seller.trustTier} />
                   <p className="mt-2 text-xs text-gray-500">{formatTrustSyncedAt(seller.trustLastSyncedAt)}</p>
+                </div>
+                <div className="mt-4">
+                  <TrustLayerFreshnessCard lastSyncedAt={seller.trustLastSyncedAt} status={seller.verificationStatus} />
                 </div>
 
                 <p className="mt-5 max-w-2xl text-sm leading-6 text-gray-600">

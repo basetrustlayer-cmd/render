@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getListing } from "../../../lib/get-listing";
 import { TrustScoreBadge } from "../../../components/trust-score-badge";
 import { VerificationBadge } from "../../../components/verification-badge";
+import { TrustLayerFreshnessCard } from "../../../components/trustlayer-freshness-card";
 import { ListingDetailActions } from "./listing-detail-actions";
 import { ListingImageGallery } from "./listing-image-gallery";
 
@@ -79,6 +80,9 @@ export default async function ListingDetailPage({ params }: PageProps) {
               <div className="mt-3">
                 <TrustScoreBadge score={seller.trustScore} tier={seller.trustTier} />
                 <p className="mt-2 text-xs text-gray-500">{formatTrustSyncedAt(seller.trustLastSyncedAt)}</p>
+              </div>
+              <div className="mt-4">
+                <TrustLayerFreshnessCard lastSyncedAt={seller.trustLastSyncedAt} status={seller.verificationStatus} />
               </div>
             </div>
 
