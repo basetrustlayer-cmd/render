@@ -18,6 +18,22 @@ function Stars({ rating }: { rating: number }) {
   );
 }
 
+function reputationValue(summary: SellerReviewSummary) {
+  if (summary.averageRating === null || summary.reviewCount === null) {
+    return "Pending";
+  }
+
+  return summary.reviewCount === 0 ? "New" : summary.averageRating.toFixed(1);
+}
+
+function reputationLabel(summary: SellerReviewSummary) {
+  if (summary.averageRating === null || summary.reviewCount === null) {
+    return "TrustLayer projection pending";
+  }
+
+  return `${summary.reviewCount} review${summary.reviewCount === 1 ? "" : "s"}`;
+}
+
 export function SellerReviewSummary({
   summary,
   reviews
@@ -36,12 +52,8 @@ export function SellerReviewSummary({
         </div>
 
         <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-right">
-          <p className="text-3xl font-black text-gray-950">
-            {summary.reviewCount === 0 ? "New" : summary.averageRating.toFixed(1)}
-          </p>
-          <p className="text-sm font-semibold text-gray-600">
-            {summary.reviewCount} review{summary.reviewCount === 1 ? "" : "s"}
-          </p>
+          <p className="text-3xl font-black text-gray-950">{reputationValue(summary)}</p>
+          <p className="text-sm font-semibold text-gray-600">{reputationLabel(summary)}</p>
         </div>
       </div>
 

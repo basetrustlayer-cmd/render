@@ -12,8 +12,9 @@ export type SellerReview = {
 };
 
 export type SellerReviewSummary = {
-  averageRating: number;
-  reviewCount: number;
+  averageRating: number | null;
+  reviewCount: number | null;
+  source?: "TRUSTLAYER_REPUTATION_PROJECTION_PENDING" | "TRUSTLAYER";
 };
 
 export async function getSellerReviews(
