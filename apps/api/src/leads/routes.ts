@@ -4,6 +4,8 @@ import { authenticate, requireAuthUser } from "../auth/middleware.js";
 import { prisma } from "../database/client.js";
 import { writeAuditLog } from "../audit/log.js";
 
+const leadStatuses = ["NEW", "CONTACTED", "NEGOTIATING", "WON", "LOST"] as const;
+
 const whatsappLeadSchema = z.object({
   listingId: z.string().uuid(),
   sellerId: z.string().uuid(),
@@ -12,6 +14,10 @@ const whatsappLeadSchema = z.object({
 
 const leadIdParamsSchema = z.object({
   id: z.string().uuid()
+});
+
+const leadStatusUpdateSchema = z.object({
+  status: z.enum(leadStatuses)
 });
 
 function auditMetadata(value: unknown): Record<string, unknown> {
@@ -96,6 +102,164 @@ export async function registerLeadRoutes(app: FastifyInstance): Promise<void> {
         listingId: listing.id,
         sellerId: listing.sellerId
       }
+    });
+  });
+
+  app.get("/leads/my", { preHandler: authenticate }, async (request) => {
+    const authUser = requireAuthUser(request);
+
+    const logs = await prisma.auditLog.findMany({
+      where: {
+        action: "WHATSAPP_LEAD_CREATED",
+        metadata: {
+          path: ["sellerId"],
+          equals: authUser.userId
+        }
+      },
+      orderBy: { createdAt: "desc" },
+      take: 50
+    });
+
+    const statusLogs = await prisma.auditLog.findMany({
+      where: {
+        action: "SELLER_LEAD_STATUS_UPDATED",
+        actorUserId: authUser.userId
+      },
+      orderBy: { createdAt: "desc" },
+      take: 200
+    });
+
+    const latestStatusByLeadId = new Map<string, string>();
+
+    statusLogs.forEach((log) => {
+      const metadata = auditMetadata(log.metadata);
+      const leadId = String(metadata.leadId ?? "");
+
+      if (leadId && !latestStatusByLeadId.has(leadId)) {
+        latestStatusByLeadId.set(leadId, String(metadata.status ?? "NEW"));
+      }
+    });
+
+    return {
+      leads: logs.map((log) => {
+        const metadata = auditMetadata(log.metadata);
+
+        return {
+          id: log.id,
+          source: metadata.source ?? "WHATSAPP",
+          status: latestStatusByLeadId.get(log.id) ?? "NEW",
+          listingId: metadata.listingId ?? log.entityId,
+          listingTitle: metadata.listingTitle ?? "Listing",
+          sellerId: metadata.sellerId ?? authUser.userId,
+          buyerId: metadata.buyerId ?? log.actorUserId,
+          whispeRMExportStatus: "NOT_EXPORTED",
+          notificationStatus: "UNREAD",
+          createdAt: log.createdAt
+        };
+      })
+    };
+  });
+
+  app.post("/leads/:id/status", { preHandler: authenticate }, async (request, reply) => {
+    const authUser = requireAuthUser(request);
+    const params = leadIdParamsSchema.safeParse(request.params);
+    const body = leadStatusUpdateSchema.safeParse(request.body);
+
+    if (!params.success || !body.success) {
+      return reply.code(400).send({ error: "Invalid lead status payload." });
+    }
+
+    const leadLog = await prisma.auditLog.findFirst({
+      where: {
+        id: params.data.id,
+        action: "WHATSAPP_LEAD_CREATED"
+      }
+    });
+
+    if (!leadLog) {
+      return reply.code(404).send({ error: "Lead not found." });
+    }
+
+    const metadata = auditMetadata(leadLog.metadata);
+
+    if (metadata.sellerId !== authUser.userId) {
+      return reply.code(403).send({ error: "Only the seller can update this lead." });
+    }
+
+    void writeAuditLog({
+      request,
+      actorUserId: authUser.userId,
+      organizationId: leadLog.organizationId,
+      action: "SELLER_LEAD_STATUS_UPDATED",
+      entityType: "LEAD",
+      entityId: leadLog.id,
+      metadata: {
+        leadId: leadLog.id,
+        status: body.data.status,
+        listingId: metadata.listingId ?? leadLog.entityId,
+        sellerId: metadata.sellerId,
+        buyerId: metadata.buyerId ?? leadLog.actorUserId
+      }
+    });
+
+    return {
+      ok: true,
+      leadId: leadLog.id,
+      status: body.data.status
+    };
+  });
+
+  app.post("/leads/:id/whisperm-export", { preHandler: authenticate }, async (request, reply) => {
+    const authUser = requireAuthUser(request);
+    const params = leadIdParamsSchema.safeParse(request.params);
+
+    if (!params.success) {
+      return reply.code(400).send({ error: "Invalid lead ID." });
+    }
+
+    const leadLog = await prisma.auditLog.findFirst({
+      where: {
+        id: params.data.id,
+        action: "WHATSAPP_LEAD_CREATED"
+      }
+    });
+
+    if (!leadLog) {
+      return reply.code(404).send({ error: "Lead not found." });
+    }
+
+    const metadata = auditMetadata(leadLog.metadata);
+
+    if (metadata.sellerId !== authUser.userId) {
+      return reply.code(403).send({ error: "Only the seller can export this lead." });
+    }
+
+    void writeAuditLog({
+      request,
+      actorUserId: authUser.userId,
+      organizationId: leadLog.organizationId,
+      action: "WHISPERM_LEAD_EXPORT_QUEUED",
+      entityType: "LEAD",
+      entityId: leadLog.id,
+      metadata: {
+        sourceLeadAuditLogId: leadLog.id,
+        source: "RENDER",
+        channel: metadata.source ?? "WHATSAPP",
+        listingId: metadata.listingId ?? leadLog.entityId,
+        listingTitle: metadata.listingTitle ?? "Listing",
+        sellerId: metadata.sellerId,
+        buyerId: metadata.buyerId ?? leadLog.actorUserId,
+        exportStatus: "QUEUED",
+        integration: "WHISPERM",
+        externalSync: "PENDING_IMPLEMENTATION"
+      }
+    });
+
+    return reply.code(202).send({
+      ok: true,
+      exportStatus: "QUEUED",
+      integration: "WHISPERM",
+      externalSync: "PENDING_IMPLEMENTATION"
     });
   });
 }
