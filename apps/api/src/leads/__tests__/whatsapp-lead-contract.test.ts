@@ -44,4 +44,11 @@ describe("whatsapp lead capture contract", () => {
     expect(source).not.toContain("sendOtpSms");
   });
 
+  it("exposes seller lead status pipeline through audit log events", () => {
+    expect(source).toContain('const leadStatuses = ["NEW", "CONTACTED", "NEGOTIATING", "WON", "LOST"] as const');
+    expect(source).toContain('app.post("/leads/:id/status", { preHandler: authenticate }');
+    expect(source).toContain("SELLER_LEAD_STATUS_UPDATED");
+    expect(source).toContain("latestStatusByLeadId");
+  });
+
 });
