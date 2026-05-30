@@ -413,6 +413,8 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
         seller: {
           select: {
             id: true,
+            phone: true,
+            email: true,
             verificationLevel: true,
             verificationStatusCached: true,
             trustScore: true,
@@ -440,9 +442,12 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
 
     const seller = {
       id: listing.seller.id,
-      displayName: listing.seller.isBusiness
-        ? "Verified Business Seller"
-        : "Verified Render Seller",
+      displayName:
+        listing.seller.phone ??
+        listing.seller.email ??
+        (listing.seller.isBusiness
+          ? "Verified Business Seller"
+          : "Verified Render Seller"),
       whatsappNumber: listing.seller.whatsappNumber,
       verificationLevel: listing.seller.verificationLevel,
       verificationStatus: listing.seller.verificationStatusCached ?? "Verification Pending",
