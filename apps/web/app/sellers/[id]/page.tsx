@@ -1,9 +1,10 @@
 import Link from "next/link";
+import { CopyStorefrontLink } from "../../../components/copy-storefront-link";
 import { ListingCard } from "../../../components/listing-card";
+import { SellerReviewSummary } from "../../../components/seller-review-summary";
+import { TrustLayerFreshnessCard } from "../../../components/trustlayer-freshness-card";
 import { TrustScoreBadge } from "../../../components/trust-score-badge";
 import { VerificationBadge } from "../../../components/verification-badge";
-import { TrustLayerFreshnessCard } from "../../../components/trustlayer-freshness-card";
-import { SellerReviewSummary } from "../../../components/seller-review-summary";
 import { getSeller, getSellerListings } from "../../../lib/get-seller";
 import { getSellerReviews } from "../../../lib/get-seller-reviews";
 
@@ -24,10 +25,6 @@ function formatTrustSyncedAt(value?: string | null) {
   return value ? `Trust data last synced ${formatDate(value)}` : "Trust data sync pending";
 }
 
-function storefrontUrl(id: string) {
-  return `/sellers/${id}`;
-}
-
 export default async function SellerStorefrontPage({ params }: PageProps) {
   const [{ seller }, { listings }, { summary, reviews }] = await Promise.all([
     getSeller(params.id),
@@ -43,12 +40,7 @@ export default async function SellerStorefrontPage({ params }: PageProps) {
             ← Back to listings
           </Link>
 
-          <Link
-            href={storefrontUrl(seller.id)}
-            className="rounded-full border border-gray-200 bg-white px-4 py-2 text-center text-xs font-bold text-gray-700 shadow-sm hover:bg-gray-50"
-          >
-            Share storefront
-          </Link>
+          <CopyStorefrontLink sellerId={seller.id} />
         </div>
 
         <section className="mt-6 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
@@ -72,6 +64,7 @@ export default async function SellerStorefrontPage({ params }: PageProps) {
                   <TrustScoreBadge score={seller.trustScore} tier={seller.trustTier} />
                   <p className="mt-2 text-xs text-gray-500">{formatTrustSyncedAt(seller.trustLastSyncedAt)}</p>
                 </div>
+
                 <div className="mt-4">
                   <TrustLayerFreshnessCard lastSyncedAt={seller.trustLastSyncedAt} status={seller.verificationStatus} />
                 </div>
