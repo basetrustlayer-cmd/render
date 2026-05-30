@@ -9,6 +9,7 @@ import { useAuthStore } from "../../../store/auth";
 type SellerLead = {
   id: string;
   source: string;
+  whispeRMExportStatus?: string;
   status: string;
   listingId: string | null;
   listingTitle: string;
@@ -97,7 +98,7 @@ export default function SellerLeadsPage() {
       });
       setLeads((current) =>
         current.map((lead) =>
-          lead.id === leadId ? { ...lead, status: "EXPORT_QUEUED" } : lead
+          lead.id === leadId ? { ...lead, whispeRMExportStatus: "QUEUED" } : lead
         )
       );
       setError(null);
@@ -188,7 +189,11 @@ export default function SellerLeadsPage() {
                       disabled={exportingLeadId === lead.id}
                       className="rounded-xl bg-gray-950 px-4 py-2 text-center text-sm font-bold text-white hover:bg-black disabled:bg-gray-400"
                     >
-                      {exportingLeadId === lead.id ? "Queueing..." : "Export to WhispeRM"}
+                      {exportingLeadId === lead.id
+                ? "Queueing..."
+                : lead.whispeRMExportStatus === "QUEUED"
+                  ? "WhispeRM export queued"
+                  : "Queue WhispeRM export"}
                     </button>
                   </div>
                 </div>
