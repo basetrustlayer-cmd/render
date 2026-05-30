@@ -18,6 +18,7 @@ export default function CreateListingPage() {
   const user = useAuthStore((state) => state.user);
   const hydrate = useAuthStore((state) => state.hydrate);
 
+  const [hydrated, setHydrated] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
@@ -30,7 +31,14 @@ export default function CreateListingPage() {
 
   useEffect(() => {
     hydrate();
+    setHydrated(true);
   }, [hydrate]);
+
+  useEffect(() => {
+    if (hydrated && !user?.id) {
+      router.replace("/login?next=/dashboard/create-listing");
+    }
+  }, [hydrated, user?.id, router]);
 
   async function uploadImages(listingId: string) {
     if (!imageFiles || imageFiles.length === 0) return;
@@ -81,7 +89,7 @@ export default function CreateListingPage() {
     event.preventDefault();
 
     if (!user?.id) {
-      setError("Please sign in before creating a listing.");
+      router.replace("/login?next=/dashboard/create-listing");
       return;
     }
 
@@ -120,11 +128,26 @@ export default function CreateListingPage() {
     }
   }
 
+  if (!hydrated || !user?.id) {
+    return (
+      <DashboardShell>
+        <div className="rounded-2xl bg-white p-5 shadow-sm">
+          <h2 className="text-xl font-bold text-gray-900">Phone verification required</h2>
+          <p className="mt-2 text-gray-600">
+            Please verify your phone number before creating a listing.
+          </p>
+        </div>
+      </DashboardShell>
+    );
+  }
+
   return (
     <DashboardShell>
       <div className="rounded-2xl bg-white p-5 shadow-sm">
         <h2 className="text-xl font-bold text-gray-900">Create Listing</h2>
-        <p className="mt-2 text-gray-600">Add a marketplace item and upload listing photos.</p>
+        <p className="mt-2 text-gray-600">
+          Add a marketplace item and upload listing photos. Phone verification is required before publishing.
+        </p>
 
         {error && (
           <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
@@ -153,7 +176,7 @@ export default function CreateListingPage() {
             </select>
           </div>
 
-          <button disabled={submitting || !user} className="rounded-xl bg-gray-900 px-5 py-3 font-semibold text-white disabled:bg-gray-400">
+          <button disabled={submitting} className="rounded-xl bg-gray-900 px-5 py-3 font-semibold text-white disabled:bg-gray-400">
             {submitting ? "Creating listing..." : "Create Listing"}
           </button>
         </form>
