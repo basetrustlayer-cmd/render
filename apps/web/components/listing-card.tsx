@@ -58,7 +58,7 @@ export function ListingCard({ listing, imageHeightClass = "h-44" }: ListingCardP
             listingTitle={listing.title}
           />
           <Link
-            href={`/safe-deal/new?listingId=${listing.id}`}
+            href={`/login?next=/safe-deal/new?listingId=${listing.id}`}
             className="rounded-xl bg-amber-500 px-3 py-2 text-center text-xs font-bold text-gray-950 hover:bg-amber-400"
           >
             Start Safe Deal

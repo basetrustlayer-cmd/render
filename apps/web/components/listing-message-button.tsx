@@ -30,7 +30,7 @@ export function ListingMessageButton({
 
   async function handleClick() {
     if (!accessToken || !user?.id) {
-      router.push("/login");
+      router.push(`/login?next=/listings/${listingId}`);
       return;
     }
 
