@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { JsonLd } from "../components/json-ld";
 import { ListingCard } from "../components/listing-card";
 import { getListings } from "../lib/get-listings";
 
@@ -17,8 +18,23 @@ export default async function HomePage() {
   const { listings } = await getListings();
   const featured = listings.slice(0, 6);
 
+  const websiteJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "Render.com.gh",
+    url: "https://render.com.gh",
+    description: "Ghana marketplace for verified listings, buyer-seller messaging, and TrustLayer-powered trust projections.",
+    potentialAction: {
+      "@type": "SearchAction",
+      target: "https://render.com.gh/listings?q={search_term_string}",
+      "query-input": "required name=search_term_string"
+    }
+  };
+
   return (
     <main className="min-h-screen bg-gray-50">
+      <JsonLd data={websiteJsonLd} />
+
       <section className="bg-gradient-to-br from-gray-950 via-gray-900 to-amber-950 px-6 py-16 text-white">
         <div className="mx-auto max-w-7xl">
           <p className="text-sm font-bold uppercase tracking-wide text-amber-300">
