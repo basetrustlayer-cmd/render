@@ -12,20 +12,16 @@ type Props = {
   listingTitle: string;
 };
 
-const buttonBlack =
-  "rounded-xl bg-gray-950 px-5 py-3 text-sm font-bold text-white hover:bg-black";
+const primaryButton =
+  "w-full rounded-xl bg-amber-500 px-5 py-3 text-center text-sm font-black text-gray-950 shadow-sm hover:bg-amber-400 sm:w-auto";
 
-const buttonAmber =
-  "rounded-xl bg-amber-500 px-5 py-3 text-sm font-bold text-gray-950 hover:bg-amber-400";
+const secondaryButton =
+  "w-full rounded-xl bg-gray-950 px-5 py-3 text-center text-sm font-bold text-white hover:bg-black sm:w-auto";
 
-const buttonGreen =
-  "rounded-xl border border-emerald-600 bg-emerald-50 px-5 py-3 text-sm font-bold text-emerald-800 hover:bg-emerald-100";
+const ownerButton =
+  "w-full rounded-xl border border-emerald-600 bg-emerald-50 px-5 py-3 text-center text-sm font-bold text-emerald-800 hover:bg-emerald-100 sm:w-auto";
 
-export function ListingDetailActions({
-  listingId,
-  sellerId,
-  listingTitle
-}: Props) {
+export function ListingDetailActions({ listingId, sellerId, listingTitle }: Props) {
   const router = useRouter();
   const { accessToken, user, hydrate } = useAuthStore();
   const [loading, setLoading] = useState(false);
@@ -72,39 +68,36 @@ export function ListingDetailActions({
 
   if (isOwner) {
     return (
-      <>
-        <Link
-          href={`/dashboard/listings/${listingId}/edit`}
-          className={buttonBlack}
-        >
+      <div className="grid w-full gap-3 sm:flex sm:flex-wrap">
+        <Link href={`/dashboard/listings/${listingId}/edit`} className={secondaryButton}>
           Manage listing
         </Link>
 
-        <Link href="/dashboard/safe-deals" className={buttonGreen}>
+        <Link href="/dashboard/safe-deals" className={ownerButton}>
           Review Safe Deal Requests
         </Link>
-      </>
+      </div>
     );
   }
 
   return (
-    <>
+    <div className="grid w-full gap-3 sm:flex sm:flex-wrap">
       <button
         type="button"
-        onClick={messageSeller}
-        disabled={loading}
-        className={buttonBlack}
+        onClick={startSafeDeal}
+        className={primaryButton}
       >
-        {loading ? "Opening..." : "Message seller"}
+        Start Safe Deal
       </button>
 
       <button
         type="button"
-        onClick={startSafeDeal}
-        className={buttonAmber}
+        onClick={messageSeller}
+        disabled={loading}
+        className={secondaryButton}
       >
-        Start Safe Deal
+        {loading ? "Opening..." : "Message seller"}
       </button>
-    </>
+    </div>
   );
 }
