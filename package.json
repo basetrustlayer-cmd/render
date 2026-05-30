@@ -9,6 +9,10 @@
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
     "api:build": "pnpm --filter @render/api build",
-    "api:start": "pnpm --filter @render/api start"
+    "api:start": "pnpm --filter @render/api start",
+    "worker:build": "pnpm --filter @render/worker build",
+    "worker:start": "pnpm --filter @render/worker start",
+    "worker:lint": "pnpm --filter @render/worker lint",
+    "worker:test": "pnpm --filter @render/worker test"
   }
 }
