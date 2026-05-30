@@ -16,7 +16,7 @@ function resolveCoverImage(listing: Listing): string | undefined {
   );
 }
 
-export function ListingCard({ listing, imageHeightClass = "h-52" }: ListingCardProps) {
+export function ListingCard({ listing, imageHeightClass = "h-56" }: ListingCardProps) {
   const coverImage = resolveCoverImage(listing);
   const score = listing.seller?.trustScore ?? null;
   const tier = listing.seller?.trustTier ?? null;
@@ -42,7 +42,9 @@ export function ListingCard({ listing, imageHeightClass = "h-52" }: ListingCardP
           <VerificationBadge status={verificationStatus} compact />
         </div>
 
-        <h3 className="mt-2 text-xl font-bold text-gray-950">{listing.title}</h3>
+        <h3 className="mt-2 line-clamp-2 text-xl font-bold text-gray-950">
+          {listing.title}
+        </h3>
         <p className="mt-2 line-clamp-2 text-sm text-gray-600">{listing.description}</p>
         <p className="mt-4 text-lg font-black text-gray-950">GH₵ {String(listing.price)}</p>
         <p className="text-sm text-gray-600">{listing.locationRegion ?? "Ghana"}</p>
