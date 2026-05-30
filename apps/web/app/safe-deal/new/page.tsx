@@ -66,17 +66,17 @@ function SafeDealCheckout() {
 
       <section className="mt-6 rounded-2xl border bg-white p-5 shadow-sm sm:p-8">
         <p className="font-bold text-amber-700">Safe Deal</p>
-        <h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">Protected Transaction Checkout</h1>
+        <h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">Start a Safe Deal Request</h1>
         <p className="mt-4 max-w-2xl text-gray-600">
-          Funds are held securely until the buyer confirms that the item was received and inspected.
+          Create a structured Safe Deal request for this listing. TrustLayer handles the protected transaction workflow.
         </p>
 
         <div className="mt-8 rounded-2xl border bg-gray-50 p-6">
-          <h2 className="text-2xl font-bold">Buyer Protection</h2>
+          <h2 className="text-2xl font-bold">Safe Deal Workflow</h2>
           <ul className="mt-4 list-disc space-y-2 pl-5 text-gray-700">
-            <li>Funds held in escrow</li>
-            <li>Inspection window before release</li>
-            <li>Dispute mediation support</li>
+            <li>TrustLayer-managed protected transaction workflow</li>
+            <li>Buyer confirmation and inspection checkpoints</li>
+            <li>Dispute support through the TrustLayer workflow</li>
             <li>Verified seller identity signals</li>
           </ul>
         </div>
@@ -89,7 +89,7 @@ function SafeDealCheckout() {
 
         {!user && (
           <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-            You must log in before funding a Safe Deal.
+            Phone verification is required before starting a Safe Deal.
           </div>
         )}
 
@@ -98,7 +98,7 @@ function SafeDealCheckout() {
           disabled={loading || !listingId}
           className="mt-8 w-full rounded-xl bg-black px-5 py-4 font-semibold text-white disabled:bg-gray-400"
         >
-          {loading ? "Starting Safe Deal..." : "Fund Safe Deal"}
+          {loading ? "Starting Safe Deal..." : "Start Safe Deal"}
         </button>
       </section>
     </main>
