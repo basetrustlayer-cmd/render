@@ -7,6 +7,7 @@ import { DashboardShell } from "../../../../../components/dashboard/dashboard-sh
 import { apiFetch } from "../../../../../lib/api";
 import {
   addListingImage,
+  deleteListingImage,
   getListingImageUploadSignature,
   updateListing
 } from "../../../../../lib/listings";
@@ -48,10 +49,12 @@ export default function EditListingPage() {
   const [files, setFiles] = useState<FileList | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [removingImageId, setRemovingImageId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function loadListing() {
     const result = await apiFetch<{ listing: ListingDetail }>(`/listings/${params.id}`);
+
     setListing(result.listing);
     setForm({
       title: result.listing.title ?? "",
@@ -100,6 +103,20 @@ export default function EditListingPage() {
       setError(err instanceof Error ? err.message : "Unable to save listing.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function removeImage(imageId: string) {
+    setRemovingImageId(imageId);
+    setError(null);
+
+    try {
+      await deleteListingImage(params.id, imageId);
+      await loadListing();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to remove image.");
+    } finally {
+      setRemovingImageId(null);
     }
   }
 
@@ -152,6 +169,7 @@ export default function EditListingPage() {
         });
       }
 
+      setFiles(null);
       await loadListing();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to upload photos.");
@@ -252,12 +270,26 @@ export default function EditListingPage() {
           {listing?.images?.length ? (
             <div className="grid gap-4 md:grid-cols-3">
               {listing.images.map((image) => (
-                <img
-                  key={image.id}
-                  src={image.url}
-                  alt={listing.title}
-                  className="h-40 w-full rounded-xl object-cover"
-                />
+                <div key={image.id} className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+                  <img
+                    src={image.url}
+                    alt={listing.title}
+                    className="h-40 w-full object-cover"
+                  />
+                  <div className="flex items-center justify-between gap-2 p-3">
+                    <span className="text-xs font-semibold text-gray-500">
+                      {image.isCover ? "Cover image" : "Listing image"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeImage(image.id)}
+                      disabled={removingImageId === image.id}
+                      className="rounded-lg border border-red-200 px-3 py-1 text-xs font-bold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                    >
+                      {removingImageId === image.id ? "Removing..." : "Remove"}
+                    </button>
+                  </div>
+                </div>
               ))}
             </div>
           ) : (
