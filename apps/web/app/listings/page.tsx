@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { JsonLd } from "../../components/json-ld";
 import { ListingCard } from "../../components/listing-card";
 import { getListings, type ListingFilters } from "../../lib/get-listings";
 
@@ -57,8 +58,27 @@ export default async function ListingsPage({ searchParams = {} }: ListingsPagePr
 
     const { listings } = await getListings(filters);
 
+    const collectionJsonLd = {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      name: "Browse Marketplace Listings",
+      url: "https://render.com.gh/listings",
+      description: "Browse verified marketplace listings in Ghana by category, region, search term, and price sort.",
+      mainEntity: {
+        "@type": "ItemList",
+        itemListElement: listings.slice(0, 24).map((listing, index) => ({
+          "@type": "ListItem",
+          position: index + 1,
+          url: `https://render.com.gh/listings/${listing.id}`,
+          name: listing.title
+        }))
+      }
+    };
+
     return (
       <main className="mx-auto max-w-7xl p-4 sm:p-6">
+        <JsonLd data={collectionJsonLd} />
+
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-amber-700">
