@@ -47,8 +47,28 @@ function optionalNumberEnv(name: string, fallback: number): number {
   return parsed;
 }
 
-export const apiEnv = {
-  corsOrigins: optionalCsvEnv("CORS_ORIGINS"),
-  port: optionalNumberEnv("PORT", 3001),
-  publicAppUrl: requiredUrlEnv("PUBLIC_APP_URL")
-};
+export const launchRequiredEnv = [
+  "DATABASE_URL",
+  "REDIS_URL",
+  "JWT_SECRET",
+  "TRUSTLAYER_API_KEY",
+  "TRUSTLAYER_API_URL",
+  "PUBLIC_APP_URL"
+] as const;
+
+export function validateLaunchRequiredEnv(): void {
+  for (const name of launchRequiredEnv) {
+    requiredEnv(name);
+  }
+
+  requiredUrlEnv("TRUSTLAYER_API_URL");
+  requiredUrlEnv("PUBLIC_APP_URL");
+}
+
+export function getApiEnv() {
+  return {
+    corsOrigins: optionalCsvEnv("CORS_ORIGINS"),
+    port: optionalNumberEnv("PORT", 3001),
+    publicAppUrl: requiredUrlEnv("PUBLIC_APP_URL")
+  };
+}

@@ -17,7 +17,7 @@ import { registerSearchRoutes } from "./search/routes.js";
 import { registerTrustLayerRoutes } from "./trustlayer/routes.js";
 import { registerTrustScoreRoutes } from "./trustscore/routes.js";
 import { registerWebhookRoutes } from "./webhooks/routes.js";
-import { apiEnv } from "./env.js";
+import { getApiEnv } from "./env.js";
 import { elapsedMs, nowMs, recordOperationalMetric, writeOperationalLog } from "@render/observability";
 
 export async function buildApp(): Promise<FastifyInstance> {
@@ -26,7 +26,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     genReqId: () => crypto.randomUUID()
   });
 
-  const allowedOrigins = apiEnv.corsOrigins
+  const allowedOrigins = getApiEnv().corsOrigins
     .map((origin) => origin.trim())
     .filter(Boolean);
 
