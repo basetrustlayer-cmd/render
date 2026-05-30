@@ -28,6 +28,14 @@ export default async function ListingsPage({ searchParams = {} }: ListingsPagePr
       verifiedOnly: searchParams.verifiedOnly === true || String(searchParams.verifiedOnly) === "true"
     };
 
+    const hasFilters = Boolean(
+      filters.q ||
+      filters.category ||
+      filters.locationRegion ||
+      filters.sort ||
+      filters.verifiedOnly
+    );
+
     const { listings } = await getListings(filters);
 
     return (
@@ -77,12 +85,39 @@ export default async function ListingsPage({ searchParams = {} }: ListingsPagePr
           </button>
         </form>
 
+        {hasFilters ? (
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600 shadow-sm">
+            <span>
+              Showing {listings.length} result{listings.length === 1 ? "" : "s"} for current filters.
+            </span>
+            <Link href="/listings" className="font-bold text-emerald-700 hover:text-emerald-900">
+              Clear filters
+            </Link>
+          </div>
+        ) : null}
+
         {listings.length === 0 ? (
-          <div className="rounded-2xl bg-white p-5 text-gray-700 shadow-sm sm:p-8">
-            No listings match this search.
+          <div className="rounded-3xl border border-dashed border-gray-300 bg-white p-8 text-center shadow-sm sm:p-10">
+            <p className="text-sm font-bold uppercase tracking-wide text-amber-700">
+              No matching listings
+            </p>
+            <h2 className="mt-2 text-2xl font-black text-gray-950">
+              Try a broader search or clear your filters.
+            </h2>
+            <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-gray-600">
+              Marketplace listings may be filtered out by category, region, price sort, or search terms.
+            </p>
+            <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+              <Link href="/listings" className="rounded-xl bg-gray-950 px-5 py-3 text-sm font-bold text-white hover:bg-black">
+                Clear filters
+              </Link>
+              <Link href="/dashboard/create-listing" className="rounded-xl border border-gray-300 px-5 py-3 text-sm font-bold text-gray-800 hover:bg-gray-50">
+                Create a listing
+              </Link>
+            </div>
           </div>
         ) : (
-          <div className="grid gap-5 md:grid-cols-3">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {listings.map((listing) => (
               <ListingCard key={listing.id} listing={listing} />
             ))}
