@@ -1,8 +1,27 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ListingCard } from "../../components/listing-card";
 import { getListings, type ListingFilters } from "../../lib/get-listings";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Browse Marketplace Listings",
+  description: "Browse verified marketplace listings in Ghana by category, region, search term, and price sort.",
+  alternates: {
+    canonical: "/listings"
+  },
+  openGraph: {
+    title: "Browse Marketplace Listings | Render.com.gh",
+    description: "Browse verified marketplace listings in Ghana by category, region, search term, and price sort.",
+    url: "/listings"
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Browse Marketplace Listings | Render.com.gh",
+    description: "Browse verified marketplace listings in Ghana by category, region, search term, and price sort."
+  }
+};
 
 const categories = [
   ["", "All categories"],
