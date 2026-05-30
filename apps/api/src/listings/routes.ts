@@ -725,6 +725,84 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
     };
   });
 
+  app.delete("/listings/:id/images/:imageId", { preHandler: authenticate }, async (request, reply) => {
+    const authUser = requireAuthUser(request);
+    const params = z.object({
+      id: z.string().uuid(),
+      imageId: z.string().uuid()
+    }).safeParse(request.params);
+
+    if (!params.success) {
+      return reply.code(400).send({ error: "Invalid listing image ID." });
+    }
+
+    const image = await prisma.listingImage.findFirst({
+      where: {
+        id: params.data.imageId,
+        listingId: params.data.id
+      },
+      include: {
+        listing: {
+          select: {
+            id: true,
+            sellerId: true,
+            organizationId: true
+          }
+        }
+      }
+    });
+
+    if (!image) {
+      return reply.code(404).send({ error: "Listing image not found." });
+    }
+
+    if (image.listing.sellerId !== authUser.userId) {
+      return reply.code(403).send({ error: "Only the listing owner can delete images." });
+    }
+
+    const hasOrganizationAccess = await requireListingOrganizationAccess({
+      request,
+      userId: authUser.userId,
+      organizationId: image.listing.organizationId
+    });
+
+    if (!hasOrganizationAccess) {
+      return reply.code(403).send({ error: "Invalid organization context." });
+    }
+
+    await prisma.listingImage.delete({
+      where: { id: image.id }
+    });
+
+    if (image.isCover) {
+      const nextImage = await prisma.listingImage.findFirst({
+        where: { listingId: image.listing.id },
+        orderBy: [
+          { sortOrder: "asc" },
+          { createdAt: "asc" }
+        ]
+      });
+
+      if (nextImage) {
+        await prisma.listingImage.update({
+          where: { id: nextImage.id },
+          data: { isCover: true }
+        });
+      }
+    }
+
+    void writeAuditLog({
+      request,
+      actorUserId: authUser.userId,
+      action: "LISTING_IMAGE_DELETED",
+      entityType: "LISTING",
+      entityId: image.listing.id,
+      metadata: { imageId: image.id }
+    });
+
+    return { ok: true };
+  });
+
   app.post("/listings/:id/images", { preHandler: authenticate }, async (request, reply) => {
     const authUser = requireAuthUser(request);
     const params = listingImageParamsSchema.safeParse(request.params);

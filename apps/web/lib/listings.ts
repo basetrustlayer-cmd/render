@@ -70,3 +70,10 @@ export async function getListingImageUploadSignature(listingId: string): Promise
     body: JSON.stringify({})
   });
 }
+
+
+export async function deleteListingImage(listingId: string, imageId: string) {
+  return apiFetch(`/listings/${listingId}/images/${imageId}`, {
+    method: "DELETE"
+  });
+}
