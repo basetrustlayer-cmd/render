@@ -61,6 +61,12 @@ export default async function ListingDetailPage({ params }: PageProps) {
                   sellerId={seller.id}
                   listingTitle={listing.title}
                 />
+                <WhatsAppSellerButton
+                  sellerWhatsappNumber={seller.whatsappNumber}
+                  listingId={listing.id}
+                  sellerId={seller.id}
+                  listingTitle={listing.title}
+                />
               </div>
             </div>
           </section>
