@@ -166,7 +166,27 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
         category: true,
         condition: true,
         locationRegion: true,
-        createdAt: true
+        createdAt: true,
+        images: {
+          orderBy: [
+            { isCover: "desc" as const },
+            { sortOrder: "asc" as const },
+            { createdAt: "asc" as const }
+          ],
+          select: {
+            id: true,
+            url: true,
+            isCover: true
+          }
+        },
+        seller: {
+          select: {
+            verificationLevel: true,
+            verificationStatusCached: true,
+            trustScore: true,
+            trustTier: true
+          }
+        }
       },
       orderBy
     });
