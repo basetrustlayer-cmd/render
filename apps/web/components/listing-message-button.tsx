@@ -11,15 +11,9 @@ type Props = {
   listingTitle: string;
 };
 
-export function ListingMessageButton({
-  listingId,
-  sellerId,
-  listingTitle
-}: Props) {
+export function ListingMessageButton({ listingId, sellerId, listingTitle }: Props) {
   const router = useRouter();
-
   const { accessToken, user, hydrate } = useAuthStore();
-
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -66,7 +60,7 @@ export function ListingMessageButton({
       <button
         type="button"
         disabled
-        className="rounded-xl border border-gray-200 bg-gray-100 px-4 py-2 text-center text-sm font-bold text-gray-500"
+        className="rounded-xl border border-gray-200 bg-gray-100 px-4 py-2 text-center text-xs font-bold text-gray-500 sm:text-sm"
       >
         Your listing
       </button>
@@ -78,9 +72,9 @@ export function ListingMessageButton({
       type="button"
       onClick={handleClick}
       disabled={loading}
-      className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-center text-sm font-bold text-gray-900 hover:bg-gray-50 disabled:opacity-60"
+      className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-center text-xs font-bold text-gray-900 hover:bg-gray-50 disabled:opacity-60 sm:text-sm"
     >
-      {loading ? "Opening..." : "Message seller"}
+      {loading ? "Opening..." : "Message"}
     </button>
   );
 }
