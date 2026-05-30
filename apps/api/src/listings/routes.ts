@@ -223,6 +223,8 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       where: { id: parsed.data.id },
       select: {
         id: true,
+        phone: true,
+        email: true,
         verificationLevel: true,
         verificationStatusCached: true,
         trustScore: true,
@@ -249,7 +251,10 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
     return {
       seller: {
         id: seller.id,
-        displayName: seller.isBusiness ? "Verified Business Seller" : "Verified Render Seller",
+        displayName:
+          seller.phone ??
+          seller.email ??
+          (seller.isBusiness ? "Verified Business Seller" : "Verified Render Seller"),
         verificationLevel: seller.verificationLevel,
         verificationStatus: seller.verificationStatusCached ?? "Verification Pending",
         trustScore: seller.trustScore,
@@ -280,13 +285,34 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       },
       select: {
         id: true,
+        sellerId: true,
         title: true,
         description: true,
         price: true,
         category: true,
         condition: true,
         locationRegion: true,
-        createdAt: true
+        createdAt: true,
+        images: {
+          orderBy: [
+            { isCover: "desc" as const },
+            { sortOrder: "asc" as const },
+            { createdAt: "asc" as const }
+          ],
+          select: {
+            id: true,
+            url: true,
+            isCover: true
+          }
+        },
+        seller: {
+          select: {
+            verificationLevel: true,
+            verificationStatusCached: true,
+            trustScore: true,
+            trustTier: true
+          }
+        }
       },
       orderBy: { createdAt: "desc" }
     });
