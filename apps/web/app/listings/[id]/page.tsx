@@ -1,4 +1,6 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import { JsonLd } from "../../../components/json-ld";
 import { getListing } from "../../../lib/get-listing";
 import { TrustScoreBadge } from "../../../components/trust-score-badge";
 import { VerificationBadge } from "../../../components/verification-badge";
@@ -24,14 +26,72 @@ function formatTrustSyncedAt(value?: string | null) {
   return value ? `Trust data last synced ${formatDate(value)}` : "Trust data sync pending";
 }
 
+function listingDescription(input: { description?: string | null; title: string; locationRegion?: string | null }) {
+  const base = input.description?.trim() || `${input.title} marketplace listing in ${input.locationRegion ?? "Ghana"}.`;
+  return base.length > 160 ? `${base.slice(0, 157)}...` : base;
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { listing } = await getListing(params.id);
+  const image = listing.images.find((item) => item.isCover)?.url ?? listing.images[0]?.url;
+  const description = listingDescription(listing);
+  const url = `/listings/${listing.id}`;
+
+  return {
+    title: `${listing.title} — GH₵ ${String(listing.price)}`,
+    description,
+    alternates: {
+      canonical: url
+    },
+    openGraph: {
+      title: `${listing.title} — GH₵ ${String(listing.price)} | Render.com.gh`,
+      description,
+      url,
+      type: "website",
+      images: image ? [{ url: image, alt: listing.title }] : undefined
+    },
+    twitter: {
+      card: image ? "summary_large_image" : "summary",
+      title: `${listing.title} — GH₵ ${String(listing.price)} | Render.com.gh`,
+      description,
+      images: image ? [image] : undefined
+    }
+  };
+}
+
 export default async function ListingDetailPage({ params }: PageProps) {
   const { listing, seller } = await getListing(params.id);
   const coverImage = listing.images.find((image) => image.isCover) ?? listing.images[0];
   const otherImages = listing.images.filter((image) => image.id !== coverImage?.id);
   const galleryImages = coverImage ? [coverImage, ...otherImages] : [];
+  const description = listingDescription(listing);
+
+  const productJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: listing.title,
+    description,
+    image: galleryImages.map((image) => image.url),
+    category: listing.category,
+    url: `https://render.com.gh/listings/${listing.id}`,
+    offers: {
+      "@type": "Offer",
+      price: String(listing.price),
+      priceCurrency: "GHS",
+      availability: "https://schema.org/InStock",
+      url: `https://render.com.gh/listings/${listing.id}`
+    },
+    seller: {
+      "@type": seller.trustBadge ? "Organization" : "Person",
+      name: seller.displayName,
+      url: `https://render.com.gh/sellers/${seller.id}`
+    }
+  };
 
   return (
     <main className="min-h-screen bg-gray-50">
+      <JsonLd data={productJsonLd} />
+
       <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
         <Link href="/listings" className="text-sm font-semibold text-gray-600 hover:text-gray-950">
           ← Back to listings
