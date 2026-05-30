@@ -63,7 +63,10 @@ export function SiteHeader() {
     };
   }, [accessToken, user?.id]);
 
-  const unreadCount = useMemo(() => countUnread(conversations, user?.id), [conversations, user?.id]);
+  const unreadCount = useMemo(
+    () => countUnread(conversations, user?.id),
+    [conversations, user?.id]
+  );
 
   function handleLogout() {
     logout();
@@ -73,28 +76,28 @@ export function SiteHeader() {
 
   return (
     <header className="border-b border-gray-200 bg-white">
-      <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 md:flex-row md:items-center md:justify-between">
-        <Link href="/" className="text-2xl font-bold tracking-tight text-gray-900">
+      <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:px-6 md:flex-row md:items-center md:justify-between md:gap-4 md:py-4">
+        <Link href="/" className="text-xl font-black tracking-tight text-gray-900 sm:text-2xl">
           Render<span className="text-amber-600">.com.gh</span>
         </Link>
 
-        <nav className="flex w-full flex-wrap items-center gap-3 text-sm font-medium text-gray-700 md:w-auto md:gap-6">
-          <Link href="/listings" className="hover:text-gray-900">
-            Browse Listings
+        <nav className="flex w-full flex-wrap items-center gap-2 text-xs font-bold text-gray-700 sm:gap-3 sm:text-sm md:w-auto md:gap-4">
+          <Link href="/listings" className="rounded-full px-2 py-1 hover:bg-gray-50 hover:text-gray-900 sm:px-3">
+            Browse
           </Link>
-          <Link href="/verify" className="hover:text-gray-900">
+          <Link href="/verify" className="rounded-full px-2 py-1 hover:bg-gray-50 hover:text-gray-900 sm:px-3">
             Get Verified
           </Link>
-          <Link href="/listings" className="hover:text-gray-900">
+          <Link href="/listings" className="rounded-full px-2 py-1 hover:bg-gray-50 hover:text-gray-900 sm:px-3">
             Safe Deal
           </Link>
 
           {user ? (
             <>
-              <Link href="/messages" className="relative hover:text-gray-900">
+              <Link href="/messages" className="relative rounded-full px-2 py-1 hover:bg-gray-50 hover:text-gray-900 sm:px-3">
                 Messages
                 {unreadCount > 0 ? (
-                  <span className="absolute -right-4 -top-3 rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-black text-white">
+                  <span className="absolute -right-2 -top-2 rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-black text-white">
                     {unreadCount > 9 ? "9+" : unreadCount}
                   </span>
                 ) : null}
@@ -102,14 +105,15 @@ export function SiteHeader() {
 
               <Link
                 href="/dashboard"
-                className="rounded-lg border border-gray-300 px-4 py-2 hover:bg-gray-50"
+                className="rounded-lg border border-gray-300 px-3 py-2 hover:bg-gray-50 sm:px-4"
               >
                 Dashboard
               </Link>
+
               <button
                 type="button"
                 onClick={handleLogout}
-                className="rounded-lg bg-gray-900 px-4 py-2 text-white hover:bg-black"
+                className="rounded-lg bg-gray-900 px-3 py-2 text-white hover:bg-black sm:px-4"
               >
                 Logout
               </button>
@@ -117,7 +121,7 @@ export function SiteHeader() {
           ) : (
             <Link
               href="/login"
-              className="rounded-lg bg-gray-900 px-4 py-2 text-white hover:bg-black"
+              className="rounded-lg bg-gray-900 px-3 py-2 text-white hover:bg-black sm:px-4"
             >
               Login
             </Link>
