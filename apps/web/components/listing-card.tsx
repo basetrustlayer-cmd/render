@@ -9,20 +9,32 @@ type ListingCardProps = {
   imageHeightClass?: string;
 };
 
-export function ListingCard({ listing, imageHeightClass = "h-44" }: ListingCardProps) {
-  const coverImage = listing.images?.[0]?.url;
+function resolveCoverImage(listing: Listing): string | undefined {
+  return (
+    listing.images?.find((image) => image.isCover)?.url ??
+    listing.images?.[0]?.url
+  );
+}
+
+export function ListingCard({ listing, imageHeightClass = "h-52" }: ListingCardProps) {
+  const coverImage = resolveCoverImage(listing);
   const score = listing.seller?.trustScore ?? null;
   const tier = listing.seller?.trustTier ?? null;
   const verificationStatus = listing.seller?.verificationStatus ?? null;
 
   return (
     <article className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-      {coverImage ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={coverImage} alt={listing.title} className={`${imageHeightClass} w-full object-cover`} />
-      ) : (
-        <div className={`${imageHeightClass} bg-gradient-to-br from-amber-100 to-emerald-100`} />
-      )}
+      <div className={`${imageHeightClass} w-full overflow-hidden bg-gradient-to-br from-amber-100 to-emerald-100`}>
+        {coverImage ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={coverImage}
+            alt={listing.title}
+            className="h-full w-full object-cover object-center"
+            loading="lazy"
+          />
+        ) : null}
+      </div>
 
       <div className="p-5">
         <div className="flex items-start justify-between gap-3">
