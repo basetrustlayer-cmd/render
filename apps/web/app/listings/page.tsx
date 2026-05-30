@@ -28,6 +28,14 @@ export default async function ListingsPage({ searchParams = {} }: ListingsPagePr
       verifiedOnly: searchParams.verifiedOnly === true || String(searchParams.verifiedOnly) === "true"
     };
 
+    const hasFilters = Boolean(
+      filters.q ||
+      filters.category ||
+      filters.locationRegion ||
+      filters.sort ||
+      filters.verifiedOnly
+    );
+
     const { listings } = await getListings(filters);
 
     return (
@@ -77,12 +85,23 @@ export default async function ListingsPage({ searchParams = {} }: ListingsPagePr
           </button>
         </form>
 
+        {hasFilters ? (
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600 shadow-sm">
+            <span>
+              Showing {listings.length} result{listings.length === 1 ? "" : "s"} for current filters.
+            </span>
+            <Link href="/listings" className="font-bold text-emerald-700 hover:text-emerald-900">
+              Clear filters
+            </Link>
+          </div>
+        ) : null}
+
         {listings.length === 0 ? (
           <div className="rounded-2xl bg-white p-5 text-gray-700 shadow-sm sm:p-8">
-            No listings match this search.
+            No listings match this search. Try clearing filters or searching a broader term.
           </div>
         ) : (
-          <div className="grid gap-5 md:grid-cols-3">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {listings.map((listing) => (
               <ListingCard key={listing.id} listing={listing} />
             ))}
