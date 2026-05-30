@@ -38,7 +38,7 @@ export function ListingDetailActions({
 
   async function messageSeller() {
     if (!accessToken || !user?.id) {
-      router.push("/login");
+      router.push(`/login?next=/listings/${listingId}`);
       return;
     }
 
@@ -61,10 +61,22 @@ export function ListingDetailActions({
     }
   }
 
+  function startSafeDeal() {
+    if (!accessToken || !user?.id) {
+      router.push(`/login?next=/safe-deal/new?listingId=${listingId}`);
+      return;
+    }
+
+    router.push(`/safe-deal/new?listingId=${listingId}`);
+  }
+
   if (isOwner) {
     return (
       <>
-        <Link href={`/dashboard/listings/${listingId}/edit`} className={buttonBlack}>
+        <Link
+          href={`/dashboard/listings/${listingId}/edit`}
+          className={buttonBlack}
+        >
           Manage listing
         </Link>
 
@@ -77,13 +89,22 @@ export function ListingDetailActions({
 
   return (
     <>
-      <button type="button" onClick={messageSeller} disabled={loading} className={buttonBlack}>
+      <button
+        type="button"
+        onClick={messageSeller}
+        disabled={loading}
+        className={buttonBlack}
+      >
         {loading ? "Opening..." : "Message seller"}
       </button>
 
-      <Link href={`/safe-deal/new?listingId=${listingId}`} className={buttonAmber}>
+      <button
+        type="button"
+        onClick={startSafeDeal}
+        className={buttonAmber}
+      >
         Start Safe Deal
-      </Link>
+      </button>
     </>
   );
 }
