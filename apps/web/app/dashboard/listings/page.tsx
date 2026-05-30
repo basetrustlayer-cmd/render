@@ -90,8 +90,19 @@ export default function DashboardListingsPage() {
           })}
 
           {listings.length === 0 && (
-            <div className="rounded-2xl bg-gray-50 p-8 text-center text-gray-500">
-              No listings found for this user.
+            <div className="rounded-3xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+              <p className="text-sm font-bold uppercase tracking-wide text-amber-700">
+                No listings yet
+              </p>
+              <h3 className="mt-2 text-2xl font-black text-gray-950">
+                Create your first marketplace listing.
+              </h3>
+              <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-gray-600">
+                Add photos, pricing, category, and region so buyers can discover and contact you.
+              </p>
+              <Link href="/dashboard/create-listing" className="mt-6 inline-flex rounded-xl bg-gray-950 px-5 py-3 text-sm font-bold text-white hover:bg-black">
+                Create Listing
+              </Link>
             </div>
           )}
         </div>

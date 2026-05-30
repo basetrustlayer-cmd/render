@@ -97,8 +97,24 @@ export default async function ListingsPage({ searchParams = {} }: ListingsPagePr
         ) : null}
 
         {listings.length === 0 ? (
-          <div className="rounded-2xl bg-white p-5 text-gray-700 shadow-sm sm:p-8">
-            No listings match this search. Try clearing filters or searching a broader term.
+          <div className="rounded-3xl border border-dashed border-gray-300 bg-white p-8 text-center shadow-sm sm:p-10">
+            <p className="text-sm font-bold uppercase tracking-wide text-amber-700">
+              No matching listings
+            </p>
+            <h2 className="mt-2 text-2xl font-black text-gray-950">
+              Try a broader search or clear your filters.
+            </h2>
+            <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-gray-600">
+              Marketplace listings may be filtered out by category, region, price sort, or search terms.
+            </p>
+            <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+              <Link href="/listings" className="rounded-xl bg-gray-950 px-5 py-3 text-sm font-bold text-white hover:bg-black">
+                Clear filters
+              </Link>
+              <Link href="/dashboard/create-listing" className="rounded-xl border border-gray-300 px-5 py-3 text-sm font-bold text-gray-800 hover:bg-gray-50">
+                Create a listing
+              </Link>
+            </div>
           </div>
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
