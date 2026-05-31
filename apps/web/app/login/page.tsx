@@ -37,9 +37,10 @@ export default function LoginPage() {
     try {
       await login(phone, code);
 
-      const result = await apiFetch<{ profile: { email: string | null } }>("/auth/me");
+      const result = await apiFetch<{ profile?: { email?: string | null }; user?: { email?: string | null } }>("/auth/me");
+      const email = result.profile?.email ?? result.user?.email ?? null;
 
-      router.push(result.profile.email ? "/dashboard" : "/complete-profile");
+      router.push(email ? "/dashboard" : "/complete-profile");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to sign in.");
     } finally {
