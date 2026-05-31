@@ -37,6 +37,26 @@ function generateOtp(): string {
   return String(crypto.randomInt(100000, 1000000));
 }
 
+function normalizeGhanaPhone(phone: string): string {
+  const trimmed = phone.trim();
+
+  if (/^\+233\d{9}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  const digits = trimmed.replace(/\D/g, "");
+
+  if (/^0\d{9}$/.test(digits)) {
+    return `+233${digits.slice(1)}`;
+  }
+
+  if (/^233\d{9}$/.test(digits)) {
+    return `+${digits}`;
+  }
+
+  throw new Error("Invalid Ghana phone number");
+}
+
 function isForbiddenProductionOtp(code: string): boolean {
   return process.env.NODE_ENV === "production" && code === "000000";
 }
@@ -185,12 +205,14 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
         return reply.code(400).send({ error: "Invalid phone number." });
       }
 
+      const normalizedPhone = normalizeGhanaPhone(parsed.data.phone);
+
       let recentChallenge;
 
       try {
         recentChallenge = await prisma.otpChallenge.findFirst({
           where: {
-            phone: parsed.data.phone,
+            phone: normalizedPhone,
             createdAt: { gt: new Date(Date.now() - 60 * 1000) }
           },
           orderBy: { createdAt: "desc" }
@@ -211,7 +233,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       }
 
       if (recentChallenge) {
-        void writeAuditLog({ request, action: "AUTH_OTP_SEND_THROTTLED", metadata: { phone: parsed.data.phone } });
+        void writeAuditLog({ request, action: "AUTH_OTP_SEND_THROTTLED", metadata: { phone: normalizedPhone } });
         return reply.code(429).send({
           error: "Please wait 60 seconds before requesting another OTP code."
         });
@@ -219,7 +241,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
 
       await prisma.otpChallenge.updateMany({
         where: {
-          phone: parsed.data.phone,
+          phone: normalizedPhone,
           consumedAt: null
         },
         data: {
@@ -233,7 +255,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
 
       try {
         delivery = await sendOtpSms({
-          phone: parsed.data.phone,
+          phone: normalizedPhone,
           code
         });
       } catch (error) {
@@ -241,7 +263,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
           request,
           action: "AUTH_OTP_SEND_FAILED",
           metadata: {
-            phone: parsed.data.phone,
+            phone: normalizedPhone,
             reason: error instanceof Error ? error.message : "UNKNOWN_OTP_DELIVERY_FAILURE"
           }
         });
@@ -253,13 +275,13 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
 
       await prisma.otpChallenge.create({
         data: {
-          phone: parsed.data.phone,
+          phone: normalizedPhone,
           codeHash: hashOtp(code),
           expiresAt: new Date(Date.now() + 10 * 60 * 1000)
         }
       });
 
-      void writeAuditLog({ request, action: "AUTH_OTP_SENT", metadata: { phone: parsed.data.phone, delivery: delivery.provider } });
+      void writeAuditLog({ request, action: "AUTH_OTP_SENT", metadata: { phone: normalizedPhone, delivery: delivery.provider } });
 
       return {
         ok: true,
@@ -295,7 +317,8 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(400).send({ error: "Invalid OTP verification request." });
     }
 
-    const { phone, code } = parsed.data;
+    const code = parsed.data.code;
+    const phone = normalizeGhanaPhone(parsed.data.phone);
 
     if (isForbiddenProductionOtp(code)) {
       void writeAuditLog({ request, action: "AUTH_OTP_VERIFY_FORBIDDEN_CODE", metadata: { phone } });
