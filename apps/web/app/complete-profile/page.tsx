@@ -6,7 +6,14 @@ import { ApiError, apiFetch } from "../../lib/api";
 import { useAuthStore } from "../../store/auth";
 
 type ProfileResponse = {
-  profile: {
+  profile?: {
+    id: string;
+    email: string | null;
+    phone: string | null;
+    whatsappNumber: string | null;
+    isBusiness: boolean;
+  };
+  user?: {
     id: string;
     email: string | null;
     phone: string | null;
@@ -37,14 +44,16 @@ export default function CompleteProfilePage() {
       try {
         const result = await apiFetch<ProfileResponse>("/auth/me");
 
-        if (result.profile.email) {
+        const profile = result.profile ?? result.user;
+
+        if (profile?.email) {
           router.replace("/dashboard");
           return;
         }
 
-        setEmail(result.profile.email ?? "");
-        setWhatsappNumber(result.profile.whatsappNumber ?? "");
-        setIsBusiness(result.profile.isBusiness);
+        setEmail(profile?.email ?? "");
+        setWhatsappNumber(profile?.whatsappNumber ?? "");
+        setIsBusiness(profile?.isBusiness ?? false);
       } catch (err) {
         if (err instanceof ApiError && [401, 403].includes(err.status)) {
           logout();
@@ -67,7 +76,7 @@ export default function CompleteProfilePage() {
 
     try {
       await apiFetch("/auth/me", {
-        method: "PUT",
+        method: "PATCH",
         body: JSON.stringify({
           email,
           whatsappNumber: whatsappNumber || undefined,
