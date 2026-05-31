@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { requestOtp } from "../../lib/auth";
+import { apiFetch } from "../../lib/api";
 import { useAuthStore } from "../../store/auth";
 
 export default function LoginPage() {
@@ -35,7 +36,10 @@ export default function LoginPage() {
 
     try {
       await login(phone, code);
-      router.push("/dashboard");
+
+      const result = await apiFetch<{ profile: { email: string | null } }>("/auth/me");
+
+      router.push(result.profile.email ? "/dashboard" : "/complete-profile");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to sign in.");
     } finally {
