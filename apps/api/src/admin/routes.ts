@@ -1429,6 +1429,9 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         id: true,
         phone: true,
         email: true,
+        emailMarketingOptIn: true,
+        emailVerifiedAt: true,
+        googleAccountId: true,
         role: true,
         verificationLevel: true,
         trustScore: true,
@@ -1443,6 +1446,23 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       take: 100
     });
 
+    const phoneCounts = new Map<string, number>();
+
+    for (const user of users) {
+      if (!user.phone) continue;
+      phoneCounts.set(user.phone, (phoneCounts.get(user.phone) ?? 0) + 1);
+    }
+
+    const usersWithIdentityGovernance = users.map((user) => {
+      const duplicatePhoneCount = user.phone ? phoneCounts.get(user.phone) ?? 0 : 0;
+
+      return {
+        ...user,
+        duplicatePhoneCount,
+        isDuplicatePhone: duplicatePhoneCount > 1
+      };
+    });
+
     void writeAuditLog({
       request,
       actorUserId: authUser.userId,
@@ -1450,7 +1470,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       entityType: "USER"
     });
 
-    return { users };
+    return { users: usersWithIdentityGovernance };
   });
 
   app.post("/admin/users/:id/suspend", { preHandler: [authenticate, requireAdmin] }, async (request, reply) => {

@@ -7,6 +7,11 @@ type AdminUser = {
   id: string;
   phone: string | null;
   email: string | null;
+  emailMarketingOptIn?: boolean;
+  emailVerifiedAt?: string | null;
+  googleAccountId?: string | null;
+  duplicatePhoneCount?: number;
+  isDuplicatePhone?: boolean;
   role: string;
   verificationLevel: number;
   trustScore: number | null;
@@ -73,6 +78,7 @@ export default function AdminUsersPage() {
             <thead className="bg-gray-100 text-xs uppercase text-gray-500">
               <tr>
                 <th className="p-3">User</th>
+                <th className="p-3">Email</th>
                 <th className="p-3">Role</th>
                 <th className="p-3">Trust</th>
                 <th className="p-3">Status</th>
@@ -85,7 +91,19 @@ export default function AdminUsersPage() {
                 <tr key={user.id} className="border-t border-gray-100">
                   <td className="p-3">
                     <p className="font-semibold text-gray-900">{user.phone ?? user.email ?? user.id}</p>
-                    <p className="text-xs text-gray-500">{user.id}</p>
+                    {user.isDuplicatePhone && (
+                      <span className="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800">
+                        Duplicate phone ×{user.duplicatePhoneCount}
+                      </span>
+                    )}
+                    <p className="mt-1 text-xs text-gray-500">{user.id}</p>
+                  </td>
+                  <td className="p-3">
+                    <p className="font-medium text-gray-900">{user.email ?? "Missing email"}</p>
+                    <p className="text-xs text-gray-500">
+                      {user.emailVerifiedAt ? "Verified" : "Unverified"} · {user.emailMarketingOptIn ? "Marketing opt-in" : "No marketing opt-in"}
+                    </p>
+                    {user.googleAccountId && <p className="text-xs text-gray-500">Google linked</p>}
                   </td>
                   <td className="p-3">{user.role}</td>
                   <td className="p-3">
