@@ -1421,6 +1421,101 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
+  app.get("/admin/users/duplicates", { preHandler: [authenticate, requireAdmin] }, async (request) => {
+    const authUser = requireAuthUser(request);
+
+    const duplicateGroups = await prisma.user.groupBy({
+      by: ["phone"],
+      where: {
+        phone: {
+          not: null
+        }
+      },
+      _count: {
+        phone: true
+      },
+      having: {
+        phone: {
+          _count: {
+            gt: 1
+          }
+        }
+      },
+      orderBy: {
+        _count: {
+          phone: "desc"
+        }
+      }
+    });
+
+    const duplicatePhones = duplicateGroups
+      .map((group) => group.phone)
+      .filter((phone): phone is string => Boolean(phone));
+
+    const users = duplicatePhones.length
+      ? await prisma.user.findMany({
+          where: {
+            phone: {
+              in: duplicatePhones
+            }
+          },
+          select: {
+            id: true,
+            phone: true,
+            email: true,
+            role: true,
+            isSuspended: true,
+            createdAt: true,
+            _count: {
+              select: {
+                listings: true,
+                authSessions: true,
+                purchases: true,
+                sales: true,
+                reviewsGiven: true,
+                reviewsReceived: true,
+                messagesSent: true
+              }
+            }
+          },
+          orderBy: [
+            { phone: "asc" },
+            { createdAt: "asc" }
+          ]
+        })
+      : [];
+
+    const usersByPhone = new Map<string, typeof users>();
+
+    for (const user of users) {
+      if (!user.phone) continue;
+      usersByPhone.set(user.phone, [...(usersByPhone.get(user.phone) ?? []), user]);
+    }
+
+    const duplicates = duplicateGroups.map((group) => ({
+      phone: group.phone,
+      count: group._count.phone,
+      users: group.phone ? usersByPhone.get(group.phone) ?? [] : []
+    }));
+
+    void writeAuditLog({
+      request,
+      actorUserId: authUser.userId,
+      action: "ADMIN_DUPLICATE_IDENTITIES_VIEWED",
+      entityType: "USER",
+      metadata: {
+        duplicatePhoneGroups: duplicates.length,
+        impactedAccounts: duplicates.reduce((total, group) => total + group.count, 0)
+      }
+    });
+
+    return {
+      duplicatePhoneGroups: duplicates.length,
+      impactedAccounts: duplicates.reduce((total, group) => total + group.count, 0),
+      duplicates
+    };
+  });
+
   app.get("/admin/users", { preHandler: [authenticate, requireAdmin] }, async (request) => {
     const authUser = requireAuthUser(request);
 
