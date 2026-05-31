@@ -8,7 +8,7 @@ describe("notification replay authz hardening contract", () => {
 
   it("keeps replay request restricted to super admins only", () => {
     const replayRouteStart = source.indexOf('app.post("/admin/notifications/dead-letter/:id/replay-request"');
-    const nextRouteStart = source.indexOf('app.get("/admin/users"', replayRouteStart);
+    const nextRouteStart = source.indexOf('app.get("/admin/notifications/replay-summary"', replayRouteStart);
     const replayRoute = source.slice(replayRouteStart, nextRouteStart);
 
     expect(replayRouteStart).toBeGreaterThanOrEqual(0);
