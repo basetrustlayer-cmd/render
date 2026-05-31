@@ -6,7 +6,7 @@ import { requestOtp } from "../../lib/auth";
 import { useAuthStore } from "../../store/auth";
 
 export default function LoginPage() {
-  const [phone, setPhone] = useState("+233501234567");
+  const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [otpRequested, setOtpRequested] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -48,13 +48,24 @@ export default function LoginPage() {
       <h1 className="mb-6 text-3xl font-bold">Login</h1>
 
       <label className="mb-2 block text-sm font-medium text-gray-700">
-        Phone number
+        Mobile number
       </label>
-      <input
-        className="mb-4 w-full rounded border p-3"
-        value={phone}
-        onChange={(e) => setPhone(e.target.value)}
-      />
+      <div className="mb-4 flex">
+        <div className="rounded-l border border-r-0 bg-gray-100 px-3 py-3 text-sm font-semibold text-gray-700">
+          🇬🇭 +233
+        </div>
+        <input
+          className="w-full rounded-r border p-3"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+          inputMode="numeric"
+          maxLength={10}
+          placeholder="0241234567"
+        />
+      </div>
+      <p className="-mt-2 mb-4 text-xs text-gray-500">
+        Enter your Ghana mobile number starting with 0.
+      </p>
 
       {otpRequested && (
         <>
