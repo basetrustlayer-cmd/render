@@ -24,6 +24,7 @@ const verifyOtpSchema = z.object({
 
 const profileUpdateSchema = z.object({
   email: z.string().email().optional(),
+  emailMarketingOptIn: z.boolean().optional(),
   whatsappNumber: z.string().min(8).max(20).optional(),
   isBusiness: z.boolean().optional()
 });
@@ -128,6 +129,9 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       select: {
         id: true,
         email: true,
+        emailMarketingOptIn: true,
+        emailVerifiedAt: true,
+        googleAccountId: true,
         phone: true,
         whatsappNumber: true,
         verificationLevel: true,
@@ -162,6 +166,9 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       select: {
         id: true,
         email: true,
+        emailMarketingOptIn: true,
+        emailVerifiedAt: true,
+        googleAccountId: true,
         phone: true,
         whatsappNumber: true,
         verificationLevel: true,
