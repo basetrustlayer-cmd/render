@@ -113,6 +113,7 @@ model User {
   messagesSent Message[] @relation("SentMessages")
   notificationPreference NotificationPreference?
 
+  leads             Lead[]   @relation("SellerLeads")
   @@map("users")
 }
 
@@ -174,6 +175,7 @@ model Listing {
   @@index([status])
   @@index([category])
   @@index([locationRegion])
+  leads             Lead[]
   @@map("listings")
 }
 
