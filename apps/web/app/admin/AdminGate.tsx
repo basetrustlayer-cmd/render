@@ -3,30 +3,27 @@
 import { useEffect, useState } from "react";
 import { ApiError, apiFetch } from "../../lib/api";
 
-type AdminGateProps = {
-  children: React.ReactNode;
-};
+type State = "checking" | "allowed" | "forbidden";
 
-function getStatus(err: unknown) {
+function statusOf(err: unknown): number | null {
   if (!(err instanceof ApiError)) return null;
-
-  const record = err as unknown as Record<string, unknown>;
-  return Number(record.status ?? record.statusCode ?? record.code ?? 0) || null;
+  const value = err as unknown as { status?: number; statusCode?: number };
+  return value.status ?? value.statusCode ?? null;
 }
 
-export default function AdminGate({ children }: AdminGateProps) {
-  const [state, setState] = useState<"checking" | "allowed" | "forbidden">("checking");
+export default function AdminGate({ children }: { children: React.ReactNode }) {
+  const [state, setState] = useState<State>("checking");
 
   useEffect(() => {
-    async function checkAdminAccess() {
+    async function verify() {
       try {
         await apiFetch("/admin/audit-logs");
         setState("allowed");
       } catch (err) {
-        const status = getStatus(err);
+        const status = statusOf(err);
 
-        if (status === 401) {
-          window.location.href = `/login?next=${encodeURIComponent(window.location.pathname)}`;
+        if (status === 401 || status === null) {
+          window.location.replace(`/login?next=${encodeURIComponent(window.location.pathname)}`);
           return;
         }
 
@@ -34,7 +31,7 @@ export default function AdminGate({ children }: AdminGateProps) {
       }
     }
 
-    void checkAdminAccess();
+    void verify();
   }, []);
 
   if (state === "checking") {
