@@ -509,7 +509,7 @@ export async function registerSafeDealRoutes(
           openedById: authUser.userId,
           reason: body.data.reason,
           status: "OPEN",
-          trustLayerDisputeId: command.disputeId ?? null,
+          trustLayerDisputeId: null,
           disputeLastSyncedAt: new Date()
         }
       });
