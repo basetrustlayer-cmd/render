@@ -9,7 +9,7 @@ function getTrustLayerClient() {
   const baseUrl = process.env.TRUSTLAYER_API_URL;
 
   if (!apiKey || !baseUrl) {
-    throw new Error("TrustLayer TrustScore credentials are required.");
+    return null;
   }
 
   return createTrustLayerClient({
@@ -41,6 +41,8 @@ export async function registerTrustScoreRoutes(app: FastifyInstance): Promise<vo
         id: true,
         trustlayerUserId: true,
         verificationLevel: true,
+        trustScore: true,
+        trustTier: true,
         createdAt: true
       }
     });
@@ -49,19 +51,38 @@ export async function registerTrustScoreRoutes(app: FastifyInstance): Promise<vo
       return reply.code(404).send({ error: "User not found." });
     }
 
-    const trustLayer = getTrustLayerClient();
-    const trustScore = await trustLayer.getTrustScore(user.trustlayerUserId, {
-      correlationId: request.id
-    });
-
-    return {
+    const fallback = {
       userId: user.id,
-      score: trustScore.trustScore,
-      tier: trustScore.trustTier,
+      score: user.trustScore,
+      tier: user.trustTier ?? "PENDING",
       verificationLevel: user.verificationLevel,
       memberSince: user.createdAt,
-      source: "TRUSTLAYER",
-      trustLayer: trustScore
+      source: "LOCAL_TRUST_PROJECTION",
+      trustLayer: null
     };
+
+    const trustLayer = getTrustLayerClient();
+
+    if (!trustLayer || !user.trustlayerUserId) {
+      return fallback;
+    }
+
+    try {
+      const trustScore = await trustLayer.getTrustScore(user.trustlayerUserId, {
+        correlationId: request.id
+      });
+
+      return {
+        userId: user.id,
+        score: trustScore.trustScore,
+        tier: trustScore.trustTier,
+        verificationLevel: user.verificationLevel,
+        memberSince: user.createdAt,
+        source: "TRUSTLAYER",
+        trustLayer: trustScore
+      };
+    } catch {
+      return fallback;
+    }
   });
 }
