@@ -506,11 +506,56 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       where: { id: authUser.userId },
       select: {
         id: true,
+        email: true,
+        emailMarketingOptIn: true,
+        emailVerifiedAt: true,
+        googleAccountId: true,
         phone: true,
+        whatsappNumber: true,
         verificationLevel: true,
         trustTier: true,
         isBusiness: true,
         isSuspended: true
+      }
+    });
+
+    return { user };
+  });
+
+  app.patch("/auth/me", { preHandler: authenticate }, async (request, reply) => {
+    const authUser = requireAuthUser(request);
+    const parsed = profileUpdateSchema.safeParse(request.body);
+
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid profile update payload." });
+    }
+
+    const user = await prisma.user.update({
+      where: { id: authUser.userId },
+      data: parsed.data,
+      select: {
+        id: true,
+        email: true,
+        emailMarketingOptIn: true,
+        emailVerifiedAt: true,
+        googleAccountId: true,
+        phone: true,
+        whatsappNumber: true,
+        verificationLevel: true,
+        trustTier: true,
+        isBusiness: true,
+        isSuspended: true
+      }
+    });
+
+    void writeAuditLog({
+      request,
+      actorUserId: authUser.userId,
+      action: "USER_PROFILE_UPDATED",
+      entityType: "USER",
+      entityId: authUser.userId,
+      metadata: {
+        updatedFields: Object.keys(parsed.data)
       }
     });
 
