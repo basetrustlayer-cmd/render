@@ -55,10 +55,9 @@ describe("listing route tenant and ownership contract", () => {
     expect(source).toContain('crypto.createHash("sha1")');
     expect(source).toContain("uploadUrl");
   });
-  it("uses canonical TrustLayer verification statuses for verifiedOnly filtering", () => {
-    expect(source).toContain('getVerifiedVerificationStatuses');
-    expect(source).toContain('verificationStatusCached: {');
-    expect(source).toContain('in: getVerifiedVerificationStatuses()');
+  it("uses Level 2+ verification for verifiedOnly filtering", () => {
+    expect(source).toContain("verificationLevel: { gte: 2 }");
+    expect(source).toContain("isSuspended: false");
     expect(source).not.toContain('verificationStatusCached: "VERIFIED"');
   });
 

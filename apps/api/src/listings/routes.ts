@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { createTrustLayerClient, getVerifiedVerificationStatuses } from "@render/trustlayer-sdk";
+import { createTrustLayerClient } from "@render/trustlayer-sdk";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../database/client.js";
@@ -150,9 +150,8 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
         ...(query.data.verifiedOnly
           ? {
               seller: {
-                verificationStatusCached: {
-                  in: getVerifiedVerificationStatuses()
-                }
+                verificationLevel: { gte: 2 },
+                isSuspended: false
               }
             }
           : {})
@@ -223,8 +222,6 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       where: { id: parsed.data.id },
       select: {
         id: true,
-        phone: true,
-        email: true,
         verificationLevel: true,
         verificationStatusCached: true,
         trustScore: true,
@@ -251,10 +248,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
     return {
       seller: {
         id: seller.id,
-        displayName:
-          seller.phone ??
-          seller.email ??
-          (seller.isBusiness ? "Verified Business Seller" : "Verified Render Seller"),
+        displayName: seller.isBusiness ? "Verified Business Seller" : "Verified Render Seller",
         verificationLevel: seller.verificationLevel,
         verificationStatus: seller.verificationStatusCached ?? "Verification Pending",
         trustScore: seller.trustScore,
@@ -413,8 +407,6 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
         seller: {
           select: {
             id: true,
-            phone: true,
-            email: true,
             verificationLevel: true,
             verificationStatusCached: true,
             trustScore: true,
@@ -442,12 +434,9 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
 
     const seller = {
       id: listing.seller.id,
-      displayName:
-        listing.seller.phone ??
-        listing.seller.email ??
-        (listing.seller.isBusiness
-          ? "Verified Business Seller"
-          : "Verified Render Seller"),
+      displayName: listing.seller.isBusiness
+        ? "Verified Business Seller"
+        : "Verified Render Seller",
       whatsappNumber: listing.seller.whatsappNumber,
       verificationLevel: listing.seller.verificationLevel,
       verificationStatus: listing.seller.verificationStatusCached ?? "Verification Pending",
@@ -504,11 +493,24 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
 
     const seller = await prisma.user.findUnique({
       where: { id: authUser.userId },
-      select: { id: true, trustlayerUserId: true }
+      select: { id: true, trustlayerUserId: true, verificationLevel: true }
     });
 
     if (!seller) {
       return reply.code(404).send({ error: "Seller not found." });
+    }
+
+    if (seller.verificationLevel < 2) {
+      void writeAuditLog({
+        request,
+        actorUserId: authUser.userId,
+        action: "LISTING_CREATE_BLOCKED_VERIFICATION_LEVEL",
+        entityType: "USER",
+        entityId: authUser.userId,
+        metadata: { requiredVerificationLevel: 2, currentVerificationLevel: seller.verificationLevel }
+      });
+
+      return reply.code(403).send({ error: "Level 2 verification is required to create listings." });
     }
 
     const listing = await prisma.listing.create({
