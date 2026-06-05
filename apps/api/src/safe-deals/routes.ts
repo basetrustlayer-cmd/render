@@ -122,7 +122,8 @@ export async function registerSafeDealRoutes(
       where: { id: authUser.userId },
       select: {
         id: true,
-        trustlayerUserId: true
+        trustlayerUserId: true,
+        verificationLevel: true
       }
     });
 
@@ -157,6 +158,20 @@ export async function registerSafeDealRoutes(
       return reply.code(404).send({
         error: "Buyer not found."
       });
+    }
+
+    if (buyer.verificationLevel < 2) {
+      void writeAuditLog({
+        request,
+        actorUserId: authUser.userId,
+        organizationId: listing.organizationId,
+        action: "SAFE_DEAL_CREATE_BLOCKED_BUYER_VERIFICATION_LEVEL",
+        entityType: "USER",
+        entityId: authUser.userId,
+        metadata: { listingId: listing.id, requiredVerificationLevel: 2, currentVerificationLevel: buyer.verificationLevel }
+      });
+
+      return reply.code(403).send({ error: "Level 2 verification is required to start a Safe Deal." });
     }
 
     const seller = await prisma.user.findUnique({
@@ -220,6 +235,22 @@ export async function registerSafeDealRoutes(
 
   const amount = listing.price;
     const amountNumber = Number(amount);
+
+    if (amountNumber < 200) {
+      void writeAuditLog({
+        request,
+        actorUserId: authUser.userId,
+        organizationId: listing.organizationId,
+        action: "SAFE_DEAL_CREATE_BLOCKED_MINIMUM_AMOUNT",
+        entityType: "LISTING",
+        entityId: listing.id,
+        metadata: { amountGhs: amountNumber, minimumAmountGhs: 200 }
+      });
+
+      return reply.code(400).send({ error: "Safe Deal minimum amount is GHS 200." });
+    }
+
+    const safeDealFeeGhs = Number((amountNumber * 0.015).toFixed(2));
     const trustLayer = getTrustLayerClient();
 
     const intent = await trustLayer.createSafeDealIntent(
@@ -249,7 +280,7 @@ export async function registerSafeDealRoutes(
         sellerId: listing.sellerId,
         organizationId: listing.organizationId,
         escrowAmountCached: amount,
-        escrowFeeCached: 0,
+        escrowFeeCached: safeDealFeeGhs,
         trustLayerEscrowId: intent.escrowId,
         checkoutUrl: intent.paymentUrl,
         escrowStatusCached: intent.status,

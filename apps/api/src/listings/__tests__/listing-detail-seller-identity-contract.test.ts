@@ -8,14 +8,13 @@ describe("listing detail seller identity contract", () => {
     "utf8"
   );
 
-  it("uses seller phone or email before generic seller labels on listing detail", () => {
-    expect(source).toContain("phone: true");
-    expect(source).toContain("email: true");
-    expect(source).toContain("listing.seller.phone ??");
-    expect(source).toContain("listing.seller.email ??");
+  it("does not expose seller phone or email on listing detail", () => {
+    expect(source).not.toContain("listing.seller.phone ??");
+    expect(source).not.toContain("listing.seller.email ??");
+    expect(source).toContain("whatsappNumber: listing.seller.whatsappNumber");
   });
 
-  it("still keeps safe generic fallbacks when no public seller label exists", () => {
+  it("keeps safe generic seller labels for public display", () => {
     expect(source).toContain("Verified Business Seller");
     expect(source).toContain("Verified Render Seller");
   });

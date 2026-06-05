@@ -1689,12 +1689,38 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     const existingListing = await prisma.listing.findFirst({
       where: {
         id: params.data.id,
+        deletedAt: null,
         ...(scope.organizationId ? { organizationId: scope.organizationId } : {})
+      },
+      include: {
+        images: {
+          select: { id: true },
+          take: 1
+        },
+        seller: {
+          select: {
+            id: true,
+            verificationLevel: true,
+            isSuspended: true
+          }
+        }
       }
     });
 
     if (!existingListing) {
       return reply.code(404).send({ error: "Listing not found." });
+    }
+
+    if (existingListing.seller.isSuspended) {
+      return reply.code(403).send({ error: "Suspended sellers cannot publish listings." });
+    }
+
+    if (existingListing.seller.verificationLevel < 2) {
+      return reply.code(403).send({ error: "Level 2 seller verification is required to publish listings." });
+    }
+
+    if (existingListing.images.length === 0) {
+      return reply.code(400).send({ error: "At least one listing image is required before publishing." });
     }
 
     const listing = await prisma.listing.update({
@@ -1731,6 +1757,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     const existingListing = await prisma.listing.findFirst({
       where: {
         id: params.data.id,
+        deletedAt: null,
         ...(scope.organizationId ? { organizationId: scope.organizationId } : {})
       }
     });

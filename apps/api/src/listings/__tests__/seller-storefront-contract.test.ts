@@ -2,28 +2,21 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-describe("seller storefront contract", () => {
-  const source = readFileSync(
-    resolve(process.cwd(), "src/listings/routes.ts"),
-    "utf8"
-  );
+const source = readFileSync(resolve(process.cwd(), "src/listings/routes.ts"), "utf8");
 
-  it("does not expose only generic seller display names when phone or email exists", () => {
-    expect(source).toContain("phone: true");
-    expect(source).toContain("email: true");
-    expect(source).toContain("seller.phone ??");
-    expect(source).toContain("seller.email ??");
+describe("seller storefront contract", () => {
+  it("uses generic seller display names instead of phone or email", () => {
+    expect(source).toContain('displayName: seller.isBusiness ? "Verified Business Seller" : "Verified Render Seller"');
+    expect(source).not.toContain("seller.phone ??");
+    expect(source).not.toContain("seller.email ??");
   });
 
-  it("returns listing card fields for seller storefront active listings", () => {
-    expect(source).toContain('app.get("/sellers/:id/listings"');
-    expect(source).toContain("sellerId: true");
-    expect(source).toContain("images: {");
-    expect(source).toContain("url: true");
-    expect(source).toContain("isCover: true");
-    expect(source).toContain("seller: {");
-    expect(source).toContain("verificationStatusCached: true");
-    expect(source).toContain("trustScore: true");
-    expect(source).toContain("trustTier: true");
+  it("exposes public trust and marketplace summary metadata", () => {
+    expect(source).toContain("verificationLevel: seller.verificationLevel");
+    expect(source).toContain('verificationStatus: seller.verificationStatusCached ?? "Verification Pending"');
+    expect(source).toContain("reviewCount: seller._count.reviewsReceived");
+    expect(source).toContain("safeDealRequestCount: seller._count.sales");
+    expect(source).toContain("activeListings: seller._count.listings");
+    expect(source).toContain("memberSince: seller.createdAt");
   });
 });
