@@ -5,6 +5,10 @@ import { buildDashboardListingsWhere, createDashboardListingsResponse } from "..
 
 const listingRoutes = readFileSync(resolve(process.cwd(), "src/listings/routes.ts"), "utf8");
 const authMiddleware = readFileSync(resolve(process.cwd(), "src/auth/middleware.ts"), "utf8");
+const dashboardListingsParser = readFileSync(
+  resolve(process.cwd(), "../../apps/web/lib/dashboard-listings.ts"),
+  "utf8"
+);
 const dashboardListingsPage = readFileSync(
   resolve(process.cwd(), "../../apps/web/app/dashboard/listings/page.tsx"),
   "utf8"
@@ -57,6 +61,13 @@ describe("dashboard listings contracts", () => {
     expect(dashboardListingsPage).toContain("Login required");
     expect(dashboardListingsPage).toContain("No listings yet");
     expect(dashboardListingsPage).toContain("Unable to load listings right now.");
+    expect(dashboardListingsPage).toContain("Seller access blocked");
     expect(dashboardListingsPage).toContain('router.replace("/login")');
+  });
+
+  it("guards against malformed dashboard listing responses before rendering rows", () => {
+    expect(dashboardListingsPage).toContain("parseDashboardListingsResponse(result)");
+    expect(dashboardListingsParser).toContain("Array.isArray(value.listings)");
+    expect(dashboardListingsPage).toContain('loadState === "ready" && listings.map');
   });
 });
