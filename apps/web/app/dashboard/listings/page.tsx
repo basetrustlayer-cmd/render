@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { DashboardShell } from "../../../components/dashboard/dashboard-shell";
-import { apiFetch } from "../../../lib/api";
+import { ApiError, apiFetch } from "../../../lib/api";
 import { useAuthStore } from "../../../store/auth";
 
 type Listing = {
@@ -18,28 +19,58 @@ type Listing = {
 };
 
 export default function DashboardListingsPage() {
+  const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const hydrate = useAuthStore((state) => state.hydrate);
+  const logout = useAuthStore((state) => state.logout);
+  const [hasHydrated, setHasHydrated] = useState(false);
   const [listings, setListings] = useState<Listing[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => { hydrate(); }, [hydrate]);
+  useEffect(() => {
+    hydrate();
+    setHasHydrated(true);
+  }, [hydrate]);
 
   useEffect(() => {
-    if (!user?.id) return;
+    function handleInvalidAuth() {
+      logout();
+      router.replace("/login");
+    }
+
+    window.addEventListener("render-auth-invalid", handleInvalidAuth);
+
+    return () => {
+      window.removeEventListener("render-auth-invalid", handleInvalidAuth);
+    };
+  }, [logout, router]);
+
+  useEffect(() => {
+    if (!hasHydrated || !user?.id) return;
 
     async function loadListings() {
+      setIsLoading(true);
+
       try {
         const result = await apiFetch<{ listings: Listing[] }>("/listings/my");
         setListings(result.listings);
         setError(null);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Unable to load listings.");
+        if (err instanceof ApiError && [401, 403].includes(err.status)) {
+          logout();
+          router.replace("/login");
+          return;
+        }
+
+        setError("Unable to load listings right now. Please refresh or try again later.");
+      } finally {
+        setIsLoading(false);
       }
     }
 
     void loadListings();
-  }, [user?.id]);
+  }, [hasHydrated, logout, router, user?.id]);
 
   return (
     <DashboardShell>
@@ -54,10 +85,28 @@ export default function DashboardListingsPage() {
           </Link>
         </div>
 
-        {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
+        {hasHydrated && !user?.id && (
+          <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+            <h3 className="text-base font-bold text-amber-950">Login required</h3>
+            <p className="mt-2 text-sm text-amber-800">
+              Sign in to manage your seller listings. You will be redirected safely instead of seeing a server error.
+            </p>
+            <Link href="/login" className="mt-4 inline-flex rounded-xl bg-gray-950 px-5 py-3 text-sm font-bold text-white hover:bg-black">
+              Go to login
+            </Link>
+          </div>
+        )}
+
+        {error && (
+          <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        {isLoading && <p className="mt-6 text-sm text-gray-600">Loading your listings…</p>}
 
         <div className="mt-6 grid gap-4">
-          {listings.map((listing) => {
+          {hasHydrated && user?.id && listings.map((listing) => {
             const cover = listing.images?.find((image) => image.isCover) ?? listing.images?.[0];
 
             return (
@@ -89,7 +138,7 @@ export default function DashboardListingsPage() {
             );
           })}
 
-          {listings.length === 0 && (
+          {hasHydrated && user?.id && !isLoading && listings.length === 0 && (
             <div className="rounded-3xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
               <p className="text-sm font-bold uppercase tracking-wide text-amber-700">
                 No listings yet
