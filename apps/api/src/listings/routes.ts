@@ -7,6 +7,7 @@ import { getSellerListingQuota } from "../billing/listing-quota.js";
 import { authenticate, requireAuthUser } from "../auth/middleware.js";
 import { writeAuditLog } from "../audit/log.js";
 import { resolveOptionalOrganizationContext, requireListingOrganizationAccess } from "../organizations/context.js";
+import { buildDashboardListingsWhere, createDashboardListingsResponse } from "./dashboard-listings.js";
 
 const listListingsQuerySchema = z.object({
   verifiedOnly: z.coerce.boolean().optional(),
@@ -197,16 +198,13 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
     const authUser = requireAuthUser(request);
 
     const listings = await prisma.listing.findMany({
-      where: {
-        sellerId: authUser.userId,
-        deletedAt: null
-      },
+      where: buildDashboardListingsWhere({ sellerId: authUser.userId }),
       include: listingInclude,
       orderBy: { createdAt: "desc" },
       take: 50
     });
 
-    return { listings };
+    return createDashboardListingsResponse(listings);
   });
 
 
