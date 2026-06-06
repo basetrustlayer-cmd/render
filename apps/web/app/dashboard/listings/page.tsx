@@ -5,18 +5,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { DashboardShell } from "../../../components/dashboard/dashboard-shell";
 import { ApiError, apiFetch } from "../../../lib/api";
+import { parseDashboardListingsResponse, type Listing } from "../../../lib/dashboard-listings";
 import { useAuthStore } from "../../../store/auth";
 
-type Listing = {
-  id: string;
-  title: string;
-  price: string;
-  category: string;
-  status: string;
-  viewsCount: number;
-  createdAt: string;
-  images?: { id: string; url: string; isCover: boolean }[];
-};
+type ListingsLoadState = "idle" | "loading" | "ready" | "loginRequired" | "blocked" | "error";
 
 export default function DashboardListingsPage() {
   const router = useRouter();
@@ -25,8 +17,7 @@ export default function DashboardListingsPage() {
   const logout = useAuthStore((state) => state.logout);
   const [hasHydrated, setHasHydrated] = useState(false);
   const [listings, setListings] = useState<Listing[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loadState, setLoadState] = useState<ListingsLoadState>("idle");
 
   useEffect(() => {
     hydrate();
@@ -50,22 +41,36 @@ export default function DashboardListingsPage() {
     if (!hasHydrated || !user?.id) return;
 
     async function loadListings() {
-      setIsLoading(true);
+      setLoadState("loading");
 
       try {
-        const result = await apiFetch<{ listings: Listing[] }>("/listings/my");
-        setListings(result.listings);
-        setError(null);
+        const result = await apiFetch<unknown>("/listings/my");
+        const parsedListings = parseDashboardListingsResponse(result);
+
+        if (!parsedListings) {
+          setListings([]);
+          setLoadState("error");
+          return;
+        }
+
+        setListings(parsedListings);
+        setLoadState("ready");
       } catch (err) {
-        if (err instanceof ApiError && [401, 403].includes(err.status)) {
+        setListings([]);
+
+        if (err instanceof ApiError && err.status === 401) {
           logout();
+          setLoadState("loginRequired");
           router.replace("/login");
           return;
         }
 
-        setError("Unable to load listings right now. Please refresh or try again later.");
-      } finally {
-        setIsLoading(false);
+        if (err instanceof ApiError && err.status === 403) {
+          setLoadState("blocked");
+          return;
+        }
+
+        setLoadState("error");
       }
     }
 
@@ -97,16 +102,31 @@ export default function DashboardListingsPage() {
           </div>
         )}
 
-        {error && (
-          <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
-            {error}
+        {loadState === "loginRequired" && (
+          <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
+            Your session expired. Redirecting you to login…
           </div>
         )}
 
-        {isLoading && <p className="mt-6 text-sm text-gray-600">Loading your listings…</p>}
+        {loadState === "blocked" && (
+          <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+            <h3 className="text-base font-bold text-amber-950">Seller access blocked</h3>
+            <p className="mt-2 text-sm text-amber-800">
+              Your account is blocked or suspended from managing listings. Contact support if this looks incorrect.
+            </p>
+          </div>
+        )}
+
+        {loadState === "error" && (
+          <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+            Unable to load listings right now.
+          </div>
+        )}
+
+        {loadState === "loading" && <p className="mt-6 text-sm text-gray-600">Loading your listings…</p>}
 
         <div className="mt-6 grid gap-4">
-          {hasHydrated && user?.id && listings.map((listing) => {
+          {hasHydrated && user?.id && loadState === "ready" && listings.map((listing) => {
             const cover = listing.images?.find((image) => image.isCover) ?? listing.images?.[0];
 
             return (
@@ -138,7 +158,7 @@ export default function DashboardListingsPage() {
             );
           })}
 
-          {hasHydrated && user?.id && !isLoading && listings.length === 0 && (
+          {hasHydrated && user?.id && loadState === "ready" && listings.length === 0 && (
             <div className="rounded-3xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
               <p className="text-sm font-bold uppercase tracking-wide text-amber-700">
                 No listings yet

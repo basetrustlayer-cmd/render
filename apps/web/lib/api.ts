@@ -251,7 +251,7 @@ export async function apiFetch<T>(
   const text = await response.text();
 
   if (!response.ok) {
-    if ([401, 403].includes(response.status)) {
+    if (response.status === 401) {
       clearBrowserAuth();
     }
 
