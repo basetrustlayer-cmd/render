@@ -77,3 +77,10 @@ export async function deleteListingImage(listingId: string, imageId: string) {
     method: "DELETE"
   });
 }
+
+
+export async function setListingCoverImage(listingId: string, imageId: string) {
+  return apiFetch(`/listings/${listingId}/images/${imageId}/cover`, {
+    method: "PATCH"
+  });
+}

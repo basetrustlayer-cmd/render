@@ -9,6 +9,7 @@ import {
   addListingImage,
   deleteListingImage,
   getListingImageUploadSignature,
+  setListingCoverImage,
   updateListing
 } from "../../../../../lib/listings";
 import { useAuthStore } from "../../../../../store/auth";
@@ -118,6 +119,17 @@ export default function EditListingPage() {
       setError(err instanceof Error ? err.message : "Unable to remove image.");
     } finally {
       setRemovingImageId(null);
+    }
+  }
+
+  async function makeCover(imageId: string) {
+    setError(null);
+
+    try {
+      await setListingCoverImage(params.id, imageId);
+      await loadListing();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to update cover image.");
     }
   }
 
@@ -281,14 +293,25 @@ export default function EditListingPage() {
                     <span className="text-xs font-semibold text-gray-500">
                       {image.isCover ? "Cover image" : "Listing image"}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => removeImage(image.id)}
-                      disabled={removingImageId === image.id}
-                      className="rounded-lg border border-red-200 px-3 py-1 text-xs font-bold text-red-700 hover:bg-red-50 disabled:opacity-50"
-                    >
-                      {removingImageId === image.id ? "Removing..." : "Remove"}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {!image.isCover && (
+                        <button
+                          type="button"
+                          onClick={() => makeCover(image.id)}
+                          className="rounded-lg border border-gray-200 px-3 py-1 text-xs font-bold text-gray-700 hover:bg-gray-50"
+                        >
+                          Make Cover
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeImage(image.id)}
+                        disabled={removingImageId === image.id}
+                        className="rounded-lg border border-red-200 px-3 py-1 text-xs font-bold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        {removingImageId === image.id ? "Removing..." : "Remove"}
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}

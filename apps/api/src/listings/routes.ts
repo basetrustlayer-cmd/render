@@ -834,6 +834,81 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
     };
   });
 
+  app.patch("/listings/:id/images/:imageId/cover", { preHandler: authenticate }, async (request, reply) => {
+    const authUser = requireAuthUser(request);
+    const params = z.object({
+      id: z.string().uuid(),
+      imageId: z.string().uuid()
+    }).safeParse(request.params);
+
+    if (!params.success) {
+      return reply.code(400).send({ error: "Invalid listing image payload." });
+    }
+
+    const listing = await prisma.listing.findFirst({
+      where: {
+        id: params.data.id,
+        deletedAt: null
+      },
+      select: {
+        id: true,
+        sellerId: true,
+        organizationId: true
+      }
+    });
+
+    if (!listing) {
+      return reply.code(404).send({ error: "Listing not found." });
+    }
+
+    if (listing.sellerId !== authUser.userId) {
+      return reply.code(403).send({ error: "Only the listing owner can update images." });
+    }
+
+    const hasOrganizationAccess = await requireListingOrganizationAccess({
+      request,
+      userId: authUser.userId,
+      organizationId: listing.organizationId
+    });
+
+    if (!hasOrganizationAccess) {
+      return reply.code(403).send({ error: "Invalid organization context." });
+    }
+
+    const image = await prisma.listingImage.findFirst({
+      where: {
+        id: params.data.imageId,
+        listingId: listing.id
+      },
+      select: { id: true }
+    });
+
+    if (!image) {
+      return reply.code(404).send({ error: "Listing image not found." });
+    }
+
+    await prisma.$transaction([
+      prisma.listingImage.updateMany({
+        where: { listingId: listing.id },
+        data: { isCover: false }
+      }),
+      prisma.listingImage.update({
+        where: { id: image.id },
+        data: {
+          isCover: true,
+          sortOrder: 0
+        }
+      })
+    ]);
+
+    const images = await prisma.listingImage.findMany({
+      where: { listingId: listing.id },
+      orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }, { createdAt: "asc" }]
+    });
+
+    return { images };
+  });
+
   app.delete("/listings/:id/images/:imageId", { preHandler: authenticate }, async (request, reply) => {
     const authUser = requireAuthUser(request);
     const params = z.object({
