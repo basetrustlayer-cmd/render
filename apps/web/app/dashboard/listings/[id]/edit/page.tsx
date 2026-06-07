@@ -53,7 +53,7 @@ export default function EditListingPage() {
   const [error, setError] = useState<string | null>(null);
 
   async function loadListing() {
-    const result = await apiFetch<{ listing: ListingDetail }>(`/listings/${params.id}`);
+    const result = await apiFetch<{ listing: ListingDetail }>(`/listings/${params.id}/owner`);
 
     setListing(result.listing);
     setForm({

@@ -590,6 +590,33 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
     });
   });
 
+  app.get("/listings/:id/owner", { preHandler: authenticate }, async (request, reply) => {
+    const authUser = requireAuthUser(request);
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+
+    if (!params.success) {
+      return reply.code(400).send({ error: "Invalid listing ID." });
+    }
+
+    const listing = await prisma.listing.findFirst({
+      where: {
+        id: params.data.id,
+        deletedAt: null
+      },
+      include: listingInclude
+    });
+
+    if (!listing) {
+      return reply.code(404).send({ error: "Listing not found." });
+    }
+
+    if (listing.sellerId !== authUser.userId) {
+      return reply.code(403).send({ error: "Only the listing owner can view this listing." });
+    }
+
+    return reply.send({ listing });
+  });
+
   app.put("/listings/:id", { preHandler: authenticate }, async (request, reply) => {
     const authUser = requireAuthUser(request);
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
