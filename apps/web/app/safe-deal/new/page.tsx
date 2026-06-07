@@ -52,7 +52,13 @@ function SafeDealCheckout() {
 
       window.location.href = result.checkout.authorizationUrl;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to start Safe Deal.");
+      const message = err instanceof Error ? err.message : "Unable to start Safe Deal.";
+
+      if (message.includes("Level 2 verification is required to start a Safe Deal")) {
+        setError("Complete Level 2 verification before starting a Safe Deal. Listings can be browsed without verification, but protected transactions require verification.");
+      } else {
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }
@@ -89,8 +95,17 @@ function SafeDealCheckout() {
 
         {!user && (
           <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-            Phone verification is required before starting a Safe Deal.
+            Log in before starting a Safe Deal. Protected transactions require Level 2 verification.
           </div>
+        )}
+
+        {error?.includes("Complete Level 2 verification") && (
+          <Link
+            href="/verify"
+            className="mt-4 inline-flex rounded-xl bg-amber-500 px-5 py-3 text-sm font-bold text-gray-950 hover:bg-amber-400"
+          >
+            Get Verified
+          </Link>
         )}
 
         <button
