@@ -1700,7 +1700,6 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         seller: {
           select: {
             id: true,
-            verificationLevel: true,
             isSuspended: true
           }
         }
@@ -1713,10 +1712,6 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
     if (existingListing.seller.isSuspended) {
       return reply.code(403).send({ error: "Suspended sellers cannot publish listings." });
-    }
-
-    if (existingListing.seller.verificationLevel < 2) {
-      return reply.code(403).send({ error: "Level 2 seller verification is required to publish listings." });
     }
 
     if (existingListing.images.length === 0) {

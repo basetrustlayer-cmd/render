@@ -491,24 +491,11 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
 
     const seller = await prisma.user.findUnique({
       where: { id: authUser.userId },
-      select: { id: true, trustlayerUserId: true, verificationLevel: true }
+      select: { id: true, trustlayerUserId: true }
     });
 
     if (!seller) {
       return reply.code(404).send({ error: "Seller not found." });
-    }
-
-    if (seller.verificationLevel < 2) {
-      void writeAuditLog({
-        request,
-        actorUserId: authUser.userId,
-        action: "LISTING_CREATE_BLOCKED_VERIFICATION_LEVEL",
-        entityType: "USER",
-        entityId: authUser.userId,
-        metadata: { requiredVerificationLevel: 2, currentVerificationLevel: seller.verificationLevel }
-      });
-
-      return reply.code(403).send({ error: "Level 2 verification is required to create listings." });
     }
 
     const listing = await prisma.listing.create({
