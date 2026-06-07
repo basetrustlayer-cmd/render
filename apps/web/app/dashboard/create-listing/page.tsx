@@ -146,7 +146,7 @@ export default function CreateListingPage() {
       <div className="rounded-2xl bg-white p-5 shadow-sm">
         <h2 className="text-xl font-bold text-gray-900">Create Listing</h2>
         <p className="mt-2 text-gray-600">
-          Add a marketplace item and upload listing photos. Phone verification is required before publishing.
+          Add a marketplace item and upload listing photos. Trust signals help buyers evaluate sellers, but verification is not required to publish.
         </p>
 
         {error && (

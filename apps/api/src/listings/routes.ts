@@ -509,28 +509,55 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       include: listingInclude
     });
 
-    const trustLayer = getTrustLayerClient();
-    const riskAssessment = await trustLayer.assessListingRisk(
-      {
-        listingId: listing.id,
-        sellerTlId: seller.trustlayerUserId,
-        title: parsed.data.title,
-        description: parsed.data.description,
-        priceGhs: parsed.data.price,
-        category: parsed.data.category,
-        condition: parsed.data.condition,
-        locationRegion: parsed.data.locationRegion,
-        metadata: {
-          renderListingId: listing.id,
-          renderSellerId: authUser.userId,
-          renderOrganizationId: organizationMembership?.organizationId ?? null
+    let riskAssessment: {
+      decision: "APPROVED" | "MANUAL_REVIEW" | "REJECTED";
+      riskScore: number | null;
+      reasons?: string[];
+      assessmentId?: string;
+    } = {
+      decision: "APPROVED",
+      riskScore: null,
+      reasons: []
+    };
+
+    try {
+      const trustLayer = getTrustLayerClient();
+      riskAssessment = await trustLayer.assessListingRisk(
+        {
+          listingId: listing.id,
+          sellerTlId: seller.trustlayerUserId,
+          title: parsed.data.title,
+          description: parsed.data.description,
+          priceGhs: parsed.data.price,
+          category: parsed.data.category,
+          condition: parsed.data.condition,
+          locationRegion: parsed.data.locationRegion,
+          metadata: {
+            renderListingId: listing.id,
+            renderSellerId: authUser.userId,
+            renderOrganizationId: organizationMembership?.organizationId ?? null,
+            source: "LISTING_CREATE"
+          }
+        },
+        {
+          correlationId: request.id,
+          idempotencyKey: `listing_risk_${listing.id}`
         }
-      },
-      {
-        correlationId: request.id,
-        idempotencyKey: `listing_risk_${listing.id}`
-      }
-    );
+      );
+    } catch {
+      void writeAuditLog({
+        request,
+        actorUserId: authUser.userId,
+        organizationId: organizationMembership?.organizationId,
+        action: "LISTING_RISK_ASSESSMENT_UNAVAILABLE",
+        entityType: "LISTING",
+        entityId: listing.id,
+        metadata: {
+          source: "LISTING_CREATE",
+          fallbackStatus: "LIVE"
+        }
+      });
+    }
 
     const moderatedStatus = mapListingRiskDecisionToStatus(riskAssessment.decision);
 
