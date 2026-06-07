@@ -654,29 +654,49 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       locationRegion: parsed.data.locationRegion ?? listing.locationRegion ?? undefined
     };
 
-    const trustLayer = getTrustLayerClient();
-    const riskAssessment = await trustLayer.assessListingRisk(
-      {
-        listingId: listing.id,
-        sellerTlId: listing.seller.trustlayerUserId,
-        title: proposedListing.title,
-        description: proposedListing.description,
-        priceGhs: proposedListing.price,
-        category: proposedListing.category,
-        condition: proposedListing.condition,
-        locationRegion: proposedListing.locationRegion,
-        metadata: {
-          renderListingId: listing.id,
-          renderSellerId: authUser.userId,
-          renderOrganizationId: listing.organizationId ?? null,
-          source: "OWNER_LISTING_UPDATE"
+    let riskAssessment: { decision: "APPROVED" | "MANUAL_REVIEW" | "REJECTED"; riskScore: number | null } = {
+      decision: "APPROVED",
+      riskScore: null
+    };
+
+    try {
+      const trustLayer = getTrustLayerClient();
+      riskAssessment = await trustLayer.assessListingRisk(
+        {
+          listingId: listing.id,
+          sellerTlId: listing.seller.trustlayerUserId,
+          title: proposedListing.title,
+          description: proposedListing.description,
+          priceGhs: proposedListing.price,
+          category: proposedListing.category,
+          condition: proposedListing.condition,
+          locationRegion: proposedListing.locationRegion,
+          metadata: {
+            renderListingId: listing.id,
+            renderSellerId: authUser.userId,
+            renderOrganizationId: listing.organizationId ?? null,
+            source: "OWNER_LISTING_UPDATE"
+          }
+        },
+        {
+          correlationId: request.id,
+          idempotencyKey: `listing_risk_update_${listing.id}_${request.id}`
         }
-      },
-      {
-        correlationId: request.id,
-        idempotencyKey: `listing_risk_update_${listing.id}_${Date.now()}`
-      }
-    );
+      );
+    } catch (error) {
+      void writeAuditLog({
+        request,
+        actorUserId: authUser.userId,
+        organizationId: listing.organizationId,
+        action: "LISTING_RISK_ASSESSMENT_UNAVAILABLE",
+        entityType: "LISTING",
+        entityId: listing.id,
+        metadata: {
+          source: "OWNER_LISTING_UPDATE",
+          fallbackStatus: "LIVE"
+        }
+      });
+    }
 
     const moderatedStatus = mapListingRiskDecisionToStatus(riskAssessment.decision);
 
