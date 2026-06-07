@@ -2,6 +2,7 @@ import Link from "next/link";
 import { TrustScoreBadge } from "./trust-score-badge";
 import { VerificationBadge } from "./verification-badge";
 import { ListingMessageButton } from "./listing-message-button";
+import { ListingSafeDealButton } from "./listing-safe-deal-button";
 import type { Listing } from "../lib/get-listings";
 
 type ListingCardProps = {
@@ -71,12 +72,10 @@ export function ListingCard({ listing, imageHeightClass = "h-56" }: ListingCardP
             sellerId={listing.sellerId}
             listingTitle={listing.title}
           />
-          <Link
-            href={`/login?next=/safe-deal/new?listingId=${listing.id}`}
-            className="rounded-xl bg-amber-500 px-3 py-2 text-center text-xs font-bold text-gray-950 hover:bg-amber-400"
-          >
-            Start Safe Deal
-          </Link>
+          <ListingSafeDealButton
+            listingId={listing.id}
+            sellerId={listing.sellerId}
+          />
         </div>
       </div>
     </article>
