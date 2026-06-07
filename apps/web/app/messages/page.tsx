@@ -209,12 +209,25 @@ function MessagesContent() {
 
       if (readIds.size === 0) return;
 
+      const readAt = new Date().toISOString();
+
       setMessages((current) =>
         current.map((message) =>
           readIds.has(message.id)
-            ? { ...message, readAt: message.readAt ?? new Date().toISOString() }
+            ? { ...message, readAt: message.readAt ?? readAt }
             : message
         )
+      );
+
+      setConversations((current) =>
+        current.map((conversation) => ({
+          ...conversation,
+          messages: conversation.messages.map((message) =>
+            readIds.has(message.id)
+              ? { ...message, readAt: message.readAt ?? readAt }
+              : message
+          )
+        }))
       );
     });
   }, [accessToken, messages, user?.id]);
