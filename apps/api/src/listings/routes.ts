@@ -634,7 +634,19 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       select: {
         id: true,
         sellerId: true,
-        organizationId: true
+        organizationId: true,
+        title: true,
+        description: true,
+        price: true,
+        category: true,
+        condition: true,
+        locationRegion: true,
+        expiresAt: true,
+        seller: {
+          select: {
+            trustlayerUserId: true
+          }
+        }
       }
     });
 
@@ -646,12 +658,48 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       return reply.code(403).send({ error: "Only the listing owner can edit this listing." });
     }
 
+    const proposedListing = {
+      title: parsed.data.title ?? listing.title,
+      description: parsed.data.description ?? listing.description ?? undefined,
+      price: Number(parsed.data.price ?? listing.price),
+      category: parsed.data.category ?? listing.category,
+      condition: parsed.data.condition ?? listing.condition ?? undefined,
+      locationRegion: parsed.data.locationRegion ?? listing.locationRegion ?? undefined
+    };
+
+    const trustLayer = getTrustLayerClient();
+    const riskAssessment = await trustLayer.assessListingRisk(
+      {
+        listingId: listing.id,
+        sellerTlId: listing.seller.trustlayerUserId,
+        title: proposedListing.title,
+        description: proposedListing.description,
+        priceGhs: proposedListing.price,
+        category: proposedListing.category,
+        condition: proposedListing.condition,
+        locationRegion: proposedListing.locationRegion,
+        metadata: {
+          renderListingId: listing.id,
+          renderSellerId: authUser.userId,
+          renderOrganizationId: listing.organizationId ?? null,
+          source: "OWNER_LISTING_UPDATE"
+        }
+      },
+      {
+        correlationId: request.id,
+        idempotencyKey: `listing_risk_update_${listing.id}_${Date.now()}`
+      }
+    );
+
+    const moderatedStatus = mapListingRiskDecisionToStatus(riskAssessment.decision);
+
     const updated = await prisma.listing.update({
       where: { id: listing.id },
       data: {
         ...parsed.data,
-        status: "PENDING",
-        fraudRiskScore: null
+        status: moderatedStatus,
+        fraudRiskScore: riskAssessment.riskScore,
+        expiresAt: listing.expiresAt ?? defaultListingExpiresAt()
       },
       include: listingInclude
     });
@@ -665,7 +713,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       entityId: listing.id,
       metadata: {
         updatedFields: Object.keys(parsed.data),
-        moderationStatus: "PENDING"
+        moderationStatus: moderatedStatus, riskDecision: riskAssessment.decision, riskScore: riskAssessment.riskScore
       }
     });
 
