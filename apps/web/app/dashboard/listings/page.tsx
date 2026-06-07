@@ -147,11 +147,17 @@ export default function DashboardListingsPage() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 md:justify-end">
-                  <Link href={`/listings/${listing.id}`} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">
-                    View
-                  </Link>
+                  {listing.status === "LIVE" ? (
+                    <Link href={`/listings/${listing.id}`} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+                      View Public
+                    </Link>
+                  ) : (
+                    <span className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700">
+                      Pending Review
+                    </span>
+                  )}
                   <Link href={`/dashboard/listings/${listing.id}/edit`} className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-black">
-                    Manage Photos
+                    Edit / Photos
                   </Link>
                 </div>
               </article>
