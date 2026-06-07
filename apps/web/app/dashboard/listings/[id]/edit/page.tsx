@@ -97,7 +97,8 @@ export default function EditListingPage() {
         locationRegion: form.locationRegion
       });
 
-      router.push(`/listings/${params.id}`);
+      await loadListing();
+      router.push(`/dashboard/listings/${params.id}/edit`);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to save listing.");
