@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createConversation } from "../../../lib/messages";
 import { useAuthStore } from "../../../store/auth";
+import { WhatsAppSellerButton } from "./whatsapp-seller-button";
 
 type Props = {
   listingId: string;
   sellerId: string;
   listingTitle: string;
   listingPrice: string | number;
+  sellerWhatsappNumber?: string | null;
 };
 
 const primaryButton =
@@ -22,14 +24,12 @@ const secondaryButton =
 const ownerButton =
   "w-full rounded-xl border border-emerald-600 bg-emerald-50 px-5 py-3 text-center text-sm font-bold text-emerald-800 hover:bg-emerald-100 sm:w-auto";
 
-export function ListingDetailActions({ listingId, sellerId, listingTitle, listingPrice }: Props) {
+export function ListingDetailActions({ listingId, sellerId, listingTitle, listingPrice, sellerWhatsappNumber }: Props) {
   const router = useRouter();
   const { accessToken, user, hydrate } = useAuthStore();
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    hydrate();
-  }, [hydrate]);
+  useEffect(() => { hydrate(); }, [hydrate]);
 
   const isOwner = user?.id === sellerId;
 
@@ -38,21 +38,15 @@ export function ListingDetailActions({ listingId, sellerId, listingTitle, listin
       router.push(`/login?next=/listings/${listingId}`);
       return;
     }
-
     setLoading(true);
-
     try {
       const conversation = await createConversation(accessToken, {
         buyerId: user.id,
         sellerId,
         listingId
       });
-
       const draft = `Hi, I'm interested in ${listingTitle}. Is it still available?`;
-
-      router.push(
-        `/messages?conversation=${conversation.id}&draft=${encodeURIComponent(draft)}`
-      );
+      router.push(`/messages?conversation=${conversation.id}&draft=${encodeURIComponent(draft)}`);
     } finally {
       setLoading(false);
     }
@@ -63,13 +57,11 @@ export function ListingDetailActions({ listingId, sellerId, listingTitle, listin
       router.push(`/login?next=/safe-deal/new?listingId=${listingId}`);
       return;
     }
-
     const params = new URLSearchParams({
       listingId,
       price: String(listingPrice),
       title: listingTitle,
     });
-
     router.push(`/safe-deal/new?${params.toString()}`);
   }
 
@@ -79,7 +71,6 @@ export function ListingDetailActions({ listingId, sellerId, listingTitle, listin
         <Link href={`/dashboard/listings/${listingId}/edit`} className={secondaryButton}>
           Manage listing
         </Link>
-
         <Link href="/dashboard/safe-deals" className={ownerButton}>
           Review Safe Deal Requests
         </Link>
@@ -96,7 +87,6 @@ export function ListingDetailActions({ listingId, sellerId, listingTitle, listin
       >
         Start Safe Deal
       </button>
-
       <button
         type="button"
         onClick={messageSeller}
@@ -105,6 +95,13 @@ export function ListingDetailActions({ listingId, sellerId, listingTitle, listin
       >
         {loading ? "Opening..." : "Message seller"}
       </button>
+      <WhatsAppSellerButton
+        listingId={listingId}
+        sellerId={sellerId}
+        listingTitle={listingTitle}
+        listingPrice={listingPrice}
+        sellerWhatsappNumber={sellerWhatsappNumber}
+      />
     </div>
   );
 }
