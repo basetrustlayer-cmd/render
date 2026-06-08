@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { DashboardShell } from "../../../../../components/dashboard/dashboard-shell";
+import { SafeDealShareButton } from "../../../../../components/safe-deal-share-button";
 import { apiFetch } from "../../../../../lib/api";
 import {
   addListingImage,
@@ -32,6 +33,10 @@ type ListingDetail = {
   images: ListingImage[];
 };
 
+type ProfileResponse = {
+  user: { whatsappNumber: string | null };
+};
+
 export default function EditListingPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -39,6 +44,7 @@ export default function EditListingPage() {
   const hydrate = useAuthStore((state) => state.hydrate);
 
   const [listing, setListing] = useState<ListingDetail | null>(null);
+  const [whatsappNumber, setWhatsappNumber] = useState<string | null>(null);
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -55,7 +61,6 @@ export default function EditListingPage() {
 
   async function loadListing() {
     const result = await apiFetch<{ listing: ListingDetail }>(`/listings/${params.id}/owner`);
-
     setListing(result.listing);
     setForm({
       title: result.listing.title ?? "",
@@ -67,9 +72,7 @@ export default function EditListingPage() {
     });
   }
 
-  useEffect(() => {
-    hydrate();
-  }, [hydrate]);
+  useEffect(() => { hydrate(); }, [hydrate]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -77,6 +80,10 @@ export default function EditListingPage() {
     loadListing().catch((err) => {
       setError(err instanceof Error ? err.message : "Unable to load listing.");
     });
+
+    apiFetch<ProfileResponse>("/auth/me")
+      .then((result) => setWhatsappNumber(result.user.whatsappNumber))
+      .catch(() => setWhatsappNumber(null));
   }, [user?.id, params.id]);
 
   function handleFiles(event: ChangeEvent<HTMLInputElement>) {
@@ -87,7 +94,6 @@ export default function EditListingPage() {
     event.preventDefault();
     setSaving(true);
     setError(null);
-
     try {
       await updateListing(params.id, {
         title: form.title,
@@ -97,7 +103,6 @@ export default function EditListingPage() {
         condition: form.condition as any,
         locationRegion: form.locationRegion
       });
-
       await loadListing();
       router.push(`/dashboard/listings/${params.id}/edit`);
       router.refresh();
@@ -111,7 +116,6 @@ export default function EditListingPage() {
   async function removeImage(imageId: string) {
     setRemovingImageId(imageId);
     setError(null);
-
     try {
       await deleteListingImage(params.id, imageId);
       await loadListing();
@@ -124,7 +128,6 @@ export default function EditListingPage() {
 
   async function makeCover(imageId: string) {
     setError(null);
-
     try {
       await setListingCoverImage(params.id, imageId);
       await loadListing();
@@ -134,46 +137,27 @@ export default function EditListingPage() {
   }
 
   async function uploadPhotos() {
-    if (!files || files.length === 0) {
-      setError("Choose at least one image.");
-      return;
-    }
-
+    if (!files || files.length === 0) { setError("Choose at least one image."); return; }
     setUploading(true);
     setError(null);
-
     try {
       const signature = await getListingImageUploadSignature(params.id);
-
       for (const [index, file] of Array.from(files).entries()) {
         const formData = new FormData();
         const cloudinaryApiKey = process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY;
-
-        if (!cloudinaryApiKey) {
-          throw new Error("NEXT_PUBLIC_CLOUDINARY_API_KEY is required.");
-        }
-
+        if (!cloudinaryApiKey) throw new Error("NEXT_PUBLIC_CLOUDINARY_API_KEY is required.");
         formData.append("file", file);
         formData.append("api_key", cloudinaryApiKey);
         formData.append("timestamp", String(signature.timestamp));
         formData.append("folder", signature.folder);
         formData.append("signature", signature.signature);
-
-        const response = await fetch(signature.uploadUrl, {
-          method: "POST",
-          body: formData
-        });
-
+        const response = await fetch(signature.uploadUrl, { method: "POST", body: formData });
         const uploaded = (await response.json()) as {
-          secure_url?: string;
-          public_id?: string;
-          error?: { message?: string };
+          secure_url?: string; public_id?: string; error?: { message?: string };
         };
-
         if (!response.ok || !uploaded.secure_url || !uploaded.public_id) {
           throw new Error(uploaded.error?.message ?? "Cloudinary upload failed.");
         }
-
         await addListingImage(params.id, {
           url: uploaded.secure_url,
           cloudinaryId: uploaded.public_id,
@@ -181,7 +165,6 @@ export default function EditListingPage() {
           sortOrder: (listing?.images.length ?? 0) + index
         });
       }
-
       setFiles(null);
       await loadListing();
     } catch (err) {
@@ -208,6 +191,30 @@ export default function EditListingPage() {
           </p>
         </div>
 
+        {/* Safe Deal share — shown once listing is loaded */}
+        {listing && (
+          <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+            <p className="mb-3 text-sm font-bold text-emerald-800">
+              Negotiating on WhatsApp? Send a Safe Deal link.
+            </p>
+            <SafeDealShareButton
+              listingId={listing.id}
+              listingTitle={listing.title}
+              listingPrice={listing.price}
+              sellerWhatsappNumber={whatsappNumber}
+            />
+            {!whatsappNumber && (
+              <p className="mt-2 text-xs text-emerald-700">
+                Add your WhatsApp number in{" "}
+                <Link href="/dashboard/profile" className="font-bold underline">
+                  Profile
+                </Link>{" "}
+                to enable WhatsApp sharing.
+              </p>
+            )}
+          </div>
+        )}
+
         {error && (
           <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             {error}
@@ -221,14 +228,12 @@ export default function EditListingPage() {
             className="rounded-xl border px-4 py-3"
             placeholder="Title"
           />
-
           <textarea
             value={form.description}
             onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
             className="min-h-32 rounded-xl border px-4 py-3"
             placeholder="Description"
           />
-
           <input
             value={form.price}
             onChange={(event) => setForm((current) => ({ ...current, price: event.target.value }))}
@@ -236,7 +241,6 @@ export default function EditListingPage() {
             placeholder="Price"
             inputMode="decimal"
           />
-
           <select
             value={form.category}
             onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))}
@@ -249,7 +253,6 @@ export default function EditListingPage() {
             <option value="SERVICES">Services</option>
             <option value="FASHION">Fashion</option>
           </select>
-
           <select
             value={form.condition}
             onChange={(event) => setForm((current) => ({ ...current, condition: event.target.value }))}
@@ -260,14 +263,12 @@ export default function EditListingPage() {
             <option value="GOOD">Good</option>
             <option value="FAIR">Fair</option>
           </select>
-
           <input
             value={form.locationRegion}
             onChange={(event) => setForm((current) => ({ ...current, locationRegion: event.target.value }))}
             className="rounded-xl border px-4 py-3"
             placeholder="Region"
           />
-
           <button
             type="submit"
             disabled={saving || !user}
@@ -284,11 +285,7 @@ export default function EditListingPage() {
             <div className="grid gap-4 md:grid-cols-3">
               {listing.images.map((image) => (
                 <div key={image.id} className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-                  <img
-                    src={image.url}
-                    alt={listing.title}
-                    className="h-40 w-full object-cover"
-                  />
+                  <img src={image.url} alt={listing.title} className="h-40 w-full object-cover" />
                   <div className="flex items-center justify-between gap-2 p-3">
                     <span className="text-xs font-semibold text-gray-500">
                       {image.isCover ? "Cover image" : "Listing image"}
@@ -329,7 +326,6 @@ export default function EditListingPage() {
             onChange={handleFiles}
             className="rounded-xl border px-4 py-3"
           />
-
           <button
             type="button"
             onClick={uploadPhotos}
