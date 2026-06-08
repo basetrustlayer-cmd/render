@@ -21,25 +21,70 @@ type SafeDealResponse = {
   };
 };
 
+function translateError(message: string): { heading: string; body: string; showVerify: boolean } {
+  if (message.includes("Level 2 verification") || message.includes("verification is required")) {
+    return {
+      heading: "Verification required",
+      body: "You need Ghana Card verification before starting a Safe Deal. It takes about 2 minutes.",
+      showVerify: true,
+    };
+  }
+  if (message.includes("200") || message.includes("minimum")) {
+    return {
+      heading: "Listing price too low",
+      body: "Safe Deal is available for listings priced GH₵ 200 and above.",
+      showVerify: false,
+    };
+  }
+  if (message.includes("own listing") || message.includes("self")) {
+    return {
+      heading: "This is your listing",
+      body: "You cannot start a Safe Deal on your own listing.",
+      showVerify: false,
+    };
+  }
+  return {
+    heading: "Something went wrong",
+    body: "Unable to start the Safe Deal. Please try again or contact support.",
+    showVerify: false,
+  };
+}
+
+const steps = [
+  {
+    n: "1",
+    heading: "Your money is held — not sent",
+    body: "When you fund a Safe Deal, your payment goes into escrow. The seller receives nothing until you confirm delivery.",
+    icon: "🔒",
+  },
+  {
+    n: "2",
+    heading: "Inspect before you release",
+    body: "After the seller marks delivery, you have 48 hours to inspect. Only you can release funds by tapping Confirm.",
+    icon: "✅",
+  },
+  {
+    n: "3",
+    heading: "Dispute protection if something's wrong",
+    body: "If the item isn't as described, open a dispute before confirming. Funds stay locked until the issue is resolved.",
+    icon: "🛡️",
+  },
+];
+
 function SafeDealCheckout() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const listingId = searchParams.get("listingId");
   const conversationId = searchParams.get("conversationId");
+  const listingPrice = searchParams.get("price");
+  const listingTitle = searchParams.get("title");
   const user = useAuthStore((state) => state.user);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function fundSafeDeal() {
-    if (!listingId) {
-      setError("Missing listing ID.");
-      return;
-    }
-
-    if (!user?.id) {
-      router.push("/login");
-      return;
-    }
+    if (!listingId) { setError("Missing listing ID."); return; }
+    if (!user?.id) { router.push("/login"); return; }
 
     setLoading(true);
     setError(null);
@@ -49,81 +94,114 @@ function SafeDealCheckout() {
         method: "POST",
         body: JSON.stringify({ listingId, conversationId: conversationId ?? undefined })
       });
-
       window.location.href = result.checkout.authorizationUrl;
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unable to start Safe Deal.";
-
-      if (message.includes("Level 2 verification is required to start a Safe Deal")) {
-        setError("Complete Level 2 verification before starting a Safe Deal. Listings can be browsed without verification, but protected transactions require verification.");
-      } else {
-        setError(message);
-      }
+      setError(err instanceof Error ? err.message : "Unable to start Safe Deal.");
     } finally {
       setLoading(false);
     }
   }
 
+  const parsedError = error ? translateError(error) : null;
+
+  const priceDisplay = listingPrice
+    ? `GH₵ ${Number(listingPrice).toLocaleString("en-GH", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+    : null;
+
   return (
-    <main className="mx-auto max-w-4xl p-4 sm:p-8">
-      <Link href="/listings" className="text-sm underline">
-        ← Back to listings
-      </Link>
+    <main className="min-h-screen bg-gray-50">
+      <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-16">
 
-      <section className="mt-6 rounded-2xl border bg-white p-5 shadow-sm sm:p-8">
-        <p className="font-bold text-amber-700">Safe Deal</p>
-        <h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">Start a Safe Deal Request</h1>
-        <p className="mt-4 max-w-2xl text-gray-600">
-          Create a structured Safe Deal request for this listing. TrustLayer handles the protected transaction workflow.
-        </p>
+        <Link href="/listings" className="text-sm font-semibold text-gray-600 hover:text-gray-950">
+          ← Back to listings
+        </Link>
 
-        <div className="mt-8 rounded-2xl border bg-gray-50 p-6">
-          <h2 className="text-2xl font-bold">Safe Deal Workflow</h2>
-          <ul className="mt-4 list-disc space-y-2 pl-5 text-gray-700">
-            <li>TrustLayer-managed protected transaction workflow</li>
-            <li>Buyer confirmation and inspection checkpoints</li>
-            <li>Dispute support through the TrustLayer workflow</li>
-            <li>Verified seller identity signals</li>
-          </ul>
+        {/* Header */}
+        <div className="mt-6">
+          <p className="text-sm font-bold uppercase tracking-widest text-amber-600">Safe Deal</p>
+          <h1 className="mt-2 text-3xl font-black tracking-tight text-gray-950 sm:text-4xl">
+            {listingTitle ? `Buy: ${listingTitle}` : "Start a Safe Deal"}
+          </h1>
+          {priceDisplay && (
+            <p className="mt-1 text-xl font-black text-gray-950">{priceDisplay}</p>
+          )}
         </div>
 
-        {error && (
-          <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+        {/* Trust explainer */}
+        <div className="mt-8 grid gap-3">
+          {steps.map((step) => (
+            <div key={step.n} className="flex gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-lg">
+                {step.icon}
+              </div>
+              <div>
+                <p className="font-bold text-gray-950">{step.heading}</p>
+                <p className="mt-1 text-sm leading-relaxed text-gray-600">{step.body}</p>
+              </div>
+            </div>
+          ))}
+        </div>
 
+        {/* Not logged in */}
         {!user && (
-          <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-            Log in before starting a Safe Deal. Protected transactions require Level 2 verification.
+          <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+            <p className="font-bold text-amber-900">Sign in to continue</p>
+            <p className="mt-1 text-sm text-amber-800">
+              You need to be signed in with a verified account to start a Safe Deal.
+            </p>
+            <Link
+              href="/login"
+              className="mt-3 inline-block rounded-xl bg-gray-950 px-5 py-2.5 text-sm font-bold text-white hover:bg-black"
+            >
+              Sign in
+            </Link>
           </div>
         )}
 
-        {error?.includes("Complete Level 2 verification") && (
-          <Link
-            href="/verify"
-            className="mt-4 inline-flex rounded-xl bg-amber-500 px-5 py-3 text-sm font-bold text-gray-950 hover:bg-amber-400"
-          >
-            Get Verified
-          </Link>
+        {/* Error */}
+        {parsedError && (
+          <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5">
+            <p className="font-bold text-red-800">{parsedError.heading}</p>
+            <p className="mt-1 text-sm text-red-700">{parsedError.body}</p>
+            {parsedError.showVerify && (
+              <Link
+                href="/verify"
+                className="mt-3 inline-block rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-gray-950 hover:bg-amber-400"
+              >
+                Get verified now →
+              </Link>
+            )}
+          </div>
         )}
 
+        {/* CTA */}
         <button
           onClick={fundSafeDeal}
-          disabled={loading || !listingId}
-          className="mt-8 w-full rounded-xl bg-black px-5 py-4 font-semibold text-white disabled:bg-gray-400"
+          disabled={loading || !listingId || !user}
+          className="mt-8 w-full rounded-2xl bg-emerald-700 px-5 py-4 text-base font-bold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500"
         >
-          {loading ? "Starting Safe Deal..." : "Start Safe Deal"}
+          {loading
+            ? "Starting Safe Deal…"
+            : priceDisplay
+            ? `Hold ${priceDisplay} in escrow — release only when satisfied`
+            : "Start Safe Deal"}
         </button>
-      </section>
+
+        <p className="mt-3 text-center text-xs text-gray-500">
+          Powered by TrustLayer · Your funds are not sent to the seller until you confirm delivery.
+        </p>
+      </div>
     </main>
   );
 }
 
-
 export default function NewSafeDealPage() {
   return (
-    <Suspense fallback={<main className="mx-auto max-w-4xl p-4 sm:p-8">Loading Safe Deal checkout...</main>}>
+    <Suspense fallback={
+      <main className="flex min-h-screen items-center justify-center text-gray-400">
+        Loading Safe Deal…
+      </main>
+    }>
       <SafeDealCheckout />
     </Suspense>
   );
