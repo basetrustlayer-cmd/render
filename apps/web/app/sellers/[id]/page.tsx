@@ -61,7 +61,7 @@ export default async function SellerStorefrontPage({ params }: PageProps) {
                 </div>
 
                 <div className="mt-5">
-                  <TrustScoreBadge score={seller.trustScore} tier={seller.trustTier} />
+                  <TrustScoreBadge score={seller.trustScore} tier={seller.trustTier} verificationStatus={seller.verificationStatus} />
                   <p className="mt-2 text-xs text-gray-500">{formatTrustSyncedAt(seller.trustLastSyncedAt)}</p>
                 </div>
 
@@ -70,7 +70,7 @@ export default async function SellerStorefrontPage({ params }: PageProps) {
                 </div>
 
                 <p className="mt-5 max-w-2xl text-sm leading-6 text-gray-600">
-                  Review this seller’s active listings, Render buyer reviews, and TrustLayer-provided verification projections before starting a conversation or Safe Deal.
+                  Review this seller's active listings, Render buyer reviews, and TrustLayer-provided verification projections before starting a conversation or Safe Deal.
                 </p>
               </div>
 
