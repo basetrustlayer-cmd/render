@@ -15,7 +15,6 @@ function formatGhsCompact(value: string | number | null | undefined): string {
   return `GH₵ ${safe.toLocaleString("en-GH", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
-
 type ListingCardProps = {
   listing: Listing;
   imageHeightClass?: string;
@@ -83,7 +82,7 @@ export function ListingCard({ listing, imageHeightClass = "h-56" }: ListingCardP
         <p className="text-sm text-gray-600">{listing.locationRegion ?? "Ghana"}</p>
 
         <div className="mt-4 flex flex-col gap-2">
-          <TrustScoreBadge score={score} tier={tier} />
+          <TrustScoreBadge score={score} tier={tier} verificationStatus={verificationStatus} />
           <Link
             href={`/sellers/${listing.sellerId}`}
             className="text-xs font-bold text-emerald-700 hover:text-emerald-900"
