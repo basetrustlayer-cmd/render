@@ -9,7 +9,6 @@ export type CreateListingInput = {
   locationRegion?: string;
 };
 
-
 export type UpdateListingInput = Partial<CreateListingInput>;
 
 export async function updateListing(listingId: string, input: UpdateListingInput) {
@@ -30,6 +29,12 @@ export type CreateListingResponse = {
   listing: {
     id: string;
   };
+  checklistRequired?: {
+    uploadCoverImage: boolean;
+    publishListing: boolean;
+    uploadImageUrl: string;
+    publishUrl: string;
+  };
   billing?: {
     status: "FREE_PLAN_INCLUDED" | "PENDING_PAYMENT";
     planCode?: string;
@@ -46,6 +51,25 @@ export async function createListing(input: CreateListingInput): Promise<CreateLi
   return apiFetch<CreateListingResponse>("/listings", {
     method: "POST",
     body: JSON.stringify(input)
+  });
+}
+
+export type PublishListingResponse = {
+  listing: {
+    id: string;
+    status: string;
+  };
+  riskAssessment?: {
+    decision: "APPROVED" | "MANUAL_REVIEW" | "REJECTED";
+    riskScore: number | null;
+    reasons: string[];
+  };
+};
+
+export async function publishListing(listingId: string): Promise<PublishListingResponse> {
+  return apiFetch<PublishListingResponse>(`/listings/${listingId}/publish`, {
+    method: "POST",
+    body: JSON.stringify({})
   });
 }
 
@@ -71,13 +95,11 @@ export async function getListingImageUploadSignature(listingId: string): Promise
   });
 }
 
-
 export async function deleteListingImage(listingId: string, imageId: string) {
   return apiFetch(`/listings/${listingId}/images/${imageId}`, {
     method: "DELETE"
   });
 }
-
 
 export async function setListingCoverImage(listingId: string, imageId: string) {
   return apiFetch(`/listings/${listingId}/images/${imageId}/cover`, {
