@@ -1,28 +1,42 @@
 type TrustScoreBadgeProps = {
   score: number | null;
   tier: string | null;
+  verificationStatus?: string | null;
 };
 
-export function TrustScoreBadge({ score, tier }: TrustScoreBadgeProps) {
-  const displayTier = tier ?? "UNSCORED";
-  const displayScore = score === null ? "No score" : `${score}`;
+const UNVERIFIED_STATUSES = new Set([
+  "UNAVAILABLE",
+  "UNKNOWN",
+  "PENDING",
+  "VERIFICATION_PENDING",
+  "SYNCING",
+  "NOT_VERIFIED",
+  "FAILED",
+  "REJECTED",
+  "SUSPENDED",
+  "BLOCKED",
+  "STALE",
+]);
+
+export function TrustScoreBadge({ score, tier, verificationStatus }: TrustScoreBadgeProps) {
+  // Don't show a score when verification status signals the data isn't trustworthy
+  const statusNormalized = (verificationStatus ?? "UNKNOWN").toUpperCase().replace(/\s+/g, "_");
+  if (score === null || tier === null || UNVERIFIED_STATUSES.has(statusNormalized)) {
+    return null;
+  }
 
   const color =
-    displayTier === "TRUSTED"
+    tier === "TRUSTED"
       ? "var(--green)"
-      : displayTier === "VERIFIED"
+      : tier === "VERIFIED"
         ? "var(--blue)"
-        : displayTier === "BUILDING"
+        : tier === "BUILDING"
           ? "var(--gold)"
           : "#8A837A";
 
   return (
     <span
-      title={
-        score === null || tier === null
-          ? "TrustLayer score projection unavailable or not yet synced"
-          : "TrustLayer trust score"
-      }
+      title="TrustLayer trust score"
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -43,7 +57,7 @@ export function TrustScoreBadge({ score, tier }: TrustScoreBadgeProps) {
           background: color
         }}
       />
-      {displayScore} · {displayTier}
+      {score} · {tier}
     </span>
   );
 }
