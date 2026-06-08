@@ -46,9 +46,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title: `${listing.title} — ${formatGhs(listing.price)}`,
     description,
-    alternates: {
-      canonical: url
-    },
+    alternates: { canonical: url },
     openGraph: {
       title: `${listing.title} — ${formatGhs(listing.price)} | Render.com.gh`,
       description,
@@ -153,7 +151,7 @@ export default async function ListingDetailPage({ params }: PageProps) {
               </strong>
               <p className="mt-2 text-sm text-emerald-800">{seller.trustBadge ?? seller.verificationStatus}</p>
               <div className="mt-3">
-                <TrustScoreBadge score={seller.trustScore} tier={seller.trustTier} />
+                <TrustScoreBadge score={seller.trustScore} tier={seller.trustTier} verificationStatus={seller.verificationStatus} />
                 <p className="mt-2 text-xs text-gray-500">{formatTrustSyncedAt(seller.trustLastSyncedAt)}</p>
               </div>
               <div className="mt-4">
