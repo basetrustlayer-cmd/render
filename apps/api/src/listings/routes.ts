@@ -32,6 +32,7 @@ const createListingSchema = z.object({
   title: z.string().min(3).max(200),
   description: z.string().optional(),
   price: z.number().positive(),
+  priceUnit: z.string().max(20).optional(),
   category: z.enum(["VEHICLES", "REAL_ESTATE", "ELECTRONICS", "JOBS", "SERVICES", "FASHION"]),
   condition: z.enum(["NEW", "LIKE_NEW", "GOOD", "FAIR"]).optional(),
   locationRegion: z.string().max(100).optional()
@@ -88,6 +89,7 @@ const updateListingSchema = z.object({
   title: z.string().min(3).max(120).optional(),
   description: z.string().min(10).max(5000).optional(),
   price: z.coerce.number().positive().optional(),
+  priceUnit: z.string().max(20).optional(),
   category: z.enum(["VEHICLES", "REAL_ESTATE", "ELECTRONICS", "JOBS", "SERVICES", "FASHION"]).optional(),
   condition: z.enum(["NEW", "LIKE_NEW", "GOOD", "FAIR"]).optional(),
   locationRegion: z.string().min(2).max(120).optional()
@@ -112,9 +114,9 @@ const listingInclude = {
 };
 
 // ─── Verification level constants ─────────────────────────────────────────────
-// Level 0: browse only
-// Level 1: phone verified → can post listings, message sellers
-// Level 2: Ghana Card → required for Safe Deal
+// Level 0: browse only — cannot post listings
+// Level 1: phone verified — can post listings, message sellers
+// Level 2: Ghana Card — required for Safe Deal (buyer and seller)
 const LISTING_MIN_VERIFICATION_LEVEL = 1;
 
 export async function registerListingRoutes(app: FastifyInstance): Promise<void> {
@@ -143,23 +145,12 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
               ]
             }
           : {}),
-        ...(query.data.category
-          ? { category: query.data.category }
-          : {}),
+        ...(query.data.category ? { category: query.data.category } : {}),
         ...(query.data.locationRegion
-          ? {
-              locationRegion: {
-                contains: query.data.locationRegion
-              }
-            }
+          ? { locationRegion: { contains: query.data.locationRegion } }
           : {}),
         ...(query.data.verifiedOnly
-          ? {
-              seller: {
-                verificationLevel: { gte: 2 },
-                isSuspended: false
-              }
-            }
+          ? { seller: { verificationLevel: { gte: 2 }, isSuspended: false } }
           : {})
       },
       select: {
@@ -168,6 +159,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
         title: true,
         description: true,
         price: true,
+        priceUnit: true,
         category: true,
         condition: true,
         locationRegion: true,
@@ -178,11 +170,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
             { sortOrder: "asc" as const },
             { createdAt: "asc" as const }
           ],
-          select: {
-            id: true,
-            url: true,
-            isCover: true
-          }
+          select: { id: true, url: true, isCover: true }
         },
         seller: {
           select: {
@@ -233,13 +221,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
         isBusiness: true,
         isSuspended: true,
         createdAt: true,
-        _count: {
-          select: {
-            listings: true,
-            reviewsReceived: true,
-            sales: true
-          }
-        }
+        _count: { select: { listings: true, reviewsReceived: true, sales: true } }
       }
     });
 
@@ -285,6 +267,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
         title: true,
         description: true,
         price: true,
+        priceUnit: true,
         category: true,
         condition: true,
         locationRegion: true,
@@ -295,11 +278,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
             { sortOrder: "asc" as const },
             { createdAt: "asc" as const }
           ],
-          select: {
-            id: true,
-            url: true,
-            isCover: true
-          }
+          select: { id: true, url: true, isCover: true }
         },
         seller: {
           select: {
@@ -326,10 +305,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
 
     const seller = await prisma.user.findUnique({
       where: { id: parsed.data.id },
-      select: {
-        id: true,
-        isSuspended: true
-      }
+      select: { id: true, isSuspended: true }
     });
 
     if (!seller || seller.isSuspended) {
@@ -337,35 +313,22 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
     }
 
     const reviews = await prisma.review.findMany({
-      where: {
-        revieweeId: parsed.data.id
-      },
+      where: { revieweeId: parsed.data.id },
       select: {
         id: true,
         rating: true,
         body: true,
         createdAt: true,
-        reviewer: {
-          select: {
-            id: true,
-            isBusiness: true
-          }
-        }
+        reviewer: { select: { id: true, isBusiness: true } }
       },
       orderBy: { createdAt: "desc" },
       take: 10
     });
 
     const aggregate = await prisma.review.aggregate({
-      where: {
-        revieweeId: parsed.data.id
-      },
-      _avg: {
-        rating: true
-      },
-      _count: {
-        rating: true
-      }
+      where: { revieweeId: parsed.data.id },
+      _avg: { rating: true },
+      _count: { rating: true }
     });
 
     return {
@@ -381,9 +344,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
         createdAt: review.createdAt,
         reviewer: {
           id: review.reviewer.id,
-          displayName: review.reviewer.isBusiness
-            ? "Verified Business Buyer"
-            : "Verified Render Buyer"
+          displayName: review.reviewer.isBusiness ? "Verified Business Buyer" : "Verified Render Buyer"
         }
       }))
     };
@@ -398,10 +359,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
     }
 
     const listing = await prisma.listing.findFirst({
-      where: {
-        id: parsed.data.id,
-        ...activeLiveListingWhere()
-      },
+      where: { id: parsed.data.id, ...activeLiveListingWhere() },
       include: {
         images: {
           orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }, { createdAt: "asc" }]
@@ -418,13 +376,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
             isBusiness: true,
             whatsappNumber: true,
             createdAt: true,
-            _count: {
-              select: {
-                listings: true,
-                reviewsReceived: true,
-                sales: true
-              }
-            }
+            _count: { select: { listings: true, reviewsReceived: true, sales: true } }
           }
         }
       }
@@ -436,9 +388,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
 
     const seller = {
       id: listing.seller.id,
-      displayName: listing.seller.isBusiness
-        ? "Verified Business Seller"
-        : "Verified Render Seller",
+      displayName: listing.seller.isBusiness ? "Verified Business Seller" : "Verified Render Seller",
       whatsappNumber: listing.seller.whatsappNumber,
       verificationLevel: listing.seller.verificationLevel,
       verificationStatus: listing.seller.verificationStatusCached ?? "Verification Pending",
@@ -455,12 +405,14 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
     return { listing, seller };
   });
 
+  // ─── POST /listings ──────────────────────────────────────────────────────────
+  // Phase 1 of 2 (G3 two-phase publish).
+  // Creates listing in PENDING. No risk assessment here.
+  // Seller uploads image(s) then calls POST /listings/:id/publish.
   app.post("/listings", { preHandler: authenticate }, async (request, reply) => {
     const authUser = requireAuthUser(request);
 
-    // ── G1: Verification gate ──────────────────────────────────────────────────
-    // Level 0 (unregistered/browse-only) cannot post listings.
-    // Level 1 (phone verified) and above can post.
+    // ── G1: Verification gate ────────────────────────────────────────────────
     if (authUser.verificationLevel < LISTING_MIN_VERIFICATION_LEVEL) {
       void writeAuditLog({
         request,
@@ -481,7 +433,6 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
         verifyUrl: "/verify"
       });
     }
-    // ── End G1 ────────────────────────────────────────────────────────────────
 
     const parsed = createListingSchema.safeParse(request.body);
 
@@ -528,6 +479,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       return reply.code(404).send({ error: "Seller not found." });
     }
 
+    // Create in PENDING — stays PENDING until publish is called with a cover image.
     const listing = await prisma.listing.create({
       data: {
         ...parsed.data,
@@ -535,67 +487,6 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
         organizationId: organizationMembership?.organizationId,
         status: "PENDING",
         expiresAt: defaultListingExpiresAt()
-      },
-      include: listingInclude
-    });
-
-    let riskAssessment: {
-      decision: "APPROVED" | "MANUAL_REVIEW" | "REJECTED";
-      riskScore: number | null;
-      reasons?: string[];
-      assessmentId?: string;
-    } = {
-      decision: "APPROVED",
-      riskScore: null,
-      reasons: []
-    };
-
-    try {
-      const trustLayer = getTrustLayerClient();
-      riskAssessment = await trustLayer.assessListingRisk(
-        {
-          listingId: listing.id,
-          sellerTlId: seller.trustlayerUserId,
-          title: parsed.data.title,
-          description: parsed.data.description,
-          priceGhs: parsed.data.price,
-          category: parsed.data.category,
-          condition: parsed.data.condition,
-          locationRegion: parsed.data.locationRegion,
-          metadata: {
-            renderListingId: listing.id,
-            renderSellerId: authUser.userId,
-            renderOrganizationId: organizationMembership?.organizationId ?? null,
-            source: "LISTING_CREATE"
-          }
-        },
-        {
-          correlationId: request.id,
-          idempotencyKey: `listing_risk_${listing.id}`
-        }
-      );
-    } catch {
-      void writeAuditLog({
-        request,
-        actorUserId: authUser.userId,
-        organizationId: organizationMembership?.organizationId,
-        action: "LISTING_RISK_ASSESSMENT_UNAVAILABLE",
-        entityType: "LISTING",
-        entityId: listing.id,
-        metadata: {
-          source: "LISTING_CREATE",
-          fallbackStatus: "LIVE"
-        }
-      });
-    }
-
-    const moderatedStatus = mapListingRiskDecisionToStatus(riskAssessment.decision);
-
-    const moderatedListing = await prisma.listing.update({
-      where: { id: listing.id },
-      data: {
-        status: moderatedStatus,
-        fraudRiskScore: riskAssessment.riskScore
       },
       include: listingInclude
     });
@@ -608,20 +499,18 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       entityType: "LISTING",
       entityId: listing.id,
       metadata: {
-        initialStatus: "PENDING",
-        moderatedStatus,
-        riskDecision: riskAssessment.decision,
-        riskScore: riskAssessment.riskScore,
-        riskAssessmentId: riskAssessment.assessmentId
+        status: "PENDING",
+        note: "Awaiting cover image upload and publish step (G3)"
       }
     });
 
     return reply.code(201).send({
-      listing: moderatedListing,
-      riskAssessment: {
-        decision: riskAssessment.decision,
-        riskScore: riskAssessment.riskScore,
-        reasons: riskAssessment.reasons ?? []
+      listing,
+      checklistRequired: {
+        uploadCoverImage: true,
+        publishListing: true,
+        uploadImageUrl: `/listings/${listing.id}/images/signature`,
+        publishUrl: `/listings/${listing.id}/publish`
       },
       billing: {
         status: "FREE_PLAN_INCLUDED",
@@ -630,6 +519,134 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
         activeListingsAfterCreate: quota.activeListings + 1,
         currency: quota.plan.currency,
         message: `Free plan listing ${quota.activeListings + 1}/${quota.activeListingLimit} used.`
+      }
+    });
+  });
+
+  // ─── POST /listings/:id/publish ──────────────────────────────────────────────
+  // Phase 2 of 2 (G3 two-phase publish).
+  // Enforces cover image requirement, runs TrustLayer risk assessment,
+  // promotes listing from PENDING to LIVE / MANUAL_REVIEW / REJECTED.
+  app.post("/listings/:id/publish", { preHandler: authenticate }, async (request, reply) => {
+    const authUser = requireAuthUser(request);
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+
+    if (!params.success) {
+      return reply.code(400).send({ error: "Invalid listing ID." });
+    }
+
+    const listing = await prisma.listing.findFirst({
+      where: { id: params.data.id, deletedAt: null },
+      include: { ...listingInclude, images: true }
+    });
+
+    if (!listing) {
+      return reply.code(404).send({ error: "Listing not found." });
+    }
+
+    if (listing.sellerId !== authUser.userId) {
+      return reply.code(403).send({ error: "Only the listing owner can publish this listing." });
+    }
+
+    if (listing.status !== "PENDING") {
+      return reply.code(409).send({
+        error: "ALREADY_PUBLISHED",
+        message: `This listing is already ${listing.status.toLowerCase()}.`,
+        currentStatus: listing.status
+      });
+    }
+
+    // ── G3: Cover image required ─────────────────────────────────────────────
+    const coverImage = listing.images.find((img) => img.isCover);
+
+    if (!coverImage) {
+      return reply.code(422).send({
+        error: "IMAGE_REQUIRED",
+        message: "At least one cover image is required before publishing your listing.",
+        uploadSignatureUrl: `/listings/${listing.id}/images/signature`
+      });
+    }
+
+    const seller = await prisma.user.findUnique({
+      where: { id: authUser.userId },
+      select: { id: true, trustlayerUserId: true }
+    });
+
+    if (!seller) {
+      return reply.code(404).send({ error: "Seller not found." });
+    }
+
+    let riskAssessment: {
+      decision: "APPROVED" | "MANUAL_REVIEW" | "REJECTED";
+      riskScore: number | null;
+      reasons?: string[];
+      assessmentId?: string;
+    } = { decision: "APPROVED", riskScore: null, reasons: [] };
+
+    try {
+      const trustLayer = getTrustLayerClient();
+      riskAssessment = await trustLayer.assessListingRisk(
+        {
+          listingId: listing.id,
+          sellerTlId: seller.trustlayerUserId,
+          title: listing.title,
+          description: listing.description ?? undefined,
+          priceGhs: Number(listing.price),
+          category: listing.category,
+          condition: listing.condition ?? undefined,
+          locationRegion: listing.locationRegion ?? undefined,
+          metadata: {
+            renderListingId: listing.id,
+            renderSellerId: authUser.userId,
+            source: "LISTING_PUBLISH",
+            imageCount: listing.images.length
+          }
+        },
+        {
+          correlationId: request.id,
+          idempotencyKey: `listing_risk_publish_${listing.id}`
+        }
+      );
+    } catch {
+      void writeAuditLog({
+        request,
+        actorUserId: authUser.userId,
+        action: "LISTING_RISK_ASSESSMENT_UNAVAILABLE",
+        entityType: "LISTING",
+        entityId: listing.id,
+        metadata: { source: "LISTING_PUBLISH", fallbackStatus: "LIVE" }
+      });
+    }
+
+    const moderatedStatus = mapListingRiskDecisionToStatus(riskAssessment.decision);
+
+    const published = await prisma.listing.update({
+      where: { id: listing.id },
+      data: { status: moderatedStatus, fraudRiskScore: riskAssessment.riskScore },
+      include: listingInclude
+    });
+
+    void writeAuditLog({
+      request,
+      actorUserId: authUser.userId,
+      action: "LISTING_PUBLISHED",
+      entityType: "LISTING",
+      entityId: listing.id,
+      metadata: {
+        moderatedStatus,
+        riskDecision: riskAssessment.decision,
+        riskScore: riskAssessment.riskScore,
+        riskAssessmentId: riskAssessment.assessmentId,
+        imageCount: listing.images.length
+      }
+    });
+
+    return reply.code(200).send({
+      listing: published,
+      riskAssessment: {
+        decision: riskAssessment.decision,
+        riskScore: riskAssessment.riskScore,
+        reasons: riskAssessment.reasons ?? []
       }
     });
   });
@@ -643,10 +660,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
     }
 
     const listing = await prisma.listing.findFirst({
-      where: {
-        id: params.data.id,
-        deletedAt: null
-      },
+      where: { id: params.data.id, deletedAt: null },
       include: listingInclude
     });
 
@@ -671,10 +685,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
     }
 
     const listing = await prisma.listing.findFirst({
-      where: {
-        id: params.data.id,
-        deletedAt: null
-      },
+      where: { id: params.data.id, deletedAt: null },
       select: {
         id: true,
         sellerId: true,
@@ -686,11 +697,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
         condition: true,
         locationRegion: true,
         expiresAt: true,
-        seller: {
-          select: {
-            trustlayerUserId: true
-          }
-        }
+        seller: { select: { trustlayerUserId: true } }
       }
     });
 
@@ -711,10 +718,10 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       locationRegion: parsed.data.locationRegion ?? listing.locationRegion ?? undefined
     };
 
-    let riskAssessment: { decision: "APPROVED" | "MANUAL_REVIEW" | "REJECTED"; riskScore: number | null } = {
-      decision: "APPROVED",
-      riskScore: null
-    };
+    let riskAssessment: {
+      decision: "APPROVED" | "MANUAL_REVIEW" | "REJECTED";
+      riskScore: number | null;
+    } = { decision: "APPROVED", riskScore: null };
 
     try {
       const trustLayer = getTrustLayerClient();
@@ -740,7 +747,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
           idempotencyKey: `listing_risk_update_${listing.id}_${request.id}`
         }
       );
-    } catch (error) {
+    } catch {
       void writeAuditLog({
         request,
         actorUserId: authUser.userId,
@@ -748,10 +755,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
         action: "LISTING_RISK_ASSESSMENT_UNAVAILABLE",
         entityType: "LISTING",
         entityId: listing.id,
-        metadata: {
-          source: "OWNER_LISTING_UPDATE",
-          fallbackStatus: "LIVE"
-        }
+        metadata: { source: "OWNER_LISTING_UPDATE", fallbackStatus: "LIVE" }
       });
     }
 
@@ -794,10 +798,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
     }
 
     const listing = await prisma.listing.findFirst({
-      where: {
-        id: params.data.id,
-        ...activeLiveListingWhere()
-      },
+      where: { id: params.data.id, ...activeLiveListingWhere() },
       select: { id: true }
     });
 
@@ -877,15 +878,8 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
     }
 
     const listing = await prisma.listing.findFirst({
-      where: {
-        id: params.data.id,
-        deletedAt: null
-      },
-      select: {
-        id: true,
-        sellerId: true,
-        organizationId: true
-      }
+      where: { id: params.data.id, deletedAt: null },
+      select: { id: true, sellerId: true, organizationId: true }
     });
 
     if (!listing) {
@@ -907,10 +901,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
     }
 
     const image = await prisma.listingImage.findFirst({
-      where: {
-        id: params.data.imageId,
-        listingId: listing.id
-      },
+      where: { id: params.data.imageId, listingId: listing.id },
       select: { id: true }
     });
 
@@ -925,10 +916,7 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       }),
       prisma.listingImage.update({
         where: { id: image.id },
-        data: {
-          isCover: true,
-          sortOrder: 0
-        }
+        data: { isCover: true, sortOrder: 0 }
       })
     ]);
 
@@ -952,18 +940,9 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
     }
 
     const image = await prisma.listingImage.findFirst({
-      where: {
-        id: params.data.imageId,
-        listingId: params.data.id
-      },
+      where: { id: params.data.imageId, listingId: params.data.id },
       include: {
-        listing: {
-          select: {
-            id: true,
-            sellerId: true,
-            organizationId: true
-          }
-        }
+        listing: { select: { id: true, sellerId: true, organizationId: true } }
       }
     });
 
@@ -985,17 +964,12 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       return reply.code(403).send({ error: "Invalid organization context." });
     }
 
-    await prisma.listingImage.delete({
-      where: { id: image.id }
-    });
+    await prisma.listingImage.delete({ where: { id: image.id } });
 
     if (image.isCover) {
       const nextImage = await prisma.listingImage.findFirst({
         where: { listingId: image.listing.id },
-        orderBy: [
-          { sortOrder: "asc" },
-          { createdAt: "asc" }
-        ]
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
       });
 
       if (nextImage) {
