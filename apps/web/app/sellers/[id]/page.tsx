@@ -40,7 +40,12 @@ export default async function SellerStorefrontPage({ params }: PageProps) {
             ← Back to listings
           </Link>
 
-          <CopyStorefrontLink sellerId={seller.id} />
+          <CopyStorefrontLink
+            sellerId={seller.id}
+            sellerName={seller.displayName}
+            trustScore={seller.trustScore}
+            trustTier={seller.trustTier}
+          />
         </div>
 
         <section className="mt-6 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
