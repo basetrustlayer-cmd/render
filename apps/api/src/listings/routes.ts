@@ -48,7 +48,6 @@ const createListingImageSchema = z.object({
   sortOrder: z.number().int().min(0).max(20).optional()
 });
 
-
 function getTrustLayerClient() {
   const apiKey = process.env.TRUSTLAYER_API_KEY;
   const baseUrl = process.env.TRUSTLAYER_API_URL;
@@ -111,6 +110,12 @@ const listingInclude = {
     }
   }
 };
+
+// ─── Verification level constants ─────────────────────────────────────────────
+// Level 0: browse only
+// Level 1: phone verified → can post listings, message sellers
+// Level 2: Ghana Card → required for Safe Deal
+const LISTING_MIN_VERIFICATION_LEVEL = 1;
 
 export async function registerListingRoutes(app: FastifyInstance): Promise<void> {
   app.get("/listings", async (request, reply) => {
@@ -206,7 +211,6 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
 
     return createDashboardListingsResponse(listings);
   });
-
 
   app.get("/sellers/:id", async (request, reply) => {
     const paramsSchema = z.object({ id: z.string().uuid() });
@@ -453,6 +457,32 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
 
   app.post("/listings", { preHandler: authenticate }, async (request, reply) => {
     const authUser = requireAuthUser(request);
+
+    // ── G1: Verification gate ──────────────────────────────────────────────────
+    // Level 0 (unregistered/browse-only) cannot post listings.
+    // Level 1 (phone verified) and above can post.
+    if (authUser.verificationLevel < LISTING_MIN_VERIFICATION_LEVEL) {
+      void writeAuditLog({
+        request,
+        actorUserId: authUser.userId,
+        action: "LISTING_CREATION_BLOCKED_UNVERIFIED",
+        entityType: "USER",
+        entityId: authUser.userId,
+        metadata: {
+          verificationLevel: authUser.verificationLevel,
+          requiredLevel: LISTING_MIN_VERIFICATION_LEVEL
+        }
+      });
+      return reply.code(403).send({
+        error: "VERIFICATION_REQUIRED",
+        requiredLevel: LISTING_MIN_VERIFICATION_LEVEL,
+        currentLevel: authUser.verificationLevel,
+        message: "Phone verification is required to create listings.",
+        verifyUrl: "/verify"
+      });
+    }
+    // ── End G1 ────────────────────────────────────────────────────────────────
+
     const parsed = createListingSchema.safeParse(request.body);
 
     if (!parsed.success) {
@@ -747,7 +777,9 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       entityId: listing.id,
       metadata: {
         updatedFields: Object.keys(parsed.data),
-        moderationStatus: moderatedStatus, riskDecision: riskAssessment.decision, riskScore: riskAssessment.riskScore
+        moderationStatus: moderatedStatus,
+        riskDecision: riskAssessment.decision,
+        riskScore: riskAssessment.riskScore
       }
     });
 
@@ -780,7 +812,6 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
 
     return { images };
   });
-
 
   app.post("/listings/:id/images/signature", { preHandler: authenticate }, async (request, reply) => {
     const authUser = requireAuthUser(request);
@@ -1024,14 +1055,14 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
     }
 
     const imageCount = await prisma.listingImage.count({
-    where: { listingId: listing.id }
-  });
+      where: { listingId: listing.id }
+    });
 
-  if (imageCount >= 10) {
-    return reply.code(400).send({ error: "Maximum 10 images per listing." });
-  }
+    if (imageCount >= 10) {
+      return reply.code(400).send({ error: "Maximum 10 images per listing." });
+    }
 
-  if (body.data.isCover) {
+    if (body.data.isCover) {
       await prisma.listingImage.updateMany({
         where: { listingId: listing.id },
         data: { isCover: false }
@@ -1048,7 +1079,14 @@ export async function registerListingRoutes(app: FastifyInstance): Promise<void>
       }
     });
 
-    void writeAuditLog({ request, actorUserId: authUser.userId, action: "LISTING_IMAGE_ADDED", entityType: "LISTING", entityId: listing.id, metadata: { imageId: image.id } });
+    void writeAuditLog({
+      request,
+      actorUserId: authUser.userId,
+      action: "LISTING_IMAGE_ADDED",
+      entityType: "LISTING",
+      entityId: listing.id,
+      metadata: { imageId: image.id }
+    });
 
     return reply.code(201).send({ image });
   });
