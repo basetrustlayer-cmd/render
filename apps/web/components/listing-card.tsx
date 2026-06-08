@@ -8,7 +8,13 @@ import { ListingMessageButton } from "./listing-message-button";
 import { ListingSafeDealButton } from "./listing-safe-deal-button";
 import { useAuthStore } from "../store/auth";
 import type { Listing } from "../lib/get-listings";
-import { formatGhsCompact } from "../lib/format";
+
+function formatGhsCompact(value: string | number | null | undefined): string {
+  const numeric = Number(value ?? 0);
+  const safe = Number.isFinite(numeric) ? numeric : 0;
+  return `GH₵ ${safe.toLocaleString("en-GH", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+}
+
 
 type ListingCardProps = {
   listing: Listing;
