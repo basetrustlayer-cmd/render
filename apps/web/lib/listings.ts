@@ -4,6 +4,7 @@ export type CreateListingInput = {
   title: string;
   description?: string;
   price: number;
+  priceUnit?: string;
   category: "VEHICLES" | "REAL_ESTATE" | "ELECTRONICS" | "JOBS" | "SERVICES" | "FASHION";
   condition?: "NEW" | "LIKE_NEW" | "GOOD" | "FAIR";
   locationRegion?: string;
