@@ -124,12 +124,14 @@ export default async function ListingDetailPage({ params }: PageProps) {
                   listingId={listing.id}
                   sellerId={seller.id}
                   listingTitle={listing.title}
+                  listingPrice={listing.price}
                 />
                 <WhatsAppSellerButton
                   sellerWhatsappNumber={seller.whatsappNumber}
                   listingId={listing.id}
                   sellerId={seller.id}
                   listingTitle={listing.title}
+                  listingPrice={listing.price}
                 />
               </div>
             </div>
