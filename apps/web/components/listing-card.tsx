@@ -55,17 +55,19 @@ export function ListingCard({ listing, imageHeightClass = "h-56" }: ListingCardP
           </div>
         )}
 
-        <div className={`${imageHeightClass} w-full overflow-hidden bg-gradient-to-br from-amber-100 to-emerald-100`}>
-          {coverImage ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={coverImage}
-              alt={listing.title}
-              className="h-full w-full object-cover object-center"
-              loading="lazy"
-            />
-          ) : null}
-        </div>
+        <Link href={`/listings/${listing.id}`} className="block">
+          <div className={`${imageHeightClass} w-full overflow-hidden bg-gradient-to-br from-amber-100 to-emerald-100`}>
+            {coverImage ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={coverImage}
+                alt={listing.title}
+                className="h-full w-full object-cover object-center transition duration-200 hover:scale-105"
+                loading="lazy"
+              />
+            ) : null}
+          </div>
+        </Link>
       </div>
 
       <div className="p-5">
@@ -74,9 +76,11 @@ export function ListingCard({ listing, imageHeightClass = "h-56" }: ListingCardP
           <VerificationBadge status={verificationStatus} compact />
         </div>
 
-        <h3 className="mt-2 line-clamp-2 text-xl font-bold text-gray-950">
-          {listing.title}
-        </h3>
+        <Link href={`/listings/${listing.id}`}>
+          <h3 className="mt-2 line-clamp-2 text-xl font-bold text-gray-950 hover:text-emerald-800 transition-colors">
+            {listing.title}
+          </h3>
+        </Link>
         <p className="mt-2 line-clamp-2 text-sm text-gray-600">{listing.description}</p>
         <p className="mt-4 text-lg font-black text-gray-950">{formatGhsCompact(listing.price)}</p>
         <p className="text-sm text-gray-600">{listing.locationRegion ?? "Ghana"}</p>
@@ -91,23 +95,25 @@ export function ListingCard({ listing, imageHeightClass = "h-56" }: ListingCardP
           </Link>
         </div>
 
-        <div className="mt-5 grid gap-2 sm:grid-cols-3">
+        <div className="mt-5 flex flex-col gap-2">
+          {/* Primary action — always full width */}
           <Link
             href={`/listings/${listing.id}`}
-            className="rounded-xl bg-black px-3 py-2 text-center text-xs font-bold text-white hover:bg-gray-800"
+            className="w-full rounded-xl bg-gray-950 px-4 py-3 text-center text-sm font-bold text-white hover:bg-black transition"
           >
             View details
           </Link>
 
+          {/* Secondary actions */}
           {isOwnListing ? (
             <Link
               href={`/dashboard/listings/${listing.id}/edit`}
-              className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-center text-xs font-bold text-amber-800 hover:bg-amber-100 sm:col-span-2"
+              className="w-full rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-center text-xs font-bold text-amber-800 hover:bg-amber-100 transition"
             >
               Edit listing
             </Link>
           ) : (
-            <>
+            <div className="grid grid-cols-2 gap-2">
               <ListingMessageButton
                 listingId={listing.id}
                 sellerId={listing.sellerId}
@@ -117,7 +123,7 @@ export function ListingCard({ listing, imageHeightClass = "h-56" }: ListingCardP
                 listingId={listing.id}
                 sellerId={listing.sellerId}
               />
-            </>
+            </div>
           )}
         </div>
       </div>
