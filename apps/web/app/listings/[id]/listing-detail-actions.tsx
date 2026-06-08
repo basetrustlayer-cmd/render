@@ -10,6 +10,7 @@ type Props = {
   listingId: string;
   sellerId: string;
   listingTitle: string;
+  listingPrice: string | number;
 };
 
 const primaryButton =
@@ -21,7 +22,7 @@ const secondaryButton =
 const ownerButton =
   "w-full rounded-xl border border-emerald-600 bg-emerald-50 px-5 py-3 text-center text-sm font-bold text-emerald-800 hover:bg-emerald-100 sm:w-auto";
 
-export function ListingDetailActions({ listingId, sellerId, listingTitle }: Props) {
+export function ListingDetailActions({ listingId, sellerId, listingTitle, listingPrice }: Props) {
   const router = useRouter();
   const { accessToken, user, hydrate } = useAuthStore();
   const [loading, setLoading] = useState(false);
@@ -47,7 +48,7 @@ export function ListingDetailActions({ listingId, sellerId, listingTitle }: Prop
         listingId
       });
 
-      const draft = `Hi, I’m interested in ${listingTitle}. Is it still available?`;
+      const draft = `Hi, I'm interested in ${listingTitle}. Is it still available?`;
 
       router.push(
         `/messages?conversation=${conversation.id}&draft=${encodeURIComponent(draft)}`
@@ -63,7 +64,13 @@ export function ListingDetailActions({ listingId, sellerId, listingTitle }: Prop
       return;
     }
 
-    router.push(`/safe-deal/new?listingId=${listingId}`);
+    const params = new URLSearchParams({
+      listingId,
+      price: String(listingPrice),
+      title: listingTitle,
+    });
+
+    router.push(`/safe-deal/new?${params.toString()}`);
   }
 
   if (isOwner) {
