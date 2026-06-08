@@ -9,6 +9,13 @@ import { ListingSafeDealButton } from "./listing-safe-deal-button";
 import { useAuthStore } from "../store/auth";
 import type { Listing } from "../lib/get-listings";
 
+function formatGhsCompact(value: string | number | null | undefined): string {
+  const numeric = Number(value ?? 0);
+  const safe = Number.isFinite(numeric) ? numeric : 0;
+  return `GH₵ ${safe.toLocaleString("en-GH", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+}
+
+
 type ListingCardProps = {
   listing: Listing;
   imageHeightClass?: string;
@@ -72,7 +79,7 @@ export function ListingCard({ listing, imageHeightClass = "h-56" }: ListingCardP
           {listing.title}
         </h3>
         <p className="mt-2 line-clamp-2 text-sm text-gray-600">{listing.description}</p>
-        <p className="mt-4 text-lg font-black text-gray-950">GH₵ {String(listing.price)}</p>
+        <p className="mt-4 text-lg font-black text-gray-950">{formatGhsCompact(listing.price)}</p>
         <p className="text-sm text-gray-600">{listing.locationRegion ?? "Ghana"}</p>
 
         <div className="mt-4 flex flex-col gap-2">

@@ -16,6 +16,12 @@ type PageProps = {
   params: { id: string };
 };
 
+function formatGhs(value: string | number | null | undefined): string {
+  const numeric = Number(value ?? 0);
+  const safe = Number.isFinite(numeric) ? numeric : 0;
+  return `GH₵ ${safe.toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString("en-US", {
     month: "short",
@@ -39,13 +45,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const url = `/listings/${listing.id}`;
 
   return {
-    title: `${listing.title} — GH₵ ${String(listing.price)}`,
+    title: `${listing.title} — ${formatGhs(listing.price)}`,
     description,
     alternates: {
       canonical: url
     },
     openGraph: {
-      title: `${listing.title} — GH₵ ${String(listing.price)} | Render.com.gh`,
+      title: `${listing.title} — ${formatGhs(listing.price)} | Render.com.gh`,
       description,
       url,
       type: "website",
@@ -53,7 +59,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     },
     twitter: {
       card: image ? "summary_large_image" : "summary",
-      title: `${listing.title} — GH₵ ${String(listing.price)} | Render.com.gh`,
+      title: `${listing.title} — ${formatGhs(listing.price)} | Render.com.gh`,
       description,
       images: image ? [image] : undefined
     }
