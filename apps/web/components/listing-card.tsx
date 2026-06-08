@@ -27,6 +27,79 @@ function resolveCoverImage(listing: Listing): string | undefined {
   );
 }
 
+const CATEGORY_ICONS: Record<string, { paths: string[]; color: string }> = {
+  VEHICLES: {
+    color: "#D1D5DB",
+    paths: [
+      "M8 17H5a2 2 0 01-2-2v-4l3-6h12l3 6v4a2 2 0 01-2 2h-3",
+      "M8 17a2 2 0 104 0 2 2 0 00-4 0M14 17a2 2 0 104 0 2 2 0 00-4 0",
+      "M3 11h18",
+    ],
+  },
+  REAL_ESTATE: {
+    color: "#D1D5DB",
+    paths: [
+      "M3 12l9-9 9 9",
+      "M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9",
+    ],
+  },
+  ELECTRONICS: {
+    color: "#D1D5DB",
+    paths: [
+      "M9 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V8l-5-5z",
+      "M9 3v5h5",
+      "M12 12v5M9.5 14.5h5",
+    ],
+  },
+  JOBS: {
+    color: "#D1D5DB",
+    paths: [
+      "M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z",
+      "M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2",
+      "M12 12v3M10.5 13.5h3",
+    ],
+  },
+  SERVICES: {
+    color: "#D1D5DB",
+    paths: [
+      "M12 6V4M12 20v-2M6.34 7.34L4.93 5.93M19.07 18.07l-1.41-1.41M4 12H2M22 12h-2M6.34 16.66l-1.41 1.41M19.07 5.93l-1.41 1.41",
+      "M12 16a4 4 0 100-8 4 4 0 000 8z",
+    ],
+  },
+  FASHION: {
+    color: "#D1D5DB",
+    paths: [
+      "M20.38 3.46L16 2a4 4 0 01-8 0L3.62 3.46a2 2 0 00-1.34 2.23l.58 3.57a1 1 0 00.99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 002-2V10h2.15a1 1 0 00.99-.84l.58-3.57a2 2 0 00-1.34-2.23z",
+    ],
+  },
+};
+
+function CategoryPlaceholder({ category, heightClass }: { category: string; heightClass: string }) {
+  const icon = CATEGORY_ICONS[category] ?? CATEGORY_ICONS.ELECTRONICS;
+  return (
+    <div className={`${heightClass} flex w-full flex-col items-center justify-center gap-3 bg-gray-100`}>
+      <svg
+        width="56"
+        height="56"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={icon.color}
+        strokeWidth="1.25"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        {icon.paths.map((d, i) => (
+          <path key={i} d={d} />
+        ))}
+      </svg>
+      <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+        {category.replace("_", " ")}
+      </span>
+    </div>
+  );
+}
+
 export function ListingCard({ listing, imageHeightClass = "h-56" }: ListingCardProps) {
   const { user, hydrate } = useAuthStore();
 
@@ -56,28 +129,30 @@ export function ListingCard({ listing, imageHeightClass = "h-56" }: ListingCardP
         )}
 
         <Link href={`/listings/${listing.id}`} className="block">
-          <div className={`${imageHeightClass} w-full overflow-hidden bg-gradient-to-br from-amber-100 to-emerald-100`}>
-            {coverImage ? (
-              // eslint-disable-next-line @next/next/no-img-element
+          {coverImage ? (
+            <div className={`${imageHeightClass} w-full overflow-hidden`}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={coverImage}
                 alt={listing.title}
                 className="h-full w-full object-cover object-center transition duration-200 hover:scale-105"
                 loading="lazy"
               />
-            ) : null}
-          </div>
+            </div>
+          ) : (
+            <CategoryPlaceholder category={listing.category} heightClass={imageHeightClass} />
+          )}
         </Link>
       </div>
 
       <div className="p-5">
         <div className="flex items-start justify-between gap-3">
-          <p className="text-sm font-bold text-amber-700">{listing.category}</p>
+          <p className="text-sm font-bold text-amber-700">{listing.category.replace("_", " ")}</p>
           <VerificationBadge status={verificationStatus} compact />
         </div>
 
         <Link href={`/listings/${listing.id}`}>
-          <h3 className="mt-2 line-clamp-2 text-xl font-bold text-gray-950 hover:text-emerald-800 transition-colors">
+          <h3 className="mt-2 line-clamp-2 text-xl font-bold text-gray-950 transition-colors hover:text-emerald-800">
             {listing.title}
           </h3>
         </Link>
@@ -96,10 +171,10 @@ export function ListingCard({ listing, imageHeightClass = "h-56" }: ListingCardP
         </div>
 
         <div className="mt-5 flex flex-col gap-2">
-          {/* Primary action — always full width */}
+          {/* Primary action — full width */}
           <Link
             href={`/listings/${listing.id}`}
-            className="w-full rounded-xl bg-gray-950 px-4 py-3 text-center text-sm font-bold text-white hover:bg-black transition"
+            className="w-full rounded-xl bg-gray-950 px-4 py-3 text-center text-sm font-bold text-white transition hover:bg-black"
           >
             View details
           </Link>
@@ -108,7 +183,7 @@ export function ListingCard({ listing, imageHeightClass = "h-56" }: ListingCardP
           {isOwnListing ? (
             <Link
               href={`/dashboard/listings/${listing.id}/edit`}
-              className="w-full rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-center text-xs font-bold text-amber-800 hover:bg-amber-100 transition"
+              className="w-full rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-center text-xs font-bold text-amber-800 transition hover:bg-amber-100"
             >
               Edit listing
             </Link>
