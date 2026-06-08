@@ -15,6 +15,12 @@ type PageProps = {
   params: { id: string };
 };
 
+function formatGhs(value: string | number | null | undefined): string {
+  const numeric = Number(value ?? 0);
+  const safe = Number.isFinite(numeric) ? numeric : 0;
+  return `GH₵ ${safe.toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString("en-US", {
     month: "short",
@@ -38,13 +44,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const url = `/listings/${listing.id}`;
 
   return {
-    title: `${listing.title} — GH₵ ${String(listing.price)}`,
+    title: `${listing.title} — ${formatGhs(listing.price)}`,
     description,
     alternates: {
       canonical: url
     },
     openGraph: {
-      title: `${listing.title} — GH₵ ${String(listing.price)} | Render.com.gh`,
+      title: `${listing.title} — ${formatGhs(listing.price)} | Render.com.gh`,
       description,
       url,
       type: "website",
@@ -52,7 +58,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     },
     twitter: {
       card: image ? "summary_large_image" : "summary",
-      title: `${listing.title} — GH₵ ${String(listing.price)} | Render.com.gh`,
+      title: `${listing.title} — ${formatGhs(listing.price)} | Render.com.gh`,
       description,
       images: image ? [image] : undefined
     }
@@ -105,7 +111,7 @@ export default async function ListingDetailPage({ params }: PageProps) {
               <p className="text-sm font-bold uppercase tracking-wide text-amber-700">{listing.category}</p>
               <h1 className="mt-2 text-3xl font-black tracking-tight text-gray-950 sm:text-4xl">{listing.title}</h1>
               <p className="mt-2 text-gray-600">{listing.locationRegion ?? "Ghana"}</p>
-              <p className="mt-5 text-3xl font-black text-gray-950">GH₵ {String(listing.price)}</p>
+              <p className="mt-5 text-3xl font-black text-gray-950">{formatGhs(listing.price)}</p>
               <p className="mt-5 text-base leading-8 text-gray-700">{listing.description || "No description provided."}</p>
 
               <div className="mt-6 grid gap-3 md:grid-cols-3">
@@ -142,7 +148,9 @@ export default async function ListingDetailPage({ params }: PageProps) {
 
             <div className="mt-5 rounded-2xl bg-emerald-50 p-5">
               <p className="text-sm font-semibold text-emerald-800">TrustScore</p>
-              <strong className="mt-2 block text-4xl text-emerald-700 sm:text-5xl">{seller.trustScore === null ? "Pending" : `${seller.trustScore}/1000`}</strong>
+              <strong className="mt-2 block text-4xl font-black text-emerald-700 sm:text-5xl">
+                {seller.trustScore === null ? "—" : `${seller.trustScore}/1000`}
+              </strong>
               <p className="mt-2 text-sm text-emerald-800">{seller.trustBadge ?? seller.verificationStatus}</p>
               <div className="mt-3">
                 <TrustScoreBadge score={seller.trustScore} tier={seller.trustTier} />
