@@ -6,9 +6,12 @@ export type Listing = {
   title: string;
   description?: string | null;
   price: number | string;
+  priceUnit?: string | null;
   category: string;
   condition?: string | null;
   locationRegion?: string | null;
+  viewsCount?: number;
+  savesCount?: number;
   createdAt: string;
   seller?: {
     verificationLevel: number;
@@ -33,13 +36,11 @@ export type ListingFilters = {
 
 export async function getListings(filters: ListingFilters = {}): Promise<{ listings: Listing[] }> {
   const params = new URLSearchParams();
-
   if (filters.q) params.set("q", filters.q);
   if (filters.category) params.set("category", filters.category);
   if (filters.locationRegion) params.set("locationRegion", filters.locationRegion);
   if (filters.sort) params.set("sort", filters.sort);
   if (filters.verifiedOnly) params.set("verifiedOnly", "true");
-
   const query = params.toString();
   return apiFetch<{ listings: Listing[] }>(`/listings${query ? `?${query}` : ""}`);
 }
