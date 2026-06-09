@@ -157,8 +157,22 @@ export function ListingCard({ listing, imageHeightClass = "h-56" }: ListingCardP
           </h3>
         </Link>
         <p className="mt-2 line-clamp-2 text-sm text-gray-600">{listing.description}</p>
-        <p className="mt-4 text-lg font-black text-gray-950">{formatGhsCompact(listing.price)}</p>
-        <p className="text-sm text-gray-600">{listing.locationRegion ?? "Ghana"}</p>
+
+        {/* UX-001: price + unit */}
+        <p className="mt-4 text-lg font-black text-gray-950">
+          {formatGhsCompact(listing.price)}
+          {listing.priceUnit ? (
+            <span className="ml-1 text-sm font-semibold text-gray-500">{listing.priceUnit}</span>
+          ) : null}
+        </p>
+
+        {/* UX-005: views count social proof */}
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-gray-600">{listing.locationRegion ?? "Ghana"}</p>
+          {(listing.viewsCount ?? 0) > 0 && (
+            <p className="text-xs text-gray-400">{listing.viewsCount?.toLocaleString()} views</p>
+          )}
+        </div>
 
         <div className="mt-4 flex flex-col gap-2">
           <TrustScoreBadge score={score} tier={tier} verificationStatus={verificationStatus} />
