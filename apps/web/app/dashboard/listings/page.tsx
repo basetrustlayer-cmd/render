@@ -25,16 +25,9 @@ export default function DashboardListingsPage() {
   }, [hydrate]);
 
   useEffect(() => {
-    function handleInvalidAuth() {
-      logout();
-      router.replace("/login");
-    }
-
+    function handleInvalidAuth() { logout(); router.replace("/login"); }
     window.addEventListener("render-auth-invalid", handleInvalidAuth);
-
-    return () => {
-      window.removeEventListener("render-auth-invalid", handleInvalidAuth);
-    };
+    return () => window.removeEventListener("render-auth-invalid", handleInvalidAuth);
   }, [logout, router]);
 
   useEffect(() => {
@@ -42,40 +35,25 @@ export default function DashboardListingsPage() {
 
     async function loadListings() {
       setLoadState("loading");
-
       try {
         const result = await apiFetch<unknown>("/listings/my");
         const parsedListings = parseDashboardListingsResponse(result);
-
-        if (!parsedListings) {
-          setListings([]);
-          setLoadState("error");
-          return;
-        }
-
+        if (!parsedListings) { setListings([]); setLoadState("error"); return; }
         setListings(parsedListings);
         setLoadState("ready");
       } catch (err) {
         setListings([]);
-
-        if (err instanceof ApiError && err.status === 401) {
-          logout();
-          setLoadState("loginRequired");
-          router.replace("/login");
-          return;
-        }
-
-        if (err instanceof ApiError && err.status === 403) {
-          setLoadState("blocked");
-          return;
-        }
-
+        if (err instanceof ApiError && err.status === 401) { logout(); setLoadState("loginRequired"); router.replace("/login"); return; }
+        if (err instanceof ApiError && err.status === 403) { setLoadState("blocked"); return; }
         setLoadState("error");
       }
     }
 
     void loadListings();
   }, [hasHydrated, logout, router, user?.id]);
+
+  // PL-004: count pending listings for the banner
+  const pendingListings = listings.filter((l) => l.status === "PENDING");
 
   return (
     <DashboardShell>
@@ -90,12 +68,24 @@ export default function DashboardListingsPage() {
           </Link>
         </div>
 
+        {/* PL-004: amber banner when any listings are stuck in PENDING */}
+        {loadState === "ready" && pendingListings.length > 0 && (
+          <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm font-bold text-amber-900">
+              {pendingListings.length === 1
+                ? "1 listing is waiting to be published"
+                : `${pendingListings.length} listings are waiting to be published`}
+            </p>
+            <p className="mt-1 text-sm text-amber-800">
+              Add a cover photo and publish to make {pendingListings.length === 1 ? "it" : "them"} visible to buyers.
+            </p>
+          </div>
+        )}
+
         {hasHydrated && !user?.id && (
           <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5">
             <h3 className="text-base font-bold text-amber-950">Login required</h3>
-            <p className="mt-2 text-sm text-amber-800">
-              Sign in to manage your seller listings. You will be redirected safely instead of seeing a server error.
-            </p>
+            <p className="mt-2 text-sm text-amber-800">Sign in to manage your seller listings.</p>
             <Link href="/login" className="mt-4 inline-flex rounded-xl bg-gray-950 px-5 py-3 text-sm font-bold text-white hover:bg-black">
               Go to login
             </Link>
@@ -123,14 +113,22 @@ export default function DashboardListingsPage() {
           </div>
         )}
 
-        {loadState === "loading" && <p className="mt-6 text-sm text-gray-600">Loading your listings…</p>}
+        {loadState === "loading" && (
+          <p className="mt-6 text-sm text-gray-600">Loading your listings…</p>
+        )}
 
         <div className="mt-6 grid gap-4">
           {hasHydrated && user?.id && loadState === "ready" && listings.map((listing) => {
-            const cover = listing.images?.find((image) => image.isCover) ?? listing.images?.[0];
+            const cover = listing.images?.find((img) => img.isCover) ?? listing.images?.[0];
+            const isPending = listing.status === "PENDING";
 
             return (
-              <article key={listing.id} className="grid gap-4 rounded-2xl border border-gray-200 p-4 md:grid-cols-[96px_1fr_auto]">
+              <article
+                key={listing.id}
+                className={`grid gap-4 rounded-2xl border p-4 md:grid-cols-[96px_1fr_auto] ${
+                  isPending ? "border-amber-200 bg-amber-50/40" : "border-gray-200"
+                }`}
+              >
                 {cover ? (
                   <img src={cover.url} alt={listing.title} className="h-24 w-24 rounded-xl object-cover" />
                 ) : (
@@ -142,21 +140,41 @@ export default function DashboardListingsPage() {
                 <div>
                   <h3 className="text-lg font-bold text-gray-900">{listing.title}</h3>
                   <p className="mt-1 text-sm text-gray-600">
-                    {listing.category} · GHS {listing.price} · {listing.status} · {listing.viewsCount} views
+                    {listing.category} · GH₵ {listing.price} · {listing.viewsCount} views
                   </p>
+                  {/* PL-004: clear status label */}
+                  {isPending ? (
+                    <p className="mt-1.5 text-xs font-bold text-amber-700">
+                      ⚠ Not live — add a photo and publish to make this visible to buyers
+                    </p>
+                  ) : (
+                    <p className="mt-1.5 text-xs font-semibold text-emerald-700">
+                      {listing.status === "LIVE" ? "✓ Live" : listing.status}
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 md:justify-end">
-                  {listing.status === "LIVE" ? (
-                    <Link href={`/listings/${listing.id}`} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">
-                      View Public
+                  {/* PL-004: Publish CTA for PENDING listings */}
+                  {isPending ? (
+                    <Link
+                      href={`/dashboard/listings/${listing.id}/edit`}
+                      className="rounded-lg border border-amber-400 bg-amber-500 px-4 py-2 text-sm font-bold text-gray-950 hover:bg-amber-400"
+                    >
+                      Publish listing →
                     </Link>
-                  ) : (
-                    <span className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700">
-                      Pending Review
-                    </span>
-                  )}
-                  <Link href={`/dashboard/listings/${listing.id}/edit`} className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-black">
+                  ) : listing.status === "LIVE" ? (
+                    <Link
+                      href={`/listings/${listing.id}`}
+                      className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    >
+                      View public
+                    </Link>
+                  ) : null}
+                  <Link
+                    href={`/dashboard/listings/${listing.id}/edit`}
+                    className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-black"
+                  >
                     Edit / Photos
                   </Link>
                 </div>
@@ -166,12 +184,8 @@ export default function DashboardListingsPage() {
 
           {hasHydrated && user?.id && loadState === "ready" && listings.length === 0 && (
             <div className="rounded-3xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
-              <p className="text-sm font-bold uppercase tracking-wide text-amber-700">
-                No listings yet
-              </p>
-              <h3 className="mt-2 text-2xl font-black text-gray-950">
-                Create your first marketplace listing.
-              </h3>
+              <p className="text-sm font-bold uppercase tracking-wide text-amber-700">No listings yet</p>
+              <h3 className="mt-2 text-2xl font-black text-gray-950">Create your first marketplace listing.</h3>
               <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-gray-600">
                 Add photos, pricing, category, and region so buyers can discover and contact you.
               </p>
