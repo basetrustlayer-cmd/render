@@ -18,7 +18,6 @@ const conditions = ["NEW", "LIKE_NEW", "GOOD", "FAIR"] as const;
 type Category = (typeof categories)[number];
 type Step = "form" | "uploading" | "publishing" | "done";
 
-// Smart unit options per category
 const CATEGORY_UNITS: Record<Category, { options: string[]; default: string }> = {
   REAL_ESTATE: { options: ["/month", "/year", "/night", "unit"], default: "/month" },
   VEHICLES:    { options: ["unit", "/day", "/month"],            default: "unit"   },
@@ -26,15 +25,6 @@ const CATEGORY_UNITS: Record<Category, { options: string[]; default: string }> =
   SERVICES:    { options: ["/hour", "/day", "/month", "unit"],   default: "/hour"  },
   ELECTRONICS: { options: ["unit", "/month"],                    default: "unit"   },
   FASHION:     { options: ["unit"],                              default: "unit"   },
-};
-
-const UNIT_LABELS: Record<string, string> = {
-  "unit":   "one-off",
-  "/month": "per month",
-  "/year":  "per year",
-  "/night": "per night",
-  "/day":   "per day",
-  "/hour":  "per hour",
 };
 
 export default function CreateListingPage() {
@@ -54,6 +44,11 @@ export default function CreateListingPage() {
   const [step, setStep] = useState<Step>("form");
   const [error, setError] = useState<string | null>(null);
 
+  // UX-008: verification nudge state
+  const [showVerifyNudge, setShowVerifyNudge] = useState(false);
+  const [nudgeDismissed, setNudgeDismissed] = useState(false);
+  const [publishedListingId, setPublishedListingId] = useState<string | null>(null);
+
   useEffect(() => { hydrate(); setHydrated(true); }, [hydrate]);
 
   useEffect(() => {
@@ -62,7 +57,6 @@ export default function CreateListingPage() {
     }
   }, [hydrated, user?.id, router]);
 
-  // When category changes, reset priceUnit to the smart default
   function handleCategoryChange(newCategory: Category) {
     setCategory(newCategory);
     setPriceUnit(CATEGORY_UNITS[newCategory].default);
@@ -138,6 +132,14 @@ export default function CreateListingPage() {
       const published = await publishListing(listingId);
 
       setStep("done");
+      setPublishedListingId(listingId);
+
+      // UX-008: show verification nudge for Level 1 users before redirecting
+      const isLevel1 = (user.verificationLevel ?? 0) === 1;
+      if (isLevel1 && !nudgeDismissed) {
+        setShowVerifyNudge(true);
+        return; // hold — user decides to verify or skip
+      }
 
       const billingNotice = created.billing
         ? `?billing=${encodeURIComponent(created.billing.message)}`
@@ -162,12 +164,71 @@ export default function CreateListingPage() {
     }
   }
 
+  function dismissNudgeAndContinue() {
+    setShowVerifyNudge(false);
+    setNudgeDismissed(true);
+    if (publishedListingId) {
+      router.push(`/dashboard/listings/${publishedListingId}/edit`);
+      router.refresh();
+    }
+  }
+
   if (!hydrated || !user?.id) {
     return (
       <DashboardShell>
         <div className="rounded-2xl bg-white p-5 shadow-sm">
           <h2 className="text-xl font-bold text-gray-900">Sign in required</h2>
           <p className="mt-2 text-gray-600">Please sign in before creating a listing.</p>
+        </div>
+      </DashboardShell>
+    );
+  }
+
+  // UX-008: verification nudge interstitial — shown after first successful publish for Level 1 users
+  if (showVerifyNudge && publishedListingId) {
+    return (
+      <DashboardShell>
+        <div className="rounded-2xl bg-white p-6 shadow-sm">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-2xl">
+            ✓
+          </div>
+          <h2 className="mt-4 text-2xl font-black text-gray-950">Your listing is live!</h2>
+          <p className="mt-2 text-gray-600">
+            One more step to unlock your verified badge and TrustScore — and get serious buyers to trust you.
+          </p>
+
+          <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+            <p className="font-bold text-amber-900">What Ghana Card verification unlocks</p>
+            <ul className="mt-3 grid gap-2">
+              {[
+                "Your TrustScore (0–1000) shown on every listing",
+                "Ghana Card Verified badge on your profile",
+                "Ability to receive Safe Deal payouts",
+                "Priority placement in verified-only search filter",
+              ].map((item) => (
+                <li key={item} className="flex items-start gap-2 text-sm text-amber-800">
+                  <span className="mt-0.5 font-bold text-amber-600">→</span>
+                  {item}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 text-xs text-amber-700">Takes about 2 minutes. Your Ghana Card number is all you need.</p>
+          </div>
+
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <Link
+              href={`/verify?next=/dashboard/listings/${publishedListingId}/edit`}
+              className="flex-1 rounded-xl bg-amber-500 px-5 py-3 text-center font-bold text-gray-950 hover:bg-amber-400 transition"
+            >
+              Verify now — takes 2 minutes
+            </Link>
+            <button
+              onClick={dismissNudgeAndContinue}
+              className="flex-1 rounded-xl border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition"
+            >
+              I'll do this later
+            </button>
+          </div>
         </div>
       </DashboardShell>
     );
@@ -221,7 +282,6 @@ export default function CreateListingPage() {
             disabled={submitting}
           />
 
-          {/* Price + unit selector inline */}
           <div>
             <label className="mb-1.5 block text-sm font-semibold text-gray-700">Price</label>
             <div className="flex overflow-hidden rounded-xl border border-gray-200 focus-within:border-amber-400 focus-within:ring-2 focus-within:ring-amber-100">
@@ -235,7 +295,6 @@ export default function CreateListingPage() {
                 placeholder="0"
                 disabled={submitting}
               />
-              {/* Smart unit selector — options change with category */}
               {unitConfig.options.length > 1 ? (
                 <select
                   value={priceUnit}
@@ -248,7 +307,6 @@ export default function CreateListingPage() {
                   ))}
                 </select>
               ) : (
-                // Single option — just display it as static text
                 <span className="flex items-center border-l border-gray-200 bg-gray-50 px-3 text-sm font-semibold text-gray-500">
                   {unitConfig.default === "unit" ? "one-off" : unitConfig.default}
                 </span>
@@ -266,7 +324,6 @@ export default function CreateListingPage() {
           </div>
 
           <div className="grid gap-5 md:grid-cols-2">
-            {/* Category — drives unit default */}
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-gray-700">Category</label>
               <select
@@ -280,7 +337,6 @@ export default function CreateListingPage() {
                 ))}
               </select>
             </div>
-
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-gray-700">Condition</label>
               <select
@@ -302,7 +358,6 @@ export default function CreateListingPage() {
             disabled={submitting}
           />
 
-          {/* Photos — required */}
           <div>
             <label className="mb-1.5 block text-sm font-semibold text-gray-700">
               Photos <span className="text-red-500">*</span>
