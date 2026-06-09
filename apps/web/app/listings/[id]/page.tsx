@@ -15,6 +15,8 @@ type PageProps = {
   params: { id: string };
 };
 
+const HIGH_VALUE_CATEGORIES = new Set(["VEHICLES", "REAL_ESTATE"]);
+
 function formatGhs(value: string | number | null | undefined): string {
   const numeric = Number(value ?? 0);
   const safe = Number.isFinite(numeric) ? numeric : 0;
@@ -42,13 +44,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const image = listing.images.find((item) => item.isCover)?.url ?? listing.images[0]?.url;
   const description = listingDescription(listing);
   const url = `/listings/${listing.id}`;
+  const priceDisplay = `${formatGhs(listing.price)}${listing.priceUnit ? ` ${listing.priceUnit}` : ""}`;
 
   return {
-    title: `${listing.title} — ${formatGhs(listing.price)}`,
+    title: `${listing.title} — ${priceDisplay}`,
     description,
     alternates: { canonical: url },
     openGraph: {
-      title: `${listing.title} — ${formatGhs(listing.price)} | Render.com.gh`,
+      title: `${listing.title} — ${priceDisplay} | Render.com.gh`,
       description,
       url,
       type: "website",
@@ -56,7 +59,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     },
     twitter: {
       card: image ? "summary_large_image" : "summary",
-      title: `${listing.title} — ${formatGhs(listing.price)} | Render.com.gh`,
+      title: `${listing.title} — ${priceDisplay} | Render.com.gh`,
       description,
       images: image ? [image] : undefined
     }
@@ -69,6 +72,10 @@ export default async function ListingDetailPage({ params }: PageProps) {
   const otherImages = listing.images.filter((image) => image.id !== coverImage?.id);
   const galleryImages = coverImage ? [coverImage, ...otherImages] : [];
   const description = listingDescription(listing);
+
+  // UX-012: high-value category signals
+  const isHighValue = HIGH_VALUE_CATEGORIES.has(listing.category);
+  const sellerIsVerified = seller.verificationLevel >= 2;
 
   const productJsonLd = {
     "@context": "https://schema.org",
@@ -106,10 +113,25 @@ export default async function ListingDetailPage({ params }: PageProps) {
             <ListingImageGallery title={listing.title} images={galleryImages} />
 
             <div className="p-6">
-              <p className="text-sm font-bold uppercase tracking-wide text-amber-700">{listing.category}</p>
+              <p className="text-sm font-bold uppercase tracking-wide text-amber-700">{listing.category.replace("_", " ")}</p>
               <h1 className="mt-2 text-3xl font-black tracking-tight text-gray-950 sm:text-4xl">{listing.title}</h1>
               <p className="mt-2 text-gray-600">{listing.locationRegion ?? "Ghana"}</p>
-              <p className="mt-5 text-3xl font-black text-gray-950">{formatGhs(listing.price)}</p>
+
+              {/* UX-001: price + unit */}
+              <p className="mt-5 text-3xl font-black text-gray-950">
+                {formatGhs(listing.price)}
+                {listing.priceUnit && (
+                  <span className="ml-2 text-lg font-semibold text-gray-500">{listing.priceUnit}</span>
+                )}
+              </p>
+
+              {/* UX-005: saves count social proof */}
+              {(listing.savesCount ?? 0) > 0 && (
+                <p className="mt-1 text-sm text-gray-500">
+                  {listing.savesCount?.toLocaleString()} {listing.savesCount === 1 ? "person has" : "people have"} saved this listing
+                </p>
+              )}
+
               <p className="mt-5 text-base leading-8 text-gray-700">{listing.description || "No description provided."}</p>
 
               <div className="mt-6 grid gap-3 md:grid-cols-3">
@@ -119,19 +141,37 @@ export default async function ListingDetailPage({ params }: PageProps) {
                 <Info label="Safe Deal" value="Available" />
               </div>
 
+              {/* UX-012: high-value category trust nudge */}
+              {isHighValue && !sellerIsVerified && (
+                <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm">
+                  <strong className="text-amber-900">Unverified seller</strong>
+                  <p className="mt-1 text-amber-800">
+                    This is a high-value listing. Consider messaging the seller to request Ghana Card verification before proceeding.
+                  </p>
+                  <Link
+                    href={`/listings?category=${listing.category}&verifiedOnly=true`}
+                    className="mt-2 block font-bold text-amber-900 underline"
+                  >
+                    Browse verified sellers only →
+                  </Link>
+                </div>
+              )}
+              {isHighValue && sellerIsVerified && (
+                <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm">
+                  <strong className="text-emerald-900">✓ Verified seller for a high-value transaction</strong>
+                  <p className="mt-1 text-emerald-800">
+                    This seller has completed Ghana Card verification. Use Safe Deal to keep your funds protected until delivery.
+                  </p>
+                </div>
+              )}
+
               <div className="mt-6 flex flex-wrap gap-3">
                 <ListingDetailActions
                   listingId={listing.id}
                   sellerId={seller.id}
                   listingTitle={listing.title}
                   listingPrice={listing.price}
-                />
-                <WhatsAppSellerButton
                   sellerWhatsappNumber={seller.whatsappNumber}
-                  listingId={listing.id}
-                  sellerId={seller.id}
-                  listingTitle={listing.title}
-                  listingPrice={listing.price}
                 />
               </div>
             </div>
