@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { getConversations, type Conversation } from "../../lib/messages";
 import { useAuthStore } from "../../store/auth";
 
 const navItems = [
@@ -15,10 +16,40 @@ const navItems = [
   { href: "/dashboard/profile",        label: "Profile"        },
 ];
 
+function countUnread(conversations: Conversation[], userId?: string): number {
+  if (!userId) return 0;
+  return conversations.reduce((total, conversation) => {
+    const unread = conversation.messages.filter(
+      (m) => m.senderId !== userId && !m.readAt
+    ).length;
+    return total + unread;
+  }, 0);
+}
+
 export function DashboardShell({ children }: { children: ReactNode }) {
-  const { user, hydrate, unreadMessageCount } = useAuthStore();
+  const { user, accessToken, hydrate } = useAuthStore();
+  const [conversations, setConversations] = useState<Conversation[]>([]);
 
   useEffect(() => { hydrate(); }, [hydrate]);
+
+  useEffect(() => {
+    if (!accessToken || !user?.id) { setConversations([]); return; }
+    const token = accessToken;
+    let cancelled = false;
+    async function load() {
+      try {
+        const loaded = await getConversations(token);
+        if (!cancelled) setConversations(loaded);
+      } catch { /* keep shell stable */ }
+    }
+    void load();
+    return () => { cancelled = true; };
+  }, [accessToken, user?.id]);
+
+  const unreadMessageCount = useMemo(
+    () => countUnread(conversations, user?.id),
+    [conversations, user?.id]
+  );
 
   return (
     <main className="min-h-screen bg-gray-50">
